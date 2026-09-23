@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import AlumnosModule from '../components/AlumnosModule';
+import CursosIngresoModule from '../components/CursosIngresoModule';
 
 const Icons = {
   Inicio: () => (
@@ -256,11 +257,13 @@ export default function AteneoLayout() {
       </aside>
 
       {/* ÁREA DE CONTENIDO */}
-      <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
+      <main style={{ flex: 1, padding: 0, overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
         {activeTab === 'alumnos' ? (
           <AlumnosModule />
+        ) : activeTab === 'cursos' ? (
+          <CursosIngresoModule />
         ) : (
-          <div>
+          <div style={{ padding: '32px 40px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <div>
                 <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
