@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import TurnosModule from '../components/TurnosModule';
+import type { TurnoConCupo } from '../services/turnos';
 
 // ÍCONOS SVG VECTORIALES
 const Icons = {
@@ -100,7 +102,7 @@ export default function AteneoLayout() {
     totalProfesores: 0,
     totalMaterias: 0,
     totalTurnos: 0,
-    turnosHoy: [] as any[],
+    turnosHoy: [] as TurnoConCupo[],
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -158,15 +160,11 @@ export default function AteneoLayout() {
   return (
     <>
       {/* Importación de fuente Plus Jakarta Sans */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
       <div style={{
         display: 'flex',
         minHeight: '100vh',
         backgroundColor: '#f4f6f8', // Gris perla limpio de fondo
-        fontFamily: '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif',
+        fontFamily: 'inherit',
         color: '#1e293b'
       }}>
         
@@ -303,6 +301,10 @@ export default function AteneoLayout() {
 
         {/* ÁREA PRINCIPAL BLANCO & GRIS */}
         <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto' }}>
+          {activeTab === 'turnos' ? (
+            <TurnosModule />
+          ) : (
+            <>
           
           {/* Header Principal */}
           <div style={{
@@ -436,12 +438,12 @@ export default function AteneoLayout() {
                         No hay registros disponibles
                       </div>
                       <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                        Utiliza el botón superior "+ Agregar" para programar una nueva clase.
+                        Utiliza el botón superior &quot;+ Agregar&quot; para programar una nueva clase.
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  data.turnosHoy.map((turno: any, index: number) => {
+                  data.turnosHoy.map((turno, index) => {
                     const tieneLugar = (turno.lugares_disponibles ?? 1) > 0;
                     return (
                       <tr key={turno.turno_id || index} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -497,7 +499,8 @@ export default function AteneoLayout() {
               </tbody>
             </table>
           </div>
-
+            </>
+          )}
         </main>
       </div>
     </>
