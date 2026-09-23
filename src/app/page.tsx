@@ -3,10 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import AlumnosModule from '../components/AlumnosModule';
+import ProfesoresModule from '../components/ProfesoresModule';
+import MateriasModule from '../components/MateriasModule';
+import CursosIngresoModule from '../components/CursosIngresoModule';
 import ClasesParticularesModule from '../components/ClasesParticularesModule';
 import TurnosModule from '../components/TurnosModule';
-import MateriasModule from '../components/MateriasModule';
-import ProfesoresModule from '../components/ProfesoresModule';
 
 const Icons = {
   Inicio: () => (
@@ -267,6 +268,8 @@ export default function AteneoLayout() {
           <ProfesoresModule />
         ) : activeTab === 'materias' ? (
           <MateriasModule />
+        ) : activeTab === 'cursos' ? (
+          <CursosIngresoModule />
         ) : activeTab === 'particulares' ? (
           <ClasesParticularesModule />
         ) : activeTab === 'turnos' ? (
