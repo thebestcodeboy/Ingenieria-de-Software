@@ -9,7 +9,7 @@ export const obtenerDatosTurnos = async () => {
     supabase.from('profesor_materia').select('profesor_id, materia_id'),
     supabase.from('curso_ingreso_materias').select('curso_id, materia_id'),
     supabase.from('aulas').select('numero, descripcion').order('numero'),
-    supabase.from('turnos_clase').select('id, materia_id, profesor_id, curso_id, clase_particular_id, aula_numero, fecha, hora_inicio, hora_fin, created_at').order('fecha').order('hora_inicio')
+    supabase.from('turnos_clase').select('id, tipo_actividad, materia_id, profesor_id, curso_id, clase_particular_id, aula_numero, fecha, hora_inicio, hora_fin, created_at').order('fecha').order('hora_inicio')
   ]);
 
   const response = [cursosRes, particularesRes, materiasRes, profesoresRes, profesorMateriaRes, cursoMateriaRes, aulasRes, turnosRes];
@@ -29,7 +29,9 @@ export const obtenerDatosTurnos = async () => {
 };
 
 export const registrarTurno = async ({ actividadTipo, actividadId, materiaId, profesorId, aulaNumero, fecha, horaInicio, horaFin }) => {
+  const tipoActividad = actividadTipo === 'curso' ? 'curso_ingreso' : 'clase_particular';
   const turno = {
+    tipo_actividad: tipoActividad,
     materia_id: materiaId,
     profesor_id: profesorId,
     aula_numero: Number(aulaNumero),
@@ -43,7 +45,7 @@ export const registrarTurno = async ({ actividadTipo, actividadId, materiaId, pr
   const { data, error } = await supabase
     .from('turnos_clase')
     .insert(turno)
-    .select('id, materia_id, profesor_id, curso_id, clase_particular_id, aula_numero, fecha, hora_inicio, hora_fin, created_at')
+    .select('id, tipo_actividad, materia_id, profesor_id, curso_id, clase_particular_id, aula_numero, fecha, hora_inicio, hora_fin, created_at')
     .single();
 
   if (error) throw error;
