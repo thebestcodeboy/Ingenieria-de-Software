@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import React, { useState } from 'react';
 import TurnosModule from '../components/TurnosModule';
 import type { TurnoConCupo } from '../services/turnos';
 import AlumnosModule from '../components/AlumnosModule';
@@ -74,6 +73,13 @@ const Icons = {
       <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   ),
+  EmptyBox: () => (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+      <line x1="12" y1="11" x2="12" y2="17" />
+      <line x1="9" y1="14" x2="15" y2="14" />
+    </svg>
+  ),
   Config: () => (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
@@ -84,32 +90,14 @@ const Icons = {
 
 export default function AteneoLayout() {
   const [activeTab, setActiveTab] = useState('turnos');
-  const [data, setData] = useState({
+  const data = {
     totalAlumnos: 0,
     totalProfesores: 0,
     totalMaterias: 0,
     totalTurnos: 0,
     turnosHoy: [] as TurnoConCupo[],
-  });
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterState, setFilterState] = useState('todos');
-
-  useEffect(() => {
-    async function loadTurnosCount() {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const { count } = await supabase
-          .from('turnos_clase')
-          .select('*', { count: 'exact', head: true })
-          .eq('fecha', today);
-        setTotalTurnosHoy(count || 0);
-      } catch (err) {
-        console.warn(err);
-      }
-    }
-    loadTurnosCount();
-  }, []);
+  };
+  const loading = false;
 
   const menuItems = [
     { id: 'inicio', label: 'Inicio', Icon: Icons.Inicio },
@@ -268,7 +256,9 @@ export default function AteneoLayout() {
 
         {/* ÁREA PRINCIPAL BLANCO & GRIS */}
         <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto' }}>
-          {activeTab === 'turnos' ? (
+          {activeTab === 'alumnos' ? (
+            <AlumnosModule />
+          ) : activeTab === 'turnos' ? (
             <TurnosModule />
           ) : (
             <>

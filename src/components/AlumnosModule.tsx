@@ -8,8 +8,27 @@ import {
   validarDireccionReal 
 } from '../services/alumnos';
 
+type Alumno = {
+  id?: string;
+  alumno_id?: string;
+  nombre: string;
+  apellido: string;
+  dni: string | number;
+  legajo?: string;
+  legajoVisual?: string;
+  activo?: boolean;
+  estado?: string;
+  telefono?: string | null;
+  email?: string | null;
+  direccion?: string | null;
+};
+
+function mensajeDeError(error: unknown, mensajePorDefecto: string): string {
+  return error instanceof Error ? error.message : mensajePorDefecto;
+}
+
 export default function AlumnosModule() {
-  const [alumnos, setAlumnos] = useState<any[]>([]);
+  const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -27,7 +46,7 @@ export default function AlumnosModule() {
   const [errorMsg, setErrorMsg] = useState('');
 
   // HU02 - Consultar Ficha del Alumno (Solo lectura)
-  const [selectedAlumno, setSelectedAlumno] = useState<any | null>(null);
+  const [selectedAlumno, setSelectedAlumno] = useState<Alumno | null>(null);
 
   const loadData = async () => {
     try {
@@ -35,9 +54,9 @@ export default function AlumnosModule() {
       setErrorMsg('');
       const data = await getAlumnos();
       setAlumnos(data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al cargar alumnos:', err);
-      const msg = err?.message || 'Error al conectar con la base de datos';
+      const msg = mensajeDeError(err, 'Error al conectar con la base de datos');
       setErrorMsg(msg);
     } finally {
       setLoading(false);
@@ -45,7 +64,25 @@ export default function AlumnosModule() {
   };
 
   useEffect(() => {
-    loadData();
+    let activo = true;
+
+    getAlumnos()
+      .then((data) => {
+        if (activo) setAlumnos(data || []);
+      })
+      .catch((error: unknown) => {
+        if (activo) {
+          console.error('Error al cargar alumnos:', error);
+          setErrorMsg(mensajeDeError(error, 'Error al conectar con la base de datos'));
+        }
+      })
+      .finally(() => {
+        if (activo) setLoading(false);
+      });
+
+    return () => {
+      activo = false;
+    };
   }, []);
 
   const cuilCalculado = useMemo(() => {
@@ -68,7 +105,7 @@ export default function AlumnosModule() {
   }, [alumnos, searchTerm]);
 
   // Formato formal en MAYÚSCULAS para legajos
-  const obtenerLegajo = (alumno: any, index: number) => {
+  const obtenerLegajo = (alumno: Alumno, index: number) => {
     if (alumno.legajo) return String(alumno.legajo).toUpperCase();
     return `LEG-2026-${String(index + 1).padStart(4, '0')}`;
   };
@@ -212,8 +249,8 @@ export default function AlumnosModule() {
       setFormData({ nombre: '', apellido: '', dni: '', telefono: '', email: '', direccion: '' });
       setShowModal(false);
       await loadData();
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Error al registrar el alumno.');
+    } catch (err: unknown) {
+      setErrorMsg(mensajeDeError(err, 'Error al registrar el alumno.'));
     } finally {
       setSubmitting(false);
     }
@@ -397,7 +434,7 @@ export default function AlumnosModule() {
                     No se encontraron alumnos registrados
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                    Registra un nuevo estudiante con el botón superior "+ Registrar Alumno".
+                    Registra un nuevo estudiante con el botón superior &quot;+ Registrar Alumno&quot;.
                   </div>
                 </td>
               </tr>
@@ -546,7 +583,11 @@ export default function AlumnosModule() {
                     borderRadius: '4px',
                     textTransform: 'uppercase'
                   }}>
-                    {(selectedAlumno.legajo || selectedAlumno.legajoVisual).toUpperCase()}
+                    {String(
+                      selectedAlumno.legajo ||
+                      selectedAlumno.legajoVisual ||
+                      obtenerLegajo(selectedAlumno, 0),
+                    ).toUpperCase()}
                   </span>
                   <span style={{ color: '#cbd5e1', fontWeight: 700 }}>•</span>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#0b1e33' }}>
