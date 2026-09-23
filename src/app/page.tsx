@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import TurnosModule from '../components/TurnosModule';
 import type { TurnoConCupo } from '../services/turnos';
+import AlumnosModule from '../components/AlumnosModule';
 
-// ÍCONOS SVG VECTORIALES
 const Icons = {
   Inicio: () => (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -79,19 +79,6 @@ const Icons = {
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
-  ),
-  Search: () => (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  ),
-  EmptyBox: () => (
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-      <line x1="12" y1="11" x2="12" y2="17" />
-      <line x1="9" y1="14" x2="15" y2="14" />
-    </svg>
   )
 };
 
@@ -109,39 +96,19 @@ export default function AteneoLayout() {
   const [filterState, setFilterState] = useState('todos');
 
   useEffect(() => {
-    async function loadData() {
+    async function loadTurnosCount() {
       try {
-        setLoading(true);
-
-        const [alumnosRes, profesoresRes, materiasRes, turnosRes] = await Promise.all([
-          supabase.from('alumnos').select('*', { count: 'exact', head: true }),
-          supabase.from('profesores').select('*', { count: 'exact', head: true }),
-          supabase.from('materias').select('*', { count: 'exact', head: true }),
-          supabase.from('turnos_clase').select('*', { count: 'exact', head: true }),
-        ]);
-
         const today = new Date().toISOString().split('T')[0];
-        const { data: turnosHoy } = await supabase
-          .from('vista_calendario')
-          .select('*')
-          .eq('fecha', today)
-          .order('hora_inicio', { ascending: true });
-
-        setData({
-          totalAlumnos: alumnosRes.count || 0,
-          totalProfesores: profesoresRes.count || 0,
-          totalMaterias: materiasRes.count || 0,
-          totalTurnos: turnosRes.count || 0,
-          turnosHoy: turnosHoy || [],
-        });
+        const { count } = await supabase
+          .from('turnos_clase')
+          .select('*', { count: 'exact', head: true })
+          .eq('fecha', today);
+        setTotalTurnosHoy(count || 0);
       } catch (err) {
-        console.error('Error cargando datos:', err);
-      } finally {
-        setLoading(false);
+        console.warn(err);
       }
     }
-
-    loadData();
+    loadTurnosCount();
   }, []);
 
   const menuItems = [
@@ -237,67 +204,67 @@ export default function AteneoLayout() {
               </div>
             </div>
 
-            {/* Menú de Ítems */}
-            <nav style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 12px' }}>
-              {menuItems.map(({ id, label, Icon }) => {
-                const isActive = activeTab === id;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setActiveTab(id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      backgroundColor: isActive ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
-                      color: isActive ? '#ffffff' : '#94a3b8',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: isActive ? 600 : 400,
-                      textAlign: 'left',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <span style={{
-                      display: 'flex',
-                      color: isActive ? '#60a5fa' : '#64748b'
-                    }}>
-                      <Icon />
-                    </span>
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+          {/* Menú */}
+          <nav style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 12px' }}>
+            {menuItems.map(({ id, label, Icon }) => {
+              const isActive = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: isActive ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
+                    color: isActive ? '#ffffff' : '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: isActive ? 600 : 400,
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span style={{
+                    display: 'flex',
+                    color: isActive ? '#60a5fa' : '#64748b'
+                  }}>
+                    <Icon />
+                  </span>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
-          {/* Footer de Configuración */}
-          <div style={{ padding: '0 16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
-            <button
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                width: '100%',
-                padding: '8px 10px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: 'transparent',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: 500
-              }}
-            >
-              <span style={{ display: 'flex', color: '#64748b' }}><Icons.Config /></span>
-              <span>Configuración</span>
-            </button>
-          </div>
-        </aside>
+        {/* Footer */}
+        <div style={{ padding: '0 16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              width: '100%',
+              padding: '8px 10px',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500
+            }}
+          >
+            <span style={{ display: 'flex', color: '#64748b' }}><Icons.Config /></span>
+            <span>Configuración</span>
+          </button>
+        </div>
+      </aside>
 
         {/* ÁREA PRINCIPAL BLANCO & GRIS */}
         <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto' }}>
@@ -328,78 +295,16 @@ export default function AteneoLayout() {
               </p>
             </div>
 
-            <button
-              onClick={() => alert(`Acción: Nuevo registro en ${activeTab}`)}
-              style={{
-                backgroundColor: '#0b1e33',
-                color: '#ffffff',
-                border: '1px solid #0b1e33',
-                borderRadius: '6px',
-                padding: '9px 18px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 1px 2px rgba(11, 30, 51, 0.1)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <span style={{ fontSize: '15px', lineHeight: 1 }}>+</span> Agregar
-            </button>
-          </div>
-
-          {/* Filtros: Buscador y Select */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '18px' }}>
             <div style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
               backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              gap: '10px'
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '48px 20px',
+              textAlign: 'center',
+              color: '#64748b'
             }}>
-              <Icons.Search />
-              <input
-                type="text"
-                placeholder="Buscar por materia, profesor o aula..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  width: '100%',
-                  fontSize: '13px',
-                  color: '#1e293b',
-                  backgroundColor: 'transparent',
-                  fontFamily: 'inherit'
-                }}
-              />
+              Módulo en preparación.
             </div>
-
-            <select
-              value={filterState}
-              onChange={(e) => setFilterState(e.target.value)}
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                padding: '0 14px',
-                fontSize: '13px',
-                color: '#334155',
-                cursor: 'pointer',
-                outline: 'none',
-                fontFamily: 'inherit',
-                fontWeight: 500
-              }}
-            >
-              <option value="todos">Todos los registros</option>
-              <option value="con_cupo">Con cupo disponible</option>
-              <option value="completos">Completos</option>
-            </select>
           </div>
 
           {/* Contenedor Tarjeta Blanca con Bordes Grises Suaves */}
