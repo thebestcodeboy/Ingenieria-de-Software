@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabaseClient';
 import AlumnosModule from '../components/AlumnosModule';
 import ClasesParticularesModule from '../components/ClasesParticularesModule';
 import TurnosModule from '../components/TurnosModule';
+import MateriasModule from '../components/MateriasModule';
+import ProfesoresModule from '../components/ProfesoresModule';
 
 const Icons = {
   Inicio: () => (
@@ -261,6 +263,10 @@ export default function AteneoLayout() {
       <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
         {activeTab === 'alumnos' ? (
           <AlumnosModule />
+        ) : activeTab === 'profesores' ? (
+          <ProfesoresModule />
+        ) : activeTab === 'materias' ? (
+          <MateriasModule />
         ) : activeTab === 'particulares' ? (
           <ClasesParticularesModule />
         ) : activeTab === 'turnos' ? (
