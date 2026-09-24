@@ -1,6 +1,36 @@
 import { supabase } from '../lib/supabaseClient';
 
 /**
+ * Cálculo formal de CUIT/CUIL argentino a partir del DNI (solo para visualización en el formulario)
+ */
+export function calcularCuilArgentino(dni, esFemenino = false) {
+  const dniLimpio = String(dni).replace(/\D/g, '');
+  if (dniLimpio.length !== 8) return null;
+
+  const prefijo = esFemenino ? '27' : '20';
+  const secuencia = `${prefijo}${dniLimpio}`;
+  
+  const multiplicadores = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  let acumulado = 0;
+
+  for (let i = 0; i < 10; i++) {
+    acumulado += parseInt(secuencia[i], 10) * multiplicadores[i];
+  }
+
+  const resto = acumulado % 11;
+  let digitoVerificador = 11 - resto;
+
+  if (digitoVerificador === 11) {
+    digitoVerificador = 0;
+  } else if (digitoVerificador === 10) {
+    digitoVerificador = 9;
+  }
+
+  const cuitStr = `${secuencia}-${digitoVerificador}`;
+  return { cuit: cuitStr, prefijo, dni: dniLimpio, verificador: digitoVerificador };
+}
+
+/**
  * Obtener la lista completa de profesores
  */
 export async function getProfesores() {
@@ -65,6 +95,7 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
 
   return data?.[0];
 }
+
 // HU13: Modificar datos de profesor existente
 export async function updateProfesor(id, { nombre, apellido, dni, email, telefono, materiasIds, turnos }) {
   const cleanNombre = nombre?.trim();

@@ -4,10 +4,14 @@ const PALABRAS_PROHIBIDAS = [
   'curso', 'test', 'prueba', 'asdf', 'admin', 'ninguno', 'falso', 'temporal'
 ];
 
-// Validador y normalizador de Nombre del Curso
+// Validador y normalizador de Nombre del Curso (Bloquea números estrictamente)
 export const normalizarYValidarNombreCurso = (texto) => {
-  if (!texto || texto.trim() === '') {
+  if (!texto || typeof texto !== 'string' || texto.trim() === '') {
     return { valido: false, error: 'El nombre del curso es obligatorio.' };
+  }
+
+  if (/\d/.test(texto)) {
+    return { valido: false, error: 'El nombre del curso no puede contener números. Use la descripción para indicar años o cohortes.' };
   }
 
   const limpio = texto.trim().replace(/\s+/g, ' ');
@@ -30,70 +34,91 @@ export const normalizarYValidarNombreCurso = (texto) => {
     }
   }
 
-  return { valido: true, textoLimpio: limpio };
+  return { valido: true, textoLimpio: limpio.toUpperCase() };
 };
 
-// Normalizador de Descripción
+// Normalizador de Descripción (Permite números, ej: 2027)
 export const normalizarDescripcion = (texto) => {
-  if (!texto || texto.trim() === '') return { valido: true, textoLimpio: null };
+  if (!texto || typeof texto !== 'string' || texto.trim() === '') return { valido: true, textoLimpio: null };
   const limpio = texto.trim().replace(/\s+/g, ' ');
   return { valido: true, textoLimpio: limpio };
 };
 
-// Obtener todas las materias disponibles para el selector/checklist
+// Obtener exclusivamente materias de NIVEL UNIVERSITARIO (Filtro seguro en JS)
 export const getMateriasDisponibles = async () => {
   try {
     const { data, error } = await supabase
       .from('materias')
-      .select('id, nombre')
+      .select('id, nombre, nivel')
       .order('nombre', { ascending: true });
 
     if (error) throw new Error(error.message);
-    return data || [];
+    
+    // Filtrar estrictamente en memoria para descartar cualquier rastro de secundario
+    const soloUniversitarias = (data || []).filter((m) => {
+      const niv = (m.nivel || '').toLowerCase();
+      return niv.includes('univ') && !niv.includes('secun');
+    });
+
+    return soloUniversitarias;
   } catch (err) {
     console.error('Error en getMateriasDisponibles:', err);
     throw err;
   }
 };
 
-// HU06: Listado de cursos de ingreso con sus materias asociadas
+// Listado de cursos de ingreso con sus materias asociadas
 export const getCursosIngreso = async () => {
   try {
-    const { data, error } = await supabase
+    const { data: cursosData, error: cursoError } = await supabase
       .from('cursos_ingreso')
-      .select(`
-        id,
-        nombre,
-        descripcion,
-        created_at,
-        curso_ingreso_materias (
-          materia_id,
-          materias (
-            id,
-            nombre
-          )
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
-    return data || [];
+    if (cursoError) throw new Error(cursoError.message);
+    if (!cursosData || cursosData.length === 0) return [];
+
+    const { data: relacionesData, error: relError } = await supabase
+      .from('curso_ingreso_materias')
+      .select(`
+        curso_id,
+        materia_id,
+        materias (
+          id,
+          nombre,
+          nivel
+        )
+      `);
+
+    if (relError) {
+      console.warn('Aviso al traer relaciones de materias:', relError.message);
+    }
+
+    const cursosMapeados = cursosData.map((curso) => {
+      const relsDelCurso = (relacionesData || []).filter(
+        (r) => String(r.curso_id) === String(curso.id)
+      );
+      return {
+        ...curso,
+        curso_ingreso_materias: relsDelCurso,
+      };
+    });
+
+    return cursosMapeados;
   } catch (err) {
     console.error('Error en getCursosIngreso:', err);
     throw err;
   }
 };
 
-// HU06: Registro de curso de ingreso
+// Registro de curso de ingreso
 export const createCursoIngreso = async ({ nombre, descripcion, materiasIds }) => {
   try {
-    // 1. Criterio HU06: Exige un nombre válido
     const valNombre = normalizarYValidarNombreCurso(nombre);
     if (!valNombre.valido) throw new Error(valNombre.error);
 
     const valDesc = normalizarDescripcion(descripcion);
 
-    // 2. Criterio HU06: Exige al menos una materia registrada y sin asociaciones repetidas
     if (!materiasIds || !Array.isArray(materiasIds)) {
       throw new Error('Debe proporcionar una lista válida de materias.');
     }
@@ -104,7 +129,7 @@ export const createCursoIngreso = async ({ nombre, descripcion, materiasIds }) =
       throw new Error('El curso de ingreso debe tener al menos una materia asociada.');
     }
 
-    // 3. Validar que no exista un curso con el mismo nombre
+    // Validar duplicados por nombre
     const { data: cursoExistente } = await supabase
       .from('cursos_ingreso')
       .select('id')
@@ -115,7 +140,7 @@ export const createCursoIngreso = async ({ nombre, descripcion, materiasIds }) =
       throw new Error(`Ya existe un curso registrado con el nombre "${valNombre.textoLimpio}".`);
     }
 
-    // 4. Insertar el curso
+    // Insertar curso
     const { data: nuevoCurso, error: errorCurso } = await supabase
       .from('cursos_ingreso')
       .insert([
@@ -129,7 +154,7 @@ export const createCursoIngreso = async ({ nombre, descripcion, materiasIds }) =
 
     if (errorCurso) throw new Error(errorCurso.message);
 
-    // 5. Insertar las materias asociadas en la tabla intermedia
+    // Insertar relaciones
     const relaciones = materiasUnicas.map((materiaId) => ({
       curso_id: nuevoCurso.id,
       materia_id: materiaId,
@@ -140,7 +165,6 @@ export const createCursoIngreso = async ({ nombre, descripcion, materiasIds }) =
       .insert(relaciones);
 
     if (errorRelaciones) {
-      // Rollback manual en caso de falla al asociar materias
       await supabase.from('cursos_ingreso').delete().eq('id', nuevoCurso.id);
       throw new Error(`Error al vincular las materias: ${errorRelaciones.message}`);
     }

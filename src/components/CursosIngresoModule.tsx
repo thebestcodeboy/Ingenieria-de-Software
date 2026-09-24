@@ -13,7 +13,7 @@ export default function CursosIngresoModule() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modal HU06 - Registrar Curso de Ingreso
+  // Modal - Registrar Curso de Ingreso
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -23,7 +23,7 @@ export default function CursosIngresoModule() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // HU06 - Detalle / Ficha del Curso
+  // Detalle / Ficha del Curso
   const [selectedCurso, setSelectedCurso] = useState<any | null>(null);
 
   const loadData = async () => {
@@ -63,6 +63,13 @@ export default function CursosIngresoModule() {
     });
   }, [cursos, searchTerm]);
 
+  // Bloquea números en tiempo real en el input del nombre del curso
+  const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorMsg('');
+    const val = e.target.value.replace(/[0-9]/g, '');
+    setFormData({ ...formData, nombre: val });
+  };
+
   const handleCheckboxChange = (materiaId: string) => {
     setErrorMsg('');
     setFormData((prev) => {
@@ -85,9 +92,8 @@ export default function CursosIngresoModule() {
     e.preventDefault();
     setErrorMsg('');
 
-    // Validación HU06: al menos una materia asociada
     if (formData.materiasSeleccionadas.length === 0) {
-      setErrorMsg('Debe seleccionar al menos una materia para el curso de ingreso.');
+      setErrorMsg('Debe seleccionar al menos una materia universitaria para el curso de ingreso.');
       return;
     }
 
@@ -110,27 +116,12 @@ export default function CursosIngresoModule() {
   };
 
   return (
-    <div style={{
-      width: '100%',
-      padding: '32px 40px',
-      boxSizing: 'border-box',
-      color: '#0f172a'
-    }}>
+    <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a' }}>
+      
       {/* Encabezado */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px'
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{
-            fontSize: '24px',
-            fontWeight: 700,
-            color: '#0f172a',
-            margin: 0,
-            letterSpacing: '-0.02em'
-          }}>
+          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Cursos de Ingreso
           </h1>
           <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 0 0', fontWeight: 500 }}>
@@ -167,15 +158,7 @@ export default function CursosIngresoModule() {
       </div>
 
       {errorMsg && !showModal && (
-        <div style={{
-          backgroundColor: '#fee2e2',
-          border: '1px solid #fca5a5',
-          color: '#991b1b',
-          padding: '10px 14px',
-          borderRadius: '6px',
-          fontSize: '13px',
-          marginBottom: '16px'
-        }}>
+        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
           {errorMsg}
         </div>
       )}
@@ -204,64 +187,19 @@ export default function CursosIngresoModule() {
             placeholder="Buscar por nombre de curso o materia asociada..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              border: 'none',
-              outline: 'none',
-              width: '100%',
-              fontSize: '13px',
-              color: '#0f172a',
-              backgroundColor: 'transparent',
-              fontWeight: 500
-            }}
+            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
           />
         </div>
       </div>
 
-      {/* Tabla institucional de Cursos */}
-      <div style={{
-        backgroundColor: '#ffffff',
-        border: '1px solid #cbd5e1',
-        borderRadius: '8px',
-        overflow: 'hidden',
-        boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)'
-      }}>
+      {/* Tabla institucional */}
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{
-                padding: '14px 24px',
-                fontWeight: 700,
-                color: '#0f172a',
-                fontSize: '12px',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                width: '35%'
-              }}>
-                CURSO DE INGRESO
-              </th>
-              <th style={{
-                padding: '14px 24px',
-                fontWeight: 700,
-                color: '#0f172a',
-                fontSize: '12px',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                width: '45%'
-              }}>
-                MATERIAS ASOCIADAS
-              </th>
-              <th style={{
-                padding: '14px 24px',
-                textAlign: 'center',
-                fontWeight: 700,
-                color: '#0f172a',
-                fontSize: '12px',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                width: '20%'
-              }}>
-                ACCIÓN
-              </th>
+              <th style={{ padding: '14px 24px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '35%' }}>CURSO DE INGRESO</th>
+              <th style={{ padding: '14px 24px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '45%' }}>MATERIAS UNIVERSITARIAS ASOCIADAS</th>
+              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '20%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -274,12 +212,8 @@ export default function CursosIngresoModule() {
             ) : filteredCursos.length === 0 ? (
               <tr>
                 <td colSpan={3} style={{ padding: '54px 20px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>
-                    No se encontraron cursos de ingreso registrados
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                    Registra un nuevo curso con el botón superior "+ Registrar Curso".
-                  </div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>No se encontraron cursos de ingreso registrados</div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Utiliza el botón superior &quot;+ Registrar Curso&quot; para dar de alta una oferta.</div>
                 </td>
               </tr>
             ) : (
@@ -297,14 +231,13 @@ export default function CursosIngresoModule() {
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
                   >
                     <td style={{ padding: '16px 24px', color: '#0f172a', fontWeight: 600, fontSize: '13px' }}>
-                      <div style={{ fontWeight: 700, color: '#0b1e33' }}>{c.nombre}</div>
+                      <div style={{ fontWeight: 700, color: '#0b1e33', textTransform: 'uppercase' }}>{c.nombre}</div>
                       {c.descripcion && (
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '3px' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', fontWeight: 400 }}>
                           {c.descripcion}
                         </div>
                       )}
                     </td>
-
                     <td style={{ padding: '16px 24px' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {listaMaterias.length > 0 ? (
@@ -312,9 +245,9 @@ export default function CursosIngresoModule() {
                             <span
                               key={i}
                               style={{
-                                backgroundColor: '#f1f5f9',
-                                color: '#1e293b',
-                                border: '1px solid #cbd5e1',
+                                backgroundColor: '#e0e7ff',
+                                color: '#3730a3',
+                                border: '1px solid #c7d2fe',
                                 borderRadius: '4px',
                                 padding: '3px 8px',
                                 fontSize: '11px',
@@ -325,11 +258,10 @@ export default function CursosIngresoModule() {
                             </span>
                           ))
                         ) : (
-                          <span style={{ fontSize: '12px', color: '#94a3b8' }}>Sin materias</span>
+                          <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Sin materias</span>
                         )}
                       </div>
                     </td>
-
                     <td style={{ padding: '16px 24px', textAlign: 'center' }}>
                       <button
                         onClick={(e) => {
@@ -371,7 +303,7 @@ export default function CursosIngresoModule() {
         </table>
       </div>
 
-      {/* HU06: Modal Detalle del Curso */}
+      {/* Modal Detalle del Curso */}
       {selectedCurso && (
         <div style={{
           position: 'fixed',
@@ -395,7 +327,7 @@ export default function CursosIngresoModule() {
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box',
           }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: '#0f172a', textTransform: 'uppercase' }}>
               {selectedCurso.nombre}
             </h2>
             <p style={{ fontSize: '13px', color: '#64748b', marginTop: '6px', marginBottom: '20px' }}>
@@ -410,7 +342,7 @@ export default function CursosIngresoModule() {
               marginBottom: '24px',
             }}>
               <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-                Materias Curriculares del Ingreso
+                Materias Universitarias Asociadas
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {(selectedCurso.curso_ingreso_materias || []).map((rel: any, idx: number) => (
@@ -455,7 +387,7 @@ export default function CursosIngresoModule() {
         </div>
       )}
 
-      {/* HU06: Modal Registrar Nuevo Curso de Ingreso */}
+      {/* Modal Registrar Nuevo Curso de Ingreso */}
       {showModal && (
         <div style={{
           position: 'fixed',
@@ -484,15 +416,7 @@ export default function CursosIngresoModule() {
             </h2>
 
             {errorMsg && (
-              <div style={{
-                backgroundColor: '#fee2e2',
-                border: '1px solid #fca5a5',
-                color: '#991b1b',
-                padding: '9px 14px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                marginBottom: '16px',
-              }}>
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '12px', marginBottom: '16px' }}>
                 {errorMsg}
               </div>
             )}
@@ -500,57 +424,34 @@ export default function CursosIngresoModule() {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
-                  Nombre del Curso <span style={{ color: '#dc2626' }}>*</span>
+                  Nombre del Curso (Solo texto, sin números) <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ej: Ingreso a Ingeniería 2027"
+                  placeholder="Ej: Ingreso a Ingeniería"
                   value={formData.nombre}
-                  onChange={(e) => {
-                    setErrorMsg('');
-                    setFormData({ ...formData, nombre: e.target.value });
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '6px',
-                    border: '1.5px solid #cbd5e1',
-                    fontSize: '13px',
-                    color: '#0f172a',
-                    boxSizing: 'border-box',
-                    fontWeight: 500,
-                  }}
+                  onChange={handleNombreChange}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
-                  Descripción (Opcional)
+                  Descripción (Permite números, ej: Cohorte 2027)
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Ej: Curso intensivo preuniversitario de materias exactas"
+                  placeholder="Ej: Curso intensivo preuniversitario de materias exactas 2027"
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '6px',
-                    border: '1.5px solid #cbd5e1',
-                    fontSize: '13px',
-                    color: '#0f172a',
-                    boxSizing: 'border-box',
-                    fontWeight: 500,
-                    resize: 'vertical',
-                    fontFamily: 'inherit',
-                  }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500, resize: 'vertical', fontFamily: 'inherit' }}
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
-                  Materias del Curso (Seleccione al menos una) <span style={{ color: '#dc2626' }}>*</span>
+                  Materias Universitarias (Seleccione al menos una) <span style={{ color: '#dc2626' }}>*</span>
                 </label>
 
                 <div style={{
@@ -566,7 +467,7 @@ export default function CursosIngresoModule() {
                 }}>
                   {materias.length === 0 ? (
                     <span style={{ fontSize: '12px', color: '#64748b' }}>
-                      No hay materias registradas en el sistema. Debe registrar al menos una antes.
+                      No hay materias universitarias registradas en el sistema.
                     </span>
                   ) : (
                     materias.map((mat) => {
@@ -588,9 +489,10 @@ export default function CursosIngresoModule() {
                             type="checkbox"
                             checked={checked}
                             onChange={() => handleCheckboxChange(mat.id)}
-                            style={{ accentColor: '#0b1e33', cursor: 'pointer' }}
+                            style={{ accentColor: '#0b1e33', cursor: 'pointer', width: '15px', height: '15px' }}
                           />
-                          {mat.nombre}
+                          <span>{mat.nombre}</span>
+                          <span style={{ color: '#64748b', fontSize: '10px' }}>({mat.nivel})</span>
                         </label>
                       );
                     })
@@ -602,33 +504,14 @@ export default function CursosIngresoModule() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: '1.5px solid #cbd5e1',
-                    borderRadius: '6px',
-                    padding: '9px 16px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#475569',
-                    cursor: 'pointer',
-                  }}
+                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  style={{
-                    backgroundColor: '#0b1e33',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '9px 20px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#ffffff',
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    opacity: submitting ? 0.7 : 1,
-                  }}
+                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '13px', fontWeight: 600, color: '#ffffff', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}
                 >
                   {submitting ? 'Guardando...' : 'Guardar Curso'}
                 </button>
