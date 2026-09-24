@@ -5,6 +5,7 @@ import { getProfesores, createProfesor, updateProfesor } from '../services/profe
 import { getMaterias } from '../services/materias';
 import { calcularCuilArgentino } from '../services/alumnos';
 import { generateTeacherUsername } from '../utils/credentials';
+import { supabase } from '../lib/supabaseClient';
 
 interface Profesor {
   id: string | number;
@@ -181,11 +182,20 @@ export default function ProfesoresModule() {
       setGenerandoAcceso(true);
       setErrorMsg('');
 
-      const username = generateTeacherUsername(prof.nombre, prof.apellido, prof.id);
+      const username = generateTeacherUsername(prof.nombre, prof.apellido);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error('La sesión de Mesa de Entrada venció. Volvé a iniciar sesión.');
+      }
 
       const res = await fetch('/api/profesores/crear-acceso', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           profesorId: prof.id,
           nombre: prof.nombre,

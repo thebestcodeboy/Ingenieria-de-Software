@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import LoginView from '../components/LoginView';
 import AlumnosModule from '../components/AlumnosModule';
@@ -11,6 +10,8 @@ import CursosIngresoModule from '../components/CursosIngresoModule';
 import ClasesParticularesModule from '../components/ClasesParticularesModule';
 import TurnosModule from '../components/TurnosModule';
 import CalendarioAdminModule from '../components/CalendarioAdminModule';
+import ProfesorCalendarioPlaceholder from '../components/ProfesorCalendarioPlaceholder';
+import ProfesorCursosModule from '../components/ProfesorCursosModule';
 
 const Icons = {
   Inicio: () => (
@@ -108,29 +109,14 @@ const ADMIN_MENU_ITEMS = [
   { id: 'reportes', label: 'Reportes', Icon: Icons.Reportes },
 ];
 
+const PROFESOR_MENU_ITEMS = [
+  { id: 'calendario', label: 'Mi calendario', Icon: Icons.Calendario },
+  { id: 'cursos-docente', label: 'Mis cursos', Icon: Icons.Cursos },
+];
+
 export default function AteneoLayout() {
   const { user, role, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('calendario');
-  const [totalTurnosHoy, setTotalTurnosHoy] = useState(0);
-
-  useEffect(() => {
-    async function loadTurnosCount() {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const { count } = await supabase
-          .from('turnos_clase')
-          .select('*', { count: 'exact', head: true })
-          .eq('fecha', today);
-        setTotalTurnosHoy(count || 0);
-      } catch (error) {
-        console.warn('No se pudo cargar la cantidad de turnos de hoy:', error);
-      }
-    }
-
-    if (user && role === 'mesa_entrada') {
-      loadTurnosCount();
-    }
-  }, [user, role]);
 
   if (loading) {
     return (
@@ -244,6 +230,39 @@ export default function AteneoLayout() {
               })}
             </nav>
           )}
+
+          {role === 'profesor' && (
+            <nav aria-label="Menú docente" style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 12px' }}>
+              {PROFESOR_MENU_ITEMS.map(({ id, label, Icon }) => {
+                const isActive = activeTab === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setActiveTab(id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: isActive ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
+                      color: isActive ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: isActive ? 600 : 400,
+                      textAlign: 'left',
+                    }}
+                  >
+                    <span style={{ display: 'flex', color: isActive ? '#60a5fa' : '#64748b' }}><Icon /></span>
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
         </div>
 
         {/* Footer Sidebar */}
@@ -276,7 +295,9 @@ export default function AteneoLayout() {
 
       {/* CONTENIDO PRINCIPAL */}
       <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
-        {role !== 'mesa_entrada' ? (
+        {role === 'profesor' ? (
+          activeTab === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder />
+        ) : role === 'alumno' ? (
           <div style={{
             backgroundColor: '#ffffff',
             border: '1px solid #e2e8f0',
@@ -287,7 +308,7 @@ export default function AteneoLayout() {
             margin: '40px auto'
           }}>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
-              Portal {role === 'profesor' ? 'Docente' : 'del Alumno'}
+              Portal del Alumno
             </h2>
             <p style={{ color: '#64748b', fontSize: '13px' }}>
               Módulo en preparación para tu perfil.

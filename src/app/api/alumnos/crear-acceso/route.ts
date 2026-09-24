@@ -1,18 +1,22 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+function crearClienteAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Falta configurar SUPABASE_SERVICE_ROLE_KEY en el servidor.');
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 export async function POST(req: Request) {
   try {
+    const supabaseAdmin = crearClienteAdmin();
     const { alumnoId, nombre, apellido, dni, legajo, username } = await req.json();
 
     if (!dni || !username) {
@@ -73,10 +77,13 @@ export async function POST(req: Request) {
       claveProvisoria: passwordInicial,
       email: emailInstitucional,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error en crear-acceso:', error);
+    const message = error instanceof Error
+      ? error.message
+      : 'Error interno al generar credenciales.';
     return NextResponse.json(
-      { error: error?.message || 'Error interno al generar credenciales.' },
+      { error: message },
       { status: 500 }
     );
   }
