@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
+import LoginView from '../components/LoginView';
 import AlumnosModule from '../components/AlumnosModule';
 import ProfesoresModule from '../components/ProfesoresModule';
 import MateriasModule from '../components/MateriasModule';
 import CursosIngresoModule from '../components/CursosIngresoModule';
 import ClasesParticularesModule from '../components/ClasesParticularesModule';
 import TurnosModule from '../components/TurnosModule';
+import CalendarioAdminModule from '../components/CalendarioAdminModule';
 
 const Icons = {
   Inicio: () => (
@@ -77,23 +80,37 @@ const Icons = {
       <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   ),
-  EmptyBox: () => (
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-      <line x1="12" y1="11" x2="12" y2="17" />
-      <line x1="9" y1="14" x2="15" y2="14" />
-    </svg>
-  ),
   Config: () => (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
+  ),
+  Logout: () => (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
   )
 };
 
+const ADMIN_MENU_ITEMS = [
+  { id: 'inicio', label: 'Inicio', Icon: Icons.Inicio },
+  { id: 'alumnos', label: 'Alumnos', Icon: Icons.Alumnos },
+  { id: 'profesores', label: 'Profesores', Icon: Icons.Profesores },
+  { id: 'materias', label: 'Materias', Icon: Icons.Materias },
+  { id: 'cursos', label: 'Cursos de Ingreso', Icon: Icons.Cursos },
+  { id: 'particulares', label: 'Clases Particulares', Icon: Icons.Particulares },
+  { id: 'turnos', label: 'Turnos y Clases', Icon: Icons.Turnos },
+  { id: 'calendario', label: 'Calendario', Icon: Icons.Calendario },
+  { id: 'inscripciones', label: 'Inscripciones', Icon: Icons.Inscripciones },
+  { id: 'reportes', label: 'Reportes', Icon: Icons.Reportes },
+];
+
 export default function AteneoLayout() {
-  const [activeTab, setActiveTab] = useState('turnos');
+  const { user, role, loading, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('calendario');
   const [totalTurnosHoy, setTotalTurnosHoy] = useState(0);
 
   useEffect(() => {
@@ -110,143 +127,132 @@ export default function AteneoLayout() {
       }
     }
 
-    loadTurnosCount();
-  }, []);
+    if (user && role === 'mesa_entrada') {
+      loadTurnosCount();
+    }
+  }, [user, role]);
 
-  const menuItems = [
-    { id: 'inicio', label: 'Inicio', Icon: Icons.Inicio },
-    { id: 'alumnos', label: 'Alumnos', Icon: Icons.Alumnos },
-    { id: 'profesores', label: 'Profesores', Icon: Icons.Profesores },
-    { id: 'materias', label: 'Materias', Icon: Icons.Materias },
-    { id: 'cursos', label: 'Cursos de Ingreso', Icon: Icons.Cursos },
-    { id: 'particulares', label: 'Clases Particulares', Icon: Icons.Particulares },
-    { id: 'turnos', label: 'Turnos y Clases', Icon: Icons.Turnos },
-    { id: 'calendario', label: 'Calendario', Icon: Icons.Calendario },
-    { id: 'inscripciones', label: 'Inscripciones', Icon: Icons.Inscripciones },
-    { id: 'reportes', label: 'Reportes', Icon: Icons.Reportes },
-  ];
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f4f6f8' }}>
+        Cargando sesión...
+      </div>
+    );
+  }
+
+  // Si no está logueado, muestra el componente LoginView aislado
+  if (!user) {
+    return <LoginView />;
+  }
 
   return (
-    <>
-      {/* Importación de fuente Plus Jakarta Sans */}
-      <div style={{
+    <div style={{
+      display: 'flex',
+      minHeight: '100vh',
+      backgroundColor: '#f4f6f8',
+      fontFamily: 'inherit',
+      color: '#1e293b'
+    }}>
+      {/* SIDEBAR */}
+      <aside style={{
+        width: '240px',
+        backgroundColor: '#0b1e33',
+        borderRight: '1px solid #162a42',
         display: 'flex',
-        minHeight: '100vh',
-        backgroundColor: '#f4f6f8', // Gris perla limpio de fondo
-        fontFamily: 'inherit',
-        color: '#1e293b'
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '24px 0 16px 0',
+        flexShrink: 0
       }}>
-        
-        {/* SIDEBAR AZUL MARINO ATENEO */}
-        <aside style={{
-          width: '240px',
-          backgroundColor: '#0b1e33', // Azul marino profundo institucional
-          borderRight: '1px solid #162a42',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          padding: '24px 0',
-          flexShrink: 0
-        }}>
-          <div>
-            {/* Header del Sidebar con Logo Ateneo */}
+        <div>
+          {/* Header Ateneo */}
+          <div style={{
+            padding: '0 20px 22px 20px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
             <div style={{
-              padding: '0 20px 22px 20px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              width: '42px',
+              height: '42px',
+              borderRadius: '8px',
+              backgroundColor: '#ffffff',
               display: 'flex',
               alignItems: 'center',
-              gap: '12px'
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
+              flexShrink: 0,
+              padding: '3px'
             }}>
-              <div style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '8px',
-                backgroundColor: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
-                flexShrink: 0,
-                padding: '3px'
-              }}>
-                {/* Isotipo: Letra A en serifa + Columna clásica acanalada + Arco */}
-                <svg viewBox="0 0 120 120" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M60 12L24 95H38L47 73H73L82 95H96L60 12Z" fill="#0b1e33" />
-                  <polygon points="60,32 51,56 69,56" fill="#ffffff" />
-                  <path d="M26 62C48 54 72 54 94 62C85 58 60 51 26 62Z" fill="#94a3b8" />
-                  <path d="M50 48H70V51H50V48Z" fill="#ffffff" />
-                  <path d="M48 49C48 47.5 49.5 46.5 51 46.5H69C70.5 46.5 72 47.5 72 49H48Z" fill="#0b1e33" />
-                  <rect x="52" y="51" width="16" height="2" fill="#0b1e33" />
-                  <rect x="53" y="54" width="2.5" height="26" fill="#ffffff" />
-                  <rect x="57" y="54" width="2" height="26" fill="#ffffff" />
-                  <rect x="61" y="54" width="2" height="26" fill="#ffffff" />
-                  <rect x="64.5" y="54" width="2.5" height="26" fill="#ffffff" />
-                  <rect x="50" y="80" width="20" height="2.5" fill="#ffffff" />
-                  <rect x="48" y="82.5" width="24" height="2" fill="#0b1e33" />
-                </svg>
+              <svg viewBox="0 0 120 120" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M60 12L24 95H38L47 73H73L82 95H96L60 12Z" fill="#0b1e33" />
+                <polygon points="60,32 51,56 69,56" fill="#ffffff" />
+                <path d="M26 62C48 54 72 54 94 62C85 58 60 51 26 62Z" fill="#94a3b8" />
+                <path d="M50 48H70V51H50V48Z" fill="#ffffff" />
+                <path d="M48 49C48 47.5 49.5 46.5 51 46.5H69C70.5 46.5 72 47.5 72 49H48Z" fill="#0b1e33" />
+                <rect x="52" y="51" width="16" height="2" fill="#0b1e33" />
+                <rect x="53" y="54" width="2.5" height="26" fill="#ffffff" />
+                <rect x="57" y="54" width="2" height="26" fill="#ffffff" />
+                <rect x="61" y="54" width="2" height="26" fill="#ffffff" />
+                <rect x="64.5" y="54" width="2.5" height="26" fill="#ffffff" />
+                <rect x="50" y="80" width="20" height="2.5" fill="#ffffff" />
+                <rect x="48" y="82.5" width="24" height="2" fill="#0b1e33" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
+                Instituto Ateneo
               </div>
-              <div>
-                <div style={{
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: '13px',
-                  letterSpacing: '0.6px',
-                  textTransform: 'uppercase'
-                }}>
-                  Instituto Ateneo
-                </div>
-                <div style={{
-                  color: '#94a3b8',
-                  fontSize: '11px',
-                  fontWeight: 400,
-                  marginTop: '1px'
-                }}>
-                  Gestión Académica
-                </div>
+              <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '1px' }}>
+                Gestión Académica
               </div>
             </div>
+          </div>
 
-          {/* Menú */}
-          <nav style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 12px' }}>
-            {menuItems.map(({ id, label, Icon }) => {
-              const isActive = activeTab === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: '9px 12px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    backgroundColor: isActive ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
-                    color: isActive ? '#ffffff' : '#94a3b8',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: isActive ? 600 : 400,
-                    textAlign: 'left',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <span style={{
-                    display: 'flex',
-                    color: isActive ? '#60a5fa' : '#64748b'
-                  }}>
-                    <Icon />
-                  </span>
-                  <span>{label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          {/* Menú de Mesa de Entrada */}
+          {role === 'mesa_entrada' && (
+            <nav style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 12px' }}>
+              {ADMIN_MENU_ITEMS.map(({ id, label, Icon }) => {
+                const isActive = activeTab === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setActiveTab(id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: isActive ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
+                      color: isActive ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: isActive ? 600 : 400,
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ display: 'flex', color: isActive ? '#60a5fa' : '#64748b' }}>
+                      <Icon />
+                    </span>
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: '0 16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
+        {/* Footer Sidebar */}
+        <div style={{ padding: '12px 14px 0 14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ color: '#94a3b8', fontSize: '11px', marginBottom: '8px', padding: '0 4px' }}>
+            <span style={{ color: '#38bdf8', fontWeight: 600 }}>ROL:</span> {role}
+          </div>
           <button
+            onClick={() => logout()}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -255,22 +261,39 @@ export default function AteneoLayout() {
               padding: '8px 10px',
               borderRadius: '6px',
               border: 'none',
-              backgroundColor: 'transparent',
-              color: '#94a3b8',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              color: '#f87171',
               cursor: 'pointer',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: 500
             }}
           >
-            <span style={{ display: 'flex', color: '#64748b' }}><Icons.Config /></span>
-            <span>Configuración</span>
+            <span style={{ display: 'flex' }}><Icons.Logout /></span>
+            <span>Cerrar Sesión</span>
           </button>
         </div>
       </aside>
 
-      {/* ÁREA DE CONTENIDO */}
+      {/* CONTENIDO PRINCIPAL */}
       <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
-        {activeTab === 'alumnos' ? (
+        {role !== 'mesa_entrada' ? (
+          <div style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            padding: '48px',
+            textAlign: 'center',
+            maxWidth: '560px',
+            margin: '40px auto'
+          }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
+              Portal {role === 'profesor' ? 'Docente' : 'del Alumno'}
+            </h2>
+            <p style={{ color: '#64748b', fontSize: '13px' }}>
+              Módulo en preparación para tu perfil.
+            </p>
+          </div>
+        ) : activeTab === 'alumnos' ? (
           <AlumnosModule />
         ) : activeTab === 'profesores' ? (
           <ProfesoresModule />
@@ -282,33 +305,14 @@ export default function AteneoLayout() {
           <ClasesParticularesModule />
         ) : activeTab === 'turnos' ? (
           <TurnosModule />
+        ) : activeTab === 'calendario' ? (
+          <CalendarioAdminModule />
         ) : (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <div>
-                <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                  {menuItems.find(m => m.id === activeTab)?.label}
-                </h1>
-                <p style={{ color: '#64748b', fontSize: '13px', margin: '3px 0 0 0' }}>
-                  {totalTurnosHoy} clases programadas para hoy
-                </p>
-              </div>
-            </div>
-
-            <div style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              padding: '48px 20px',
-              textAlign: 'center',
-              color: '#64748b'
-            }}>
-              Módulo en preparación.
-            </div>
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '48px', textAlign: 'center', color: '#64748b' }}>
+            Módulo en preparación.
           </div>
         )}
       </main>
-      </div>
-    </>
+    </div>
   );
 }

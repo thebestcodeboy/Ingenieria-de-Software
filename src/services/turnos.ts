@@ -24,6 +24,17 @@ type DefinirCupoResultado = {
   lugares_disponibles: number;
 };
 
+export interface FormNuevoTurnoPayload {
+  actividadTipo: 'curso' | 'particular';
+  actividadId: string;
+  materiaId: string;
+  profesorId: string;
+  aulaNumero: string | number;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+}
+
 const CAMPOS_TURNO = [
   'turno_id',
   'fecha',
@@ -139,4 +150,75 @@ export async function definirCupoTurno(
     inscriptos_actuales: numeroSeguro(fila.inscriptos_actuales),
     lugares_disponibles: numeroSeguro(fila.lugares_disponibles),
   };
+}
+
+/**
+ * HU08: Carga las entidades maestras y relaciones para armar los desplegables de nuevo turno
+ */
+export async function obtenerDatosTurnos() {
+  const [
+    cursosRes,
+    particularesRes,
+    materiasRes,
+    profesoresRes,
+    profesorMateriasRes,
+    cursoMateriasRes,
+    aulasRes,
+  ] = await Promise.all([
+    supabase.from('cursos_ingreso').select('id, nombre'),
+    supabase.from('clases_particulares').select('id, nombre, materia_id'),
+    supabase.from('materias').select('id, nombre'),
+    supabase.from('profesores').select('id, nombre, apellido'),
+    supabase.from('profesor_materias').select('profesor_id, materia_id'),
+    supabase.from('curso_materias').select('curso_id, materia_id'),
+    supabase.from('aulas').select('numero, descripcion'),
+  ]);
+
+  if (cursosRes.error) console.error('Error cursos:', cursosRes.error);
+  if (materiasRes.error) console.error('Error materias:', materiasRes.error);
+  if (profesoresRes.error) console.error('Error profesores:', profesoresRes.error);
+
+  return {
+    cursos: cursosRes.data || [],
+    particulares: particularesRes.data || [],
+    materias: materiasRes.data || [],
+    profesores: profesoresRes.data || [],
+    profesorMaterias: profesorMateriasRes.data || [],
+    cursoMaterias: cursoMateriasRes.data || [],
+    aulas: aulasRes.data || [],
+  };
+}
+
+/**
+ * HU08: Inserta un nuevo turno en la tabla `turnos_clase`
+ */
+export async function registrarTurno(payload: FormNuevoTurnoPayload) {
+  const nuevoRegistro: Record<string, any> = {
+    materia_id: payload.materiaId,
+    profesor_id: payload.profesorId,
+    aula_numero: Number(payload.aulaNumero) || payload.aulaNumero,
+    fecha: payload.fecha,
+    hora_inicio: payload.horaInicio,
+    hora_fin: payload.horaFin,
+  };
+
+  if (payload.actividadTipo === 'curso') {
+    nuevoRegistro.curso_id = payload.actividadId;
+    nuevoRegistro.clase_particular_id = null;
+  } else {
+    nuevoRegistro.clase_particular_id = payload.actividadId;
+    nuevoRegistro.curso_id = null;
+  }
+
+  const { data, error } = await supabase
+    .from('turnos_clase')
+    .insert([nuevoRegistro])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'No se pudo registrar el turno en la base de datos.');
+  }
+
+  return data;
 }
