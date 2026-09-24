@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import TurnosModule from '../components/TurnosModule';
-import type { TurnoConCupo } from '../services/turnos';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import AlumnosModule from '../components/AlumnosModule';
 import ProfesoresModule from '../components/ProfesoresModule';
 import MateriasModule from '../components/MateriasModule';
@@ -95,14 +94,24 @@ const Icons = {
 
 export default function AteneoLayout() {
   const [activeTab, setActiveTab] = useState('turnos');
-  const data = {
-    totalAlumnos: 0,
-    totalProfesores: 0,
-    totalMaterias: 0,
-    totalTurnos: 0,
-    turnosHoy: [] as TurnoConCupo[],
-  };
-  const loading = false;
+  const [totalTurnosHoy, setTotalTurnosHoy] = useState(0);
+
+  useEffect(() => {
+    async function loadTurnosCount() {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const { count } = await supabase
+          .from('turnos_clase')
+          .select('*', { count: 'exact', head: true })
+          .eq('fecha', today);
+        setTotalTurnosHoy(count || 0);
+      } catch (error) {
+        console.warn('No se pudo cargar la cantidad de turnos de hoy:', error);
+      }
+    }
+
+    loadTurnosCount();
+  }, []);
 
   const menuItems = [
     { id: 'inicio', label: 'Inicio', Icon: Icons.Inicio },
@@ -297,107 +306,8 @@ export default function AteneoLayout() {
               Módulo en preparación.
             </div>
           </div>
-
-          {/* Contenedor Tarjeta Blanca con Bordes Grises Suaves */}
-          <div style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            overflow: 'hidden',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
-          }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, color: '#64748b', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>ID / Horario</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, color: '#64748b', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Materia / Actividad</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, color: '#64748b', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Profesor</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, color: '#64748b', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Aula</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, color: '#64748b', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Estado / Cupo</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, color: '#64748b', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase', textAlign: 'right' }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 500 }}>Sincronizando registros...</div>
-                    </td>
-                  </tr>
-                ) : data.turnosHoy.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: '64px 20px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-                        <Icons.EmptyBox />
-                      </div>
-                      <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '14px' }}>
-                        No hay registros disponibles
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                        Utiliza el botón superior &quot;+ Agregar&quot; para programar una nueva clase.
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  data.turnosHoy.map((turno, index) => {
-                    const tieneLugar = (turno.lugares_disponibles ?? 1) > 0;
-                    return (
-                      <tr key={turno.turno_id || index} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '14px 18px', color: '#0f172a', fontWeight: 600 }}>
-                          {turno.hora_inicio?.slice(0, 5)} - {turno.hora_fin?.slice(0, 5)}
-                        </td>
-                        <td style={{ padding: '14px 18px', color: '#0f172a', fontWeight: 500 }}>
-                          {turno.materia_nombre}
-                          {turno.actividad_nombre && (
-                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 400, marginTop: '2px' }}>
-                              {turno.actividad_nombre}
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ padding: '14px 18px', color: '#334155' }}>
-                          {turno.profesor_nombre_completo}
-                        </td>
-                        <td style={{ padding: '14px 18px', color: '#334155' }}>
-                          Aula {turno.aula_numero}
-                        </td>
-                        <td style={{ padding: '14px 18px' }}>
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            backgroundColor: tieneLugar ? '#f1f5f9' : '#fef2f2',
-                            color: tieneLugar ? '#0b1e33' : '#b91c1c',
-                            border: `1px solid ${tieneLugar ? '#cbd5e1' : '#fecaca'}`
-                          }}>
-                            {tieneLugar ? 'ACTIVO' : 'COMPLETO'} ({turno.inscriptos_actuales}/{turno.cupo_maximo || '-'})
-                          </span>
-                        </td>
-                        <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                          <button
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              color: '#64748b',
-                              padding: '4px'
-                            }}
-                            title="Editar"
-                          >
-                            ✏️
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-            </>
-          )}
-        </main>
+        )}
+      </main>
       </div>
     </>
   );
