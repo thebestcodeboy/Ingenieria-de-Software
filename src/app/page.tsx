@@ -4,6 +4,11 @@ import React, { useState } from 'react';
 import TurnosModule from '../components/TurnosModule';
 import type { TurnoConCupo } from '../services/turnos';
 import AlumnosModule from '../components/AlumnosModule';
+import ProfesoresModule from '../components/ProfesoresModule';
+import MateriasModule from '../components/MateriasModule';
+import CursosIngresoModule from '../components/CursosIngresoModule';
+import ClasesParticularesModule from '../components/ClasesParticularesModule';
+import TurnosModule from '../components/TurnosModule';
 
 const Icons = {
   Inicio: () => (
@@ -254,35 +259,31 @@ export default function AteneoLayout() {
         </div>
       </aside>
 
-        {/* ÁREA PRINCIPAL BLANCO & GRIS */}
-        <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto' }}>
-          {activeTab === 'alumnos' ? (
-            <AlumnosModule />
-          ) : activeTab === 'turnos' ? (
-            <TurnosModule />
-          ) : (
-            <>
-          
-          {/* Header Principal */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px'
-          }}>
-            <div>
-              <h1 style={{
-                fontSize: '22px',
-                fontWeight: 700,
-                color: '#0f172a',
-                letterSpacing: '-0.02em',
-                margin: 0
-              }}>
-                {menuItems.find(m => m.id === activeTab)?.label || 'Turnos y Clases'}
-              </h1>
-              <p style={{ color: '#64748b', fontSize: '13px', margin: '3px 0 0 0', fontWeight: 400 }}>
-                {data.turnosHoy.length} clases programadas para hoy
-              </p>
+      {/* ÁREA DE CONTENIDO */}
+      <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
+        {activeTab === 'alumnos' ? (
+          <AlumnosModule />
+        ) : activeTab === 'profesores' ? (
+          <ProfesoresModule />
+        ) : activeTab === 'materias' ? (
+          <MateriasModule />
+        ) : activeTab === 'cursos' ? (
+          <CursosIngresoModule />
+        ) : activeTab === 'particulares' ? (
+          <ClasesParticularesModule />
+        ) : activeTab === 'turnos' ? (
+          <TurnosModule />
+        ) : (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div>
+                <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                  {menuItems.find(m => m.id === activeTab)?.label}
+                </h1>
+                <p style={{ color: '#64748b', fontSize: '13px', margin: '3px 0 0 0' }}>
+                  {totalTurnosHoy} clases programadas para hoy
+                </p>
+              </div>
             </div>
 
             <div style={{
