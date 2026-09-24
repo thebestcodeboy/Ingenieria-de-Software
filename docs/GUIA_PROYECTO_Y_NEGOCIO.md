@@ -227,4 +227,5 @@ Ejecutando los escenarios acordados, incluyendo valores inválidos, reducción a
 ## Documentos relacionados
 
 - Especificación detallada: [`sdd/HU09-definir-cupo-clase.md`](sdd/HU09-definir-cupo-clase.md).
+- Especificación de calendario personal: [`sdd/HU11-calendario-personal-diario-semanal.md`](sdd/HU11-calendario-personal-diario-semanal.md).
 - Entrada general del repositorio: [`../README.md`](../README.md).
