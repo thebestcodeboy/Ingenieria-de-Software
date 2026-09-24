@@ -331,3 +331,57 @@ export const createAlumno = async ({ nombre, apellido, dni, email, telefono, dir
     throw err;
   }
 };
+// HU12: Modificar datos de alumno existente
+export const updateAlumno = async (id, { nombre, apellido, dni, email, telefono, direccion, activo }) => {
+  try {
+    const valNombre = normalizarYValidarNombre(nombre, 'nombre');
+    if (!valNombre.valido) throw new Error(valNombre.error);
+
+    const valApellido = normalizarYValidarNombre(apellido, 'apellido');
+    if (!valApellido.valido) throw new Error(valApellido.error);
+
+    const checkDni = validarDniEstudiante(dni);
+    if (!checkDni.valido) throw new Error(checkDni.error);
+
+    const checkTel = validarYNormalizarTelefono(telefono);
+    if (!checkTel.valido) throw new Error(checkTel.error);
+
+    const checkEmail = validarEmailReal(email, checkTel.telefonoLimpio);
+    if (!checkEmail.valido) throw new Error(checkEmail.error);
+
+    const checkDir = validarDireccionReal(direccion);
+    if (!checkDir.valido) throw new Error(checkDir.error);
+
+    // Validar que el DNI no pertenezca a OTRO alumno distinto al que editamos
+    const { data: dniExistente } = await supabase
+      .from('alumnos')
+      .select('id')
+      .eq('dni', checkDni.dniLimpio)
+      .neq('id', id)
+      .maybeSingle();
+
+    if (dniExistente) {
+      throw new Error(`Ya existe otro alumno registrado con el DNI ${checkDni.dniLimpio}.`);
+    }
+
+    const { data, error } = await supabase
+      .from('alumnos')
+      .update({
+        nombre: valNombre.textoLimpio,
+        apellido: valApellido.textoLimpio,
+        dni: checkDni.dniLimpio,
+        email: checkEmail.emailLimpio,
+        telefono: checkTel.telefonoLimpio,
+        direccion: checkDir.direccionLimpia
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  } catch (err) {
+    console.error('Fallo en updateAlumno:', err);
+    throw err;
+  }
+};

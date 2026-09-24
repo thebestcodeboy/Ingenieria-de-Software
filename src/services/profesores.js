@@ -65,3 +65,50 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
 
   return data?.[0];
 }
+// HU13: Modificar datos de profesor existente
+export async function updateProfesor(id, { nombre, apellido, dni, email, telefono, materiasIds, turnos }) {
+  const cleanNombre = nombre?.trim();
+  const cleanApellido = apellido?.trim();
+  const cleanDni = String(dni).trim();
+
+  if (!cleanNombre || !cleanApellido || !cleanDni) {
+    throw new Error('Nombre, Apellido y DNI son campos obligatorios.');
+  }
+  if (!materiasIds || materiasIds.length === 0) {
+    throw new Error('Debe asociar al menos una materia al profesor.');
+  }
+
+  // Verificar DNI duplicado excluyendo al profesor que estamos editando
+  const { data: existente } = await supabase
+    .from('profesores')
+    .select('id')
+    .eq('dni', cleanDni)
+    .neq('id', id)
+    .maybeSingle();
+
+  if (existente) {
+    throw new Error(`Ya existe otro profesor registrado con el DNI ${cleanDni}.`);
+  }
+
+  const payload = {
+    nombre: cleanNombre,
+    apellido: cleanApellido,
+    dni: cleanDni,
+    email: email?.trim() || null,
+    telefono: telefono?.trim() || null,
+    materias_ids: materiasIds,
+    turnos: turnos || []
+  };
+
+  const { data, error } = await supabase
+    .from('profesores')
+    .update(payload)
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    console.error('Error en updateProfesor:', error);
+    throw new Error(error.message || 'Error al actualizar el profesor en Supabase.');
+  }
+  return data?.[0];
+}

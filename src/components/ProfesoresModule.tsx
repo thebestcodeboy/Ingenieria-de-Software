@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getProfesores, createProfesor } from '../services/profesores';
+import { getProfesores, createProfesor, updateProfesor } from '../services/profesores';
 import { getMaterias } from '../services/materias';
 
 interface Profesor {
@@ -35,6 +35,7 @@ export default function ProfesoresModule() {
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Modal y formulario
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [formNombre, setFormNombre] = useState<string>('');
   const [formApellido, setFormApellido] = useState<string>('');
@@ -65,20 +66,35 @@ export default function ProfesoresModule() {
   }, []);
 
   const handleOpenModal = () => {
+    setEditingId(null);
     setFormNombre('');
     setFormApellido('');
     setFormDni('');
     setFormEmail('');
     setFormTelefono('');
     setSelectedMaterias([]);
-    setSelectedTurnos(['Mañana', 'Tarde']);
+    setSelectedTurnos(['Ma ana', 'Tarde']);
     setFormError(null);
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
+    setEditingId(null);
     setIsModalOpen(false);
     setFormError(null);
+  };
+
+  const handleEdit = (prof: Profesor) => {
+    setEditingId(prof.id);
+    setFormNombre(prof.nombre);
+    setFormApellido(prof.apellido);
+    setFormDni(prof.dni);
+    setFormEmail(prof.email || '');
+    setFormTelefono(prof.telefono || '');
+    setSelectedMaterias(prof.materias_ids || []);
+    setSelectedTurnos(prof.turnos || []);
+    setFormError(null);
+    setIsModalOpen(true);
   };
 
   const toggleMateria = (id: string | number) => {
@@ -104,22 +120,36 @@ export default function ProfesoresModule() {
 
     try {
       setFormSubmitting(true);
-      await createProfesor({
-        nombre: formNombre,
-        apellido: formApellido,
-        dni: formDni,
-        email: formEmail,
-        telefono: formTelefono,
-        materiasIds: selectedMaterias,
-        turnos: selectedTurnos
-      });
-
-      setSuccessMsg(`Profesor ${formApellido}, ${formNombre} registrado correctamente.`);
+      if (editingId) {
+        // Modo Edición: Llama a la nueva función update
+        await updateProfesor(editingId, {
+          nombre: formNombre,
+          apellido: formApellido,
+          dni: formDni,
+          email: formEmail,
+          telefono: formTelefono,
+          materiasIds: selectedMaterias,
+          turnos: selectedTurnos
+        });
+        setSuccessMsg(`Profesor ${formApellido}, ${formNombre} actualizado correctamente.`);
+      } else {
+        // Modo Creación: Mantiene el comportamiento original
+        await createProfesor({
+          nombre: formNombre,
+          apellido: formApellido,
+          dni: formDni,
+          email: formEmail,
+          telefono: formTelefono,
+          materiasIds: selectedMaterias,
+          turnos: selectedTurnos
+        });
+        setSuccessMsg(`Profesor ${formApellido}, ${formNombre} registrado correctamente.`);
+      }
       setTimeout(() => setSuccessMsg(null), 4000);
       handleCloseModal();
       await loadData();
     } catch (err: any) {
-      setFormError(err.message || 'No se pudo registrar el profesor.');
+      setFormError(err.message || 'No se pudo guardar el profesor.');
     } finally {
       setFormSubmitting(false);
     }
@@ -181,6 +211,7 @@ export default function ProfesoresModule() {
                 <th className="px-6 py-3">Contacto</th>
                 <th className="px-6 py-3">Materias Habilitadas</th>
                 <th className="px-6 py-3">Turnos</th>
+                <th className="px-6 py-3 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -240,6 +271,23 @@ export default function ProfesoresModule() {
                           ))}
                         </div>
                       </td>
+                      <td className="px-6 py-4">
+                      <div className="flex gap-1">
+                        {(prof.turnos || []).map((t, idx) => (
+                          <span key={idx} className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleEdit(prof)}
+                        className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded text-xs font-semibold transition-colors shadow-sm"
+                      >
+                        Editar
+                      </button>
+                    </td>
                     </tr>
                   );
                 })
@@ -254,7 +302,9 @@ export default function ProfesoresModule() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 my-8">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-slate-800">Registrar Nuevo Profesor</h2>
+              <h2 className="text-lg font-bold text-slate-800">
+                {editingId ? 'Modificar Profesor' : 'Registrar Nuevo Profesor'}
+              </h2>
               <button
                 onClick={handleCloseModal}
                 className="text-slate-400 hover:text-slate-600 text-lg leading-none"

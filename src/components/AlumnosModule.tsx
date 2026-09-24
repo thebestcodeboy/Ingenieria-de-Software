@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
   getAlumnos, 
-  createAlumno, 
+  createAlumno,
+  updateAlumno, 
   calcularCuilArgentino, 
   validarDireccionReal 
 } from '../services/alumnos';
@@ -44,9 +45,40 @@ export default function AlumnosModule() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   // HU02 - Consultar Ficha del Alumno (Solo lectura)
   const [selectedAlumno, setSelectedAlumno] = useState<Alumno | null>(null);
+
+  // HU12 - Modificar Alumno
+  const [isEditing, setIsEditing] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    nombre: '', apellido: '', dni: '', telefono: '', email: '', direccion: '', activo: true
+  });
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    try {
+      setEditSubmitting(true);
+      const alumnoId = selectedAlumno?.id || selectedAlumno?.alumno_id;
+      if (!alumnoId) throw new Error("No se pudo identificar al alumno.");
+
+      await updateAlumno(alumnoId, editFormData);
+      
+      setSuccessMsg('Alumno modificado correctamente.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+      
+      setIsEditing(false);
+      setSelectedAlumno(null);
+      await loadData(); 
+    } catch (err: unknown) {
+      setErrorMsg(mensajeDeError(err, 'Error al modificar el alumno.'));
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -246,6 +278,9 @@ export default function AlumnosModule() {
         direccion: checkDir.direccionLimpia,
       });
 
+      setSuccessMsg('Alumno registrado correctamente.');
+      setTimeout(() => setSuccessMsg(''), 4000);
+
       setFormData({ nombre: '', apellido: '', dni: '', telefono: '', email: '', direccion: '' });
       setShowModal(false);
       await loadData();
@@ -321,6 +356,20 @@ export default function AlumnosModule() {
           marginBottom: '16px'
         }}>
           {errorMsg}
+        </div>
+      )}
+      {/* NUEVA ALERTA DE ÉXITO */}
+      {successMsg && !showModal && (
+        <div style={{
+          backgroundColor: '#f0fdf4',
+          border: '1px solid #bbf7d0',
+          color: '#15803d',
+          padding: '10px 14px',
+          borderRadius: '6px',
+          fontSize: '13px',
+          marginBottom: '16px'
+        }}>
+          {successMsg}
         </div>
       )}
 
@@ -520,7 +569,7 @@ export default function AlumnosModule() {
         </table>
       </div>
 
-      {/* HU02: Modal Ficha del Alumno (Opción B: Legajo • DNI-LE-LC separados formalmente) */}
+      {/* HU02 y HU12: Modal Ficha y Edición del Alumno (Opción B: Legajo • DNI-LE-LC separados formalmente)*/}
       {selectedAlumno && (
         <div style={{
           position: 'fixed',
@@ -539,147 +588,232 @@ export default function AlumnosModule() {
             backgroundColor: '#ffffff',
             borderRadius: '12px',
             width: '100%',
-            maxWidth: '580px',
+            maxWidth: isEditing ? '500px' : '580px',
             padding: '32px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box'
           }}>
-            {/* Cabecera de la ficha */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '26px' }}>
-              {/* Avatar oscuro original (#0b1e33) */}
-              <div style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '10px',
-                backgroundColor: '#0b1e33',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '22px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                flexShrink: 0,
-                boxShadow: '0 2px 4px rgba(11, 30, 51, 0.2)'
-              }}>
-                {selectedAlumno.nombre?.charAt(0)}{selectedAlumno.apellido?.charAt(0)}
-              </div>
-              
-              <div style={{ flex: 1 }}>
-                {/* Nombre SIN COMA */}
-                <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '-0.01em' }}>
-                  {selectedAlumno.apellido} {selectedAlumno.nombre}
-                </h2>
-                {/* Opción B: Separador sutil • entre Legajo y DNI */}
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
-                  <span style={{ 
-                    fontSize: '12px', 
-                    fontFamily: 'monospace', 
-                    fontWeight: 700, 
-                    color: '#0b1e33', 
-                    backgroundColor: '#f1f5f9', 
-                    border: '1px solid #cbd5e1', 
-                    padding: '3px 8px', 
-                    borderRadius: '4px',
-                    textTransform: 'uppercase'
+            {!isEditing ? (
+              /* --- MODO LECTURA --- */
+              <>
+                {/* Cabecera de la ficha */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '26px' }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '10px',
+                    backgroundColor: '#0b1e33',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '22px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    flexShrink: 0,
+                    boxShadow: '0 2px 4px rgba(11, 30, 51, 0.2)'
                   }}>
-                    {String(
-                      selectedAlumno.legajo ||
-                      selectedAlumno.legajoVisual ||
-                      obtenerLegajo(selectedAlumno, 0),
-                    ).toUpperCase()}
-                  </span>
-                  <span style={{ color: '#cbd5e1', fontWeight: 700 }}>•</span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#0b1e33' }}>
-                    DNI-LE-LC: {selectedAlumno.dni}
+                    {selectedAlumno.nombre?.charAt(0)}{selectedAlumno.apellido?.charAt(0)}
+                  </div>
+                  
+                  <div style={{ flex: 1 }}>
+                    <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '-0.01em' }}>
+                      {selectedAlumno.apellido} {selectedAlumno.nombre}
+                    </h2>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ 
+                        fontSize: '12px', 
+                        fontFamily: 'monospace', 
+                        fontWeight: 700, 
+                        color: '#0b1e33', 
+                        backgroundColor: '#f1f5f9', 
+                        border: '1px solid #cbd5e1', 
+                        padding: '3px 8px', 
+                        borderRadius: '4px',
+                        textTransform: 'uppercase'
+                      }}>
+                        {String(
+                          selectedAlumno.legajo ||
+                          selectedAlumno.legajoVisual ||
+                          obtenerLegajo(selectedAlumno, 0),
+                        ).toUpperCase()}
+                      </span>
+                      <span style={{ color: '#cbd5e1', fontWeight: 700 }}> </span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#0b1e33' }}>
+                        DNI-LE-LC: {selectedAlumno.dni}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '5px 10px',
+                    borderRadius: '5px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    backgroundColor: (selectedAlumno.activo !== false && selectedAlumno.estado !== 'INACTIVO') ? '#f0fdf4' : '#fef2f2',
+                    color: (selectedAlumno.activo !== false && selectedAlumno.estado !== 'INACTIVO') ? '#15803d' : '#b91c1c',
+                    border: `1px solid ${(selectedAlumno.activo !== false && selectedAlumno.estado !== 'INACTIVO') ? '#86efac' : '#fca5a5'}`
+                  }}>
+                    {(selectedAlumno.activo !== false && selectedAlumno.estado !== 'INACTIVO') ? 'ACTIVO' : 'INACTIVO'}
                   </span>
                 </div>
-              </div>
 
-              <span style={{
-                display: 'inline-block',
-                padding: '5px 10px',
-                borderRadius: '5px',
-                fontSize: '11px',
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                backgroundColor: (selectedAlumno.activo !== false && selectedAlumno.estado !== 'INACTIVO') ? '#f0fdf4' : '#fef2f2',
-                color: (selectedAlumno.activo !== false && selectedAlumno.estado !== 'INACTIVO') ? '#15803d' : '#b91c1c',
-                border: `1px solid ${(selectedAlumno.activo !== false && selectedAlumno.estado !== 'INACTIVO') ? '#86efac' : '#fca5a5'}`
-              }}>
-                {(selectedAlumno.activo !== false && selectedAlumno.estado !== 'INACTIVO') ? 'ACTIVO' : 'INACTIVO'}
-              </span>
-            </div>
+                {/* Datos del expediente */}
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '20px 24px',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  rowGap: '18px',
+                  columnGap: '20px',
+                  marginBottom: '26px'
+                }}>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      CUIL
+                    </span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginTop: '2px', display: 'block' }}>
+                      {calcularCuilArgentino(selectedAlumno.dni)?.cuit || '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Teléfono
+                    </span>
+                    <span style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500, marginTop: '2px', display: 'block' }}>
+                      {selectedAlumno.telefono || 'No registrado'}
+                    </span>
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Correo Electrónico
+                    </span>
+                    <span style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500, marginTop: '2px', display: 'block' }}>
+                      {selectedAlumno.email || 'No registrado'}
+                    </span>
+                  </div>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Domicilio
+                    </span>
+                    <span style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500, marginTop: '2px', display: 'block' }}>
+                      {selectedAlumno.direccion || 'No registrado'}
+                    </span>
+                  </div>
+                </div>
 
-            {/* Datos del expediente */}
-            <div style={{
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '10px',
-              padding: '20px 24px',
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              rowGap: '18px',
-              columnGap: '20px',
-              marginBottom: '26px'
-            }}>
-              <div>
-                <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  CUIL
-                </span>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginTop: '2px', display: 'block' }}>
-                  {calcularCuilArgentino(selectedAlumno.dni)?.cuit || '-'}
-                </span>
-              </div>
-
-              <div>
-                <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Teléfono
-                </span>
-                <span style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500, marginTop: '2px', display: 'block' }}>
-                  {selectedAlumno.telefono || 'No registrado'}
-                </span>
-              </div>
-
-              <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Correo Electrónico
-                </span>
-                <span style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500, marginTop: '2px', display: 'block' }}>
-                  {selectedAlumno.email || 'No registrado'}
-                </span>
-              </div>
-
-              <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Domicilio
-                </span>
-                <span style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500, marginTop: '2px', display: 'block' }}>
-                  {selectedAlumno.direccion || 'No registrado'}
-                </span>
-              </div>
-            </div>
-
-            {/* Pie del modal */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setSelectedAlumno(null)}
-                style={{
-                  backgroundColor: '#0b1e33',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '10px 24px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(11, 30, 51, 0.15)'
-                }}
-              >
-                Cerrar Ficha
-              </button>
-            </div>
+                {/* Pie del modal: Se agregan ambos botones */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditFormData({
+                        nombre: selectedAlumno.nombre,
+                        apellido: selectedAlumno.apellido,
+                        dni: String(selectedAlumno.dni),
+                        telefono: selectedAlumno.telefono || '',
+                        email: selectedAlumno.email || '',
+                        direccion: selectedAlumno.direccion || '',
+                        activo: selectedAlumno.activo !== false && selectedAlumno.estado !== 'INACTIVO'
+                      });
+                      setIsEditing(true);
+                      setErrorMsg('');
+                    }}
+                    style={{
+                      backgroundColor: '#f1f5f9',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      padding: '10px 24px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#0b1e33',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Editar Datos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAlumno(null)}
+                    style={{
+                      backgroundColor: '#0b1e33',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '10px 24px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(11, 30, 51, 0.15)'
+                    }}
+                  >
+                    Cerrar Ficha
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* --- MODO EDICIÓN --- */
+              <>
+                <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 20px 0', color: '#0f172a' }}>
+                  Modificar Alumno
+                </h2>
+                {errorMsg && (
+                  <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '12px', marginBottom: '16px' }}>
+                    {errorMsg}
+                  </div>
+                )}
+                <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Nombre</label>
+                      <input type="text" required value={editFormData.nombre} onChange={(e) => { setErrorMsg(''); setEditFormData({...editFormData, nombre: e.target.value.replace(/[^a-zA-Z \s]/g, '')}); }} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', textTransform: 'uppercase', fontWeight: 500 }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Apellido</label>
+                      <input type="text" required value={editFormData.apellido} onChange={(e) => { setErrorMsg(''); setEditFormData({...editFormData, apellido: e.target.value.replace(/[^a-zA-Z \s]/g, '')}); }} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', textTransform: 'uppercase', fontWeight: 500 }} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>DNI</label>
+                      <input type="text" required maxLength={8} value={editFormData.dni} onChange={(e) => { setErrorMsg(''); setEditFormData({...editFormData, dni: e.target.value.replace(/\D/g, '')}); }} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0b1e33', boxSizing: 'border-box', fontWeight: 700 }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Teléfono</label>
+                      <input type="text" maxLength={13} value={editFormData.telefono} onChange={(e) => { setErrorMsg(''); setEditFormData({...editFormData, telefono: e.target.value.replace(/\D/g, '')}); }} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Correo Electrónico</label>
+                    <input type="email" value={editFormData.email} onChange={(e) => { setErrorMsg(''); setEditFormData({...editFormData, email: e.target.value}); }} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Domicilio</label>
+                    <input type="text" value={editFormData.direccion} onChange={(e) => { setErrorMsg(''); setEditFormData({...editFormData, direccion: e.target.value}); }} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ marginTop: '4px', padding: '12px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>Estado del Alumno</span>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '8px' }}>
+                       <input type="checkbox" checked={editFormData.activo} onChange={(e) => setEditFormData({...editFormData, activo: e.target.checked})} style={{ width: '16px', height: '16px', accentColor: '#15803d' }} />
+                       <span style={{ fontSize: '12px', fontWeight: 700, color: editFormData.activo ? '#15803d' : '#b91c1c' }}>
+                         {editFormData.activo ? 'ACTIVO' : 'INACTIVO'}
+                       </span>
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
+                    <button type="button" onClick={() => { setIsEditing(false); setErrorMsg(''); }} style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                      Cancelar
+                    </button>
+                    <button type="submit" disabled={editSubmitting} style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '13px', fontWeight: 600, color: '#ffffff', cursor: editSubmitting ? 'not-allowed' : 'pointer', opacity: editSubmitting ? 0.7 : 1 }}>
+                      {editSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}
