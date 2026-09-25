@@ -30,6 +30,7 @@ export interface FormNuevoTurnoPayload {
   materiaId: string;
   profesorId: string;
   aulaNumero: string | number;
+  cupoMaximo?: number | null;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -168,15 +169,18 @@ export async function obtenerDatosTurnos() {
     supabase.from('cursos_ingreso').select('id, nombre'),
     supabase.from('clases_particulares').select('id, nombre, materia_id'),
     supabase.from('materias').select('id, nombre'),
-    supabase.from('profesores').select('id, nombre, apellido'),
-    supabase.from('profesor_materias').select('profesor_id, materia_id'),
-    supabase.from('curso_materias').select('curso_id, materia_id'),
-    supabase.from('aulas').select('numero, descripcion'),
+    supabase.from('profesores').select('id, nombre, apellido, materias_ids'),
+    supabase.from('profesor_materia').select('profesor_id, materia_id'),
+    supabase.from('curso_ingreso_materias').select('curso_id, materia_id'),
+    supabase.from('aulas').select('numero, descripcion, capacidad'),
   ]);
 
   if (cursosRes.error) console.error('Error cursos:', cursosRes.error);
   if (materiasRes.error) console.error('Error materias:', materiasRes.error);
   if (profesoresRes.error) console.error('Error profesores:', profesoresRes.error);
+  if (profesorMateriasRes.error) console.error('Error profesor_materia:', profesorMateriasRes.error);
+  if (cursoMateriasRes.error) console.error('Error curso_ingreso_materias:', cursoMateriasRes.error);
+  if (aulasRes.error) console.error('Error aulas:', aulasRes.error);
 
   return {
     cursos: cursosRes.data || [],
@@ -193,22 +197,21 @@ export async function obtenerDatosTurnos() {
  * HU08: Inserta un nuevo turno en la tabla `turnos_clase`
  */
 export async function registrarTurno(payload: FormNuevoTurnoPayload) {
+  const esParticular =
+    payload.actividadTipo === 'particular' || payload.actividadTipo === 'clase_particular';
+
   const nuevoRegistro: Record<string, any> = {
+    tipo_actividad: esParticular ? 'clase_particular' : 'curso_ingreso',
     materia_id: payload.materiaId,
     profesor_id: payload.profesorId,
     aula_numero: Number(payload.aulaNumero) || payload.aulaNumero,
+    cupo_maximo: payload.cupoMaximo ? Number(payload.cupoMaximo) : null,
     fecha: payload.fecha,
     hora_inicio: payload.horaInicio,
     hora_fin: payload.horaFin,
+    curso_id: esParticular ? null : payload.actividadId,
+    clase_particular_id: esParticular ? payload.actividadId : null,
   };
-
-  if (payload.actividadTipo === 'curso') {
-    nuevoRegistro.curso_id = payload.actividadId;
-    nuevoRegistro.clase_particular_id = null;
-  } else {
-    nuevoRegistro.clase_particular_id = payload.actividadId;
-    nuevoRegistro.curso_id = null;
-  }
 
   const { data, error } = await supabase
     .from('turnos_clase')

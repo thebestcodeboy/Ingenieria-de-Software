@@ -18,6 +18,7 @@ interface FormNuevoTurno {
   materiaId: string;
   profesorId: string;
   aulaNumero: string;
+  cupoMaximo: string;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -29,10 +30,21 @@ const initialNuevoTurnoForm: FormNuevoTurno = {
   materiaId: '',
   profesorId: '',
   aulaNumero: '',
+  cupoMaximo: '',
   fecha: '',
   horaInicio: '',
-  horaFin: ''
+  horaFin: '',
 };
+
+function formatearNombre(texto: string | null | undefined): string {
+  if (!texto) return '';
+  return texto
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean)
+    .map((palabra) => palabra.charAt(0).toUpperCase() + palabra.slice(1))
+    .join(' ');
+}
 
 const formatoFecha = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -78,21 +90,20 @@ function estadoDelTurno(turno: TurnoConCupo) {
 }
 
 export default function TurnosModule() {
-  // Lista principal de turnos (HU09 / HU08)
   const [turnos, setTurnos] = useState<TurnoConCupo[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<FiltroCupo>('todos');
 
-  // Modal HU09: Edición de Cupo
+  // Modal Edición de Cupo
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<TurnoConCupo | null>(null);
   const [cupoIngresado, setCupoIngresado] = useState('');
   const [errorFormulario, setErrorFormulario] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
 
-  // Modal HU08: Programar Nuevo Turno
+  // Modal Programar Nuevo Turno
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
   const [formNuevo, setFormNuevo] = useState<FormNuevoTurno>(initialNuevoTurnoForm);
   const [guardandoNuevo, setGuardandoNuevo] = useState(false);
@@ -112,8 +123,25 @@ export default function TurnosModule() {
     profesores: [],
     profesorMaterias: [],
     cursoMaterias: [],
-    aulas: []
+    aulas: [],
   });
+
+  const cargarDatosAuxiliares = useCallback(async () => {
+    try {
+      const aux = await obtenerDatosTurnos();
+      setDatosAuxiliares({
+        cursos: aux.cursos || [],
+        particulares: aux.particulares || [],
+        materias: aux.materias || [],
+        profesores: aux.profesores || [],
+        profesorMaterias: aux.profesorMaterias || [],
+        cursoMaterias: aux.cursoMaterias || [],
+        aulas: aux.aulas || [],
+      });
+    } catch (err) {
+      console.error('Error al precargar datos auxiliares:', err);
+    }
+  }, []);
 
   const cargarTurnos = useCallback(async () => {
     try {
@@ -129,68 +157,76 @@ export default function TurnosModule() {
 
   useEffect(() => {
     cargarTurnos();
-  }, [cargarTurnos]);
+    cargarDatosAuxiliares();
+  }, [cargarTurnos, cargarDatosAuxiliares]);
 
-  // Cargar datos auxiliares cuando se abre el modal de creación
   const handleAbrirModalCrear = async () => {
     setErrorNuevo('');
+    await cargarDatosAuxiliares();
     setModalCrearAbierto(true);
-    try {
-      const aux = await obtenerDatosTurnos();
-      setDatosAuxiliares({
-        cursos: aux.cursos || [],
-        particulares: aux.particulares || [],
-        materias: aux.materias || [],
-        profesores: aux.profesores || [],
-        profesorMaterias: aux.profesorMaterias || [],
-        cursoMaterias: aux.cursoMaterias || [],
-        aulas: aux.aulas || []
-      });
-    } catch (err: any) {
-      setErrorNuevo(`Error al cargar datos auxiliares: ${err.message}`);
-    }
   };
 
-  // Lógica dependiente para el formulario de nuevo turno
-  const actividadesDisponibles = formNuevo.actividadTipo === 'curso' ? datosAuxiliares.cursos : datosAuxiliares.particulares;
-  const actividadSeleccionada = actividadesDisponibles.find((a) => String(a.id) === String(formNuevo.actividadId));
+  const actividadesDisponibles =
+    formNuevo.actividadTipo === 'curso' ? datosAuxiliares.cursos : datosAuxiliares.particulares;
+  const actividadSeleccionada = actividadesDisponibles.find(
+    (a) => String(a.id) === String(formNuevo.actividadId)
+  );
 
   const materiasDisponibles = useMemo(() => {
     if (!formNuevo.actividadId) return [];
 
     if (formNuevo.actividadTipo === 'particular') {
-      const materiaEncontrada = datosAuxiliares.materias.filter(
-        (m) => String(m.id) === String(actividadSeleccionada?.materia_id)
+      const m = datosAuxiliares.materias.filter(
+        (mat) => String(mat.id) === String(actividadSeleccionada?.materia_id)
       );
-      return materiaEncontrada.length > 0 ? materiaEncontrada : datosAuxiliares.materias;
+      return m.length > 0 ? m : datosAuxiliares.materias;
     }
 
     const materiaIds = datosAuxiliares.cursoMaterias
       .filter((r) => String(r.curso_id) === String(formNuevo.actividadId))
       .map((r) => String(r.materia_id));
 
-    const filtradas = datosAuxiliares.materias.filter((m) => materiaIds.includes(String(m.id)));
+    const filtradas = datosAuxiliares.materias.filter((mat) => materiaIds.includes(String(mat.id)));
     return filtradas.length > 0 ? filtradas : datosAuxiliares.materias;
-  }, [datosAuxiliares.cursoMaterias, datosAuxiliares.materias, formNuevo.actividadId, formNuevo.actividadTipo, actividadSeleccionada]);
+  }, [
+    datosAuxiliares.cursoMaterias,
+    datosAuxiliares.materias,
+    formNuevo.actividadId,
+    formNuevo.actividadTipo,
+    actividadSeleccionada,
+  ]);
 
-  // Fallback: busca docentes asociados por materia y, si no hay registros, ofrece toda la nómina
-  const profesoresDisponibles = useMemo(() => {
+  const profesoresHabilitados = useMemo(() => {
     if (!formNuevo.materiaId) return [];
 
-    const profesorIdsHabilitados = datosAuxiliares.profesorMaterias
-      .filter((r) => String(r.materia_id) === String(formNuevo.materiaId))
-      .map((r) => String(r.profesor_id));
-
-    const asignados = datosAuxiliares.profesores.filter((p) =>
-      profesorIdsHabilitados.includes(String(p.id))
+    const matIdStr = String(formNuevo.materiaId).trim();
+    const desdeRelacion = new Set(
+      datosAuxiliares.profesorMaterias
+        .filter((r) => String(r.materia_id).trim() === matIdStr)
+        .map((r) => String(r.profesor_id).trim())
     );
 
-    if (asignados.length > 0) {
-      return asignados;
-    }
-
-    return datosAuxiliares.profesores;
+    return datosAuxiliares.profesores
+      .filter((p) => {
+        const enRel = desdeRelacion.has(String(p.id).trim());
+        const enArray =
+          Array.isArray(p.materias_ids) &&
+          p.materias_ids.some((m: any) => String(m).trim() === matIdStr);
+        return enRel || enArray;
+      })
+      .sort((a, b) => a.apellido.localeCompare(b.apellido));
   }, [datosAuxiliares.profesorMaterias, datosAuxiliares.profesores, formNuevo.materiaId]);
+
+  const aulaSeleccionadaCrear = useMemo(() => {
+    return datosAuxiliares.aulas.find((a) => String(a.numero) === String(formNuevo.aulaNumero));
+  }, [datosAuxiliares.aulas, formNuevo.aulaNumero]);
+
+  const aulaDelTurnoEditar = useMemo(() => {
+    if (!turnoSeleccionado?.aula_numero) return null;
+    return datosAuxiliares.aulas.find(
+      (a) => String(a.numero) === String(turnoSeleccionado.aula_numero)
+    );
+  }, [datosAuxiliares.aulas, turnoSeleccionado]);
 
   const handleNuevoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -207,13 +243,23 @@ export default function TurnosModule() {
         ...formNuevo,
         actividadId: value,
         materiaId: formNuevo.actividadTipo === 'particular' ? selectedActivity?.materia_id || '' : '',
-        profesorId: ''
+        profesorId: '',
       });
       return;
     }
 
     if (name === 'materiaId') {
       setFormNuevo({ ...formNuevo, materiaId: value, profesorId: '' });
+      return;
+    }
+
+    if (name === 'aulaNumero') {
+      const aula = datosAuxiliares.aulas.find((a) => String(a.numero) === String(value));
+      setFormNuevo({
+        ...formNuevo,
+        aulaNumero: value,
+        cupoMaximo: aula?.capacidad ? String(aula.capacidad) : formNuevo.cupoMaximo,
+      });
       return;
     }
 
@@ -231,7 +277,7 @@ export default function TurnosModule() {
       formNuevo.aulaNumero,
       formNuevo.fecha,
       formNuevo.horaInicio,
-      formNuevo.horaFin
+      formNuevo.horaFin,
     ];
 
     if (camposObligatorios.some((c) => !c)) {
@@ -244,9 +290,26 @@ export default function TurnosModule() {
       return;
     }
 
+    if (formNuevo.cupoMaximo) {
+      const cupoNum = Number(formNuevo.cupoMaximo);
+      if (cupoNum <= 0) {
+        setErrorNuevo('El cupo debe ser un número entero mayor a cero.');
+        return;
+      }
+      if (aulaSeleccionadaCrear && cupoNum > aulaSeleccionadaCrear.capacidad) {
+        setErrorNuevo(
+          `El cupo (${cupoNum}) no puede superar la capacidad física del aula (${aulaSeleccionadaCrear.capacidad} bancos).`
+        );
+        return;
+      }
+    }
+
     try {
       setGuardandoNuevo(true);
-      await registrarTurno(formNuevo);
+      await registrarTurno({
+        ...formNuevo,
+        cupoMaximo: formNuevo.cupoMaximo ? Number(formNuevo.cupoMaximo) : null,
+      });
       setMensajeExito('El turno fue programado correctamente.');
       setModalCrearAbierto(false);
       setFormNuevo(initialNuevoTurnoForm);
@@ -258,7 +321,6 @@ export default function TurnosModule() {
     }
   };
 
-  // Filtrado reactivo de la tabla
   const turnosFiltrados = useMemo(() => {
     const termino = busqueda.trim().toLocaleLowerCase('es');
 
@@ -282,7 +344,6 @@ export default function TurnosModule() {
     });
   }, [busqueda, filtro, turnos]);
 
-  // Manejo de edición de cupos
   function abrirEdicion(turno: TurnoConCupo) {
     setTurnoSeleccionado(turno);
     setCupoIngresado(turno.cupo_maximo?.toString() ?? '');
@@ -308,9 +369,19 @@ export default function TurnosModule() {
     }
 
     const nuevoCupo = Number(valorNormalizado);
+
+    // Validación 1: Mínimo inscriptos actuales
     const errorValidacion = validarCupo(nuevoCupo, turnoSeleccionado.inscriptos_actuales);
     if (errorValidacion) {
       setErrorFormulario(errorValidacion);
+      return;
+    }
+
+    // Validación 2: Máximo capacidad física del aula
+    if (aulaDelTurnoEditar?.capacidad && nuevoCupo > aulaDelTurnoEditar.capacidad) {
+      setErrorFormulario(
+        `El cupo (${nuevoCupo}) no puede superar la capacidad física del aula (${aulaDelTurnoEditar.capacidad} bancos).`
+      );
       return;
     }
 
@@ -321,7 +392,7 @@ export default function TurnosModule() {
       const resultado = await definirCupoTurno(
         turnoSeleccionado.turno_id,
         nuevoCupo,
-        turnoSeleccionado.inscriptos_actuales,
+        turnoSeleccionado.inscriptos_actuales
       );
 
       setTurnos((actuales) =>
@@ -333,8 +404,8 @@ export default function TurnosModule() {
                 inscriptos_actuales: resultado.inscriptos_actuales,
                 lugares_disponibles: resultado.lugares_disponibles,
               }
-            : turno,
-        ),
+            : turno
+        )
       );
       setMensajeExito(`Cupo actualizado a ${resultado.cupo_maximo} alumnos.`);
       setTurnoSeleccionado(null);
@@ -350,9 +421,11 @@ export default function TurnosModule() {
     <section aria-labelledby="titulo-turnos">
       <header style={styles.encabezado}>
         <div>
-          <h1 id="titulo-turnos" style={styles.titulo}>Turnos y Clases</h1>
+          <h1 id="titulo-turnos" style={styles.titulo}>
+            Turnos y Clases
+          </h1>
           <p style={styles.subtitulo}>
-            Programá nuevos turnos (HU08) y gestioná las plazas disponibles (HU09).
+            Programación académica y administración de plazas disponibles.
           </p>
         </div>
 
@@ -362,11 +435,7 @@ export default function TurnosModule() {
             <span>turnos</span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleAbrirModalCrear}
-            style={styles.botonCrear}
-          >
+          <button type="button" onClick={handleAbrirModalCrear} style={styles.botonCrear}>
             + Programar Turno
           </button>
         </div>
@@ -387,7 +456,6 @@ export default function TurnosModule() {
         </div>
       )}
 
-      {/* Barra de Filtros */}
       <div style={styles.filtros}>
         <label style={styles.buscador}>
           <span aria-hidden="true">⌕</span>
@@ -416,7 +484,6 @@ export default function TurnosModule() {
         </label>
       </div>
 
-      {/* Tabla de Turnos */}
       <div style={styles.tablaContenedor}>
         <table style={styles.tabla}>
           <thead>
@@ -432,7 +499,9 @@ export default function TurnosModule() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={styles.estadoVacio}>Cargando turnos...</td>
+                <td colSpan={6} style={styles.estadoVacio}>
+                  Cargando turnos...
+                </td>
               </tr>
             ) : turnosFiltrados.length === 0 ? (
               <tr>
@@ -460,12 +529,18 @@ export default function TurnosModule() {
                       </span>
                     </td>
                     <td style={styles.td}>
-                      <strong style={styles.valorPrincipal}>{turno.materia_nombre || 'Sin materia'}</strong>
+                      <strong style={styles.valorPrincipal}>
+                        {formatearNombre(turno.materia_nombre) || 'Sin materia'}
+                      </strong>
                       {turno.actividad_nombre && (
-                        <span style={styles.valorSecundario}>{turno.actividad_nombre}</span>
+                        <span style={styles.valorSecundario}>
+                          {formatearNombre(turno.actividad_nombre)}
+                        </span>
                       )}
                     </td>
-                    <td style={styles.td}>{turno.profesor_nombre_completo || 'Sin asignar'}</td>
+                    <td style={styles.td}>
+                      {formatearNombre(turno.profesor_nombre_completo) || 'Sin asignar'}
+                    </td>
                     <td style={styles.td}>
                       {turno.aula_numero === null ? 'Sin asignar' : `Aula ${turno.aula_numero}`}
                     </td>
@@ -489,7 +564,6 @@ export default function TurnosModule() {
                         type="button"
                         onClick={() => abrirEdicion(turno)}
                         style={styles.botonEditar}
-                        aria-label={`${turno.cupo_maximo === null ? 'Definir' : 'Editar'} cupo del turno de ${turno.materia_nombre || 'clase'}`}
                       >
                         {turno.cupo_maximo === null ? 'Definir cupo' : 'Editar cupo'}
                       </button>
@@ -502,18 +576,26 @@ export default function TurnosModule() {
         </table>
       </div>
 
-      {/* MODAL HU08: PROGRAMAR NUEVO TURNO */}
+      {/* MODAL: PROGRAMAR TURNO */}
       {modalCrearAbierto && (
-        <div style={styles.modalFondo} role="presentation" onMouseDown={() => !guardandoNuevo && setModalCrearAbierto(false)}>
+        <div
+          style={styles.modalFondo}
+          role="presentation"
+          onMouseDown={() => !guardandoNuevo && setModalCrearAbierto(false)}
+        >
           <div
             role="dialog"
             aria-modal="true"
-            style={{ ...styles.modal, maxWidth: '520px' }}
+            style={{
+              ...styles.modal,
+              maxWidth: '520px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div style={styles.modalEncabezado}>
               <div>
-                <span style={styles.modalEyebrow}>HU08 · Programación Académica</span>
                 <h2 style={styles.modalTitulo}>Programar turno de clase</h2>
               </div>
               <button
@@ -526,7 +608,9 @@ export default function TurnosModule() {
             </div>
 
             <form onSubmit={handleCrearTurnoSubmit} style={{ marginTop: '16px' }}>
-              <label style={styles.labelModal} htmlFor="actividadTipo">Tipo de actividad</label>
+              <label style={styles.labelModal} htmlFor="actividadTipo">
+                Tipo de actividad
+              </label>
               <select
                 id="actividadTipo"
                 name="actividadTipo"
@@ -538,7 +622,9 @@ export default function TurnosModule() {
                 <option value="particular">Clase particular</option>
               </select>
 
-              <label style={styles.labelModal} htmlFor="actividadId">Actividad</label>
+              <label style={styles.labelModal} htmlFor="actividadId">
+                Actividad
+              </label>
               <select
                 id="actividadId"
                 name="actividadId"
@@ -548,11 +634,15 @@ export default function TurnosModule() {
               >
                 <option value="">Seleccioná una actividad</option>
                 {actividadesDisponibles.map((a) => (
-                  <option key={a.id} value={a.id}>{a.nombre}</option>
+                  <option key={a.id} value={a.id}>
+                    {formatearNombre(a.nombre)}
+                  </option>
                 ))}
               </select>
 
-              <label style={styles.labelModal} htmlFor="materiaId">Materia</label>
+              <label style={styles.labelModal} htmlFor="materiaId">
+                Materia
+              </label>
               <select
                 id="materiaId"
                 name="materiaId"
@@ -563,11 +653,15 @@ export default function TurnosModule() {
               >
                 <option value="">Seleccioná una materia</option>
                 {materiasDisponibles.map((m) => (
-                  <option key={m.id} value={m.id}>{m.nombre?.trim()}</option>
+                  <option key={m.id} value={m.id}>
+                    {formatearNombre(m.nombre)}
+                  </option>
                 ))}
               </select>
 
-              <label style={styles.labelModal} htmlFor="profesorId">Profesor</label>
+              <label style={styles.labelModal} htmlFor="profesorId">
+                Profesor asignado
+              </label>
               <select
                 id="profesorId"
                 name="profesorId"
@@ -577,16 +671,21 @@ export default function TurnosModule() {
                 disabled={!formNuevo.materiaId}
               >
                 <option value="">
-                  {profesoresDisponibles.length === 0
-                    ? 'No hay profesores registrados'
+                  {profesoresHabilitados.length === 0
+                    ? 'No hay profesores habilitados para esta materia'
                     : 'Seleccioná un profesor'}
                 </option>
-                {profesoresDisponibles.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>
+                {profesoresHabilitados.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {formatearNombre(p.apellido)}, {formatearNombre(p.nombre)}
+                  </option>
                 ))}
               </select>
 
-              <label style={styles.labelModal} htmlFor="aulaNumero">Aula</label>
+              {/* Selector de Aula limpio y descriptivo */}
+              <label style={styles.labelModal} htmlFor="aulaNumero">
+                Aula
+              </label>
               <select
                 id="aulaNumero"
                 name="aulaNumero"
@@ -595,16 +694,52 @@ export default function TurnosModule() {
                 style={styles.inputModal}
               >
                 <option value="">Seleccioná un aula</option>
-                {datosAuxiliares.aulas.map((aula) => (
-                  <option key={aula.numero} value={aula.numero}>
-                    {aula.descripcion || `Aula ${aula.numero}`}
-                  </option>
-                ))}
+                {datosAuxiliares.aulas.map((aula) => {
+                  const desc = aula.descripcion?.trim();
+                  const tieneNombreDistinto =
+                    desc &&
+                    desc.toLowerCase() !== 'aula' &&
+                    desc.toLowerCase() !== `aula ${aula.numero}`.toLowerCase();
+
+                  const detalle = tieneNombreDistinto ? ` - ${desc}` : '';
+                  const capacidadStr = ` (Capacidad: ${aula.capacidad || 25} bancos)`;
+
+                  return (
+                    <option key={aula.numero} value={aula.numero}>
+                      {`Aula ${aula.numero}${detalle}${capacidadStr}`}
+                    </option>
+                  );
+                })}
               </select>
+
+              {/* Cupo editable vinculado al aula */}
+              {formNuevo.aulaNumero && (
+                <div style={{ marginTop: '12px' }}>
+                  <label style={styles.labelModal} htmlFor="cupoMaximo">
+                    Cupo de la clase {aulaSeleccionadaCrear ? `(Capacidad del aula: ${aulaSeleccionadaCrear.capacidad || 25} bancos)` : ''}
+                  </label>
+                  <input
+                    id="cupoMaximo"
+                    name="cupoMaximo"
+                    type="number"
+                    min="1"
+                    max={aulaSeleccionadaCrear?.capacidad || undefined}
+                    value={formNuevo.cupoMaximo}
+                    onChange={handleNuevoChange}
+                    placeholder="Cantidad máxima de alumnos"
+                    style={styles.inputModal}
+                  />
+                  <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '11px' }}>
+                    Se cargó por defecto la capacidad del aula. Podés reducir el cupo si no deseás llenar todos los bancos.
+                  </p>
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '8px', marginTop: '10px' }}>
                 <div>
-                  <label style={styles.labelModal} htmlFor="fecha">Fecha</label>
+                  <label style={styles.labelModal} htmlFor="fecha">
+                    Fecha
+                  </label>
                   <input
                     id="fecha"
                     name="fecha"
@@ -615,7 +750,9 @@ export default function TurnosModule() {
                   />
                 </div>
                 <div>
-                  <label style={styles.labelModal} htmlFor="horaInicio">Inicio</label>
+                  <label style={styles.labelModal} htmlFor="horaInicio">
+                    Inicio
+                  </label>
                   <input
                     id="horaInicio"
                     name="horaInicio"
@@ -626,7 +763,9 @@ export default function TurnosModule() {
                   />
                 </div>
                 <div>
-                  <label style={styles.labelModal} htmlFor="horaFin">Fin</label>
+                  <label style={styles.labelModal} htmlFor="horaFin">
+                    Fin
+                  </label>
                   <input
                     id="horaFin"
                     name="horaFin"
@@ -653,11 +792,7 @@ export default function TurnosModule() {
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={guardandoNuevo}
-                  style={styles.botonGuardar}
-                >
+                <button type="submit" disabled={guardandoNuevo} style={styles.botonGuardar}>
                   {guardandoNuevo ? 'Guardando...' : 'Programar Turno'}
                 </button>
               </div>
@@ -666,46 +801,60 @@ export default function TurnosModule() {
         </div>
       )}
 
-      {/* MODAL HU09: EDITAR CUPO */}
+      {/* MODAL: EDITAR CUPO */}
       {turnoSeleccionado && (
         <div style={styles.modalFondo} role="presentation" onMouseDown={cerrarEdicion}>
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="titulo-modal-cupo"
-            style={styles.modal}
+            style={{
+              ...styles.modal,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
             onMouseDown={(event) => event.stopPropagation()}
           >
             <div style={styles.modalEncabezado}>
               <div>
-                <span style={styles.modalEyebrow}>HU09 · Cupo de clase</span>
                 <h2 id="titulo-modal-cupo" style={styles.modalTitulo}>
                   {turnoSeleccionado.cupo_maximo === null ? 'Definir cupo' : 'Editar cupo'}
                 </h2>
               </div>
-              <button type="button" onClick={cerrarEdicion} style={styles.botonCerrar} aria-label="Cerrar">
+              <button
+                type="button"
+                onClick={cerrarEdicion}
+                style={styles.botonCerrar}
+                aria-label="Cerrar"
+              >
                 ×
               </button>
             </div>
 
             <div style={styles.detalleTurno}>
-              <strong>{turnoSeleccionado.materia_nombre || 'Clase sin materia'}</strong>
+              <strong>{formatearNombre(turnoSeleccionado.materia_nombre) || 'Clase sin materia'}</strong>
               <span>
-                {mostrarFecha(turnoSeleccionado.fecha)} · {mostrarHora(turnoSeleccionado.hora_inicio)}–{mostrarHora(turnoSeleccionado.hora_fin)}
+                {mostrarFecha(turnoSeleccionado.fecha)} · {mostrarHora(turnoSeleccionado.hora_inicio)}–
+                {mostrarHora(turnoSeleccionado.hora_fin)}
+              </span>
+              <span>
+                {turnoSeleccionado.aula_numero ? `Aula ${turnoSeleccionado.aula_numero}` : 'Sin aula asignada'}
+                {aulaDelTurnoEditar?.capacidad ? ` (Capacidad física: ${aulaDelTurnoEditar.capacidad} bancos)` : ''}
               </span>
               <span>{turnoSeleccionado.inscriptos_actuales} alumnos inscriptos actualmente</span>
             </div>
 
             <form onSubmit={guardarCupo} noValidate>
               <label htmlFor="cupo-maximo" style={styles.label}>
-                Cupo máximo
+                Cupo máximo {aulaDelTurnoEditar?.capacidad ? `(Máximo permitido: ${aulaDelTurnoEditar.capacidad})` : ''}
               </label>
               <input
                 id="cupo-maximo"
                 name="cupoMaximo"
                 type="number"
                 inputMode="numeric"
-                min="1"
+                min={turnoSeleccionado.inscriptos_actuales || 1}
+                max={aulaDelTurnoEditar?.capacidad || undefined}
                 step="1"
                 required
                 autoFocus
@@ -722,14 +871,21 @@ export default function TurnosModule() {
                 }}
               />
               <p id="ayuda-cupo" style={styles.ayuda}>
-                Ingresá un entero mayor que cero. No puede ser menor que los alumnos inscriptos.
+                {aulaDelTurnoEditar?.capacidad
+                  ? `Debe ser entre ${turnoSeleccionado.inscriptos_actuales || 1} y ${aulaDelTurnoEditar.capacidad} alumnos (capacidad física del aula).`
+                  : 'Ingresá un entero mayor que cero. No puede ser menor que los alumnos inscriptos.'}
               </p>
               <p id="error-cupo" role="alert" style={styles.errorFormulario}>
                 {errorFormulario ?? ''}
               </p>
 
               <div style={styles.modalAcciones}>
-                <button type="button" onClick={cerrarEdicion} disabled={guardando} style={styles.botonCancelar}>
+                <button
+                  type="button"
+                  onClick={cerrarEdicion}
+                  disabled={guardando}
+                  style={styles.botonCancelar}
+                >
                   Cancelar
                 </button>
                 <button type="submit" disabled={guardando} style={styles.botonGuardar}>
@@ -774,8 +930,7 @@ const styles: Record<string, React.CSSProperties> = {
   modalFondo: { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backgroundColor: 'rgba(15, 23, 42, 0.55)' },
   modal: { width: '100%', maxWidth: '460px', padding: '24px', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 24px 60px rgba(15, 23, 42, 0.25)' },
   modalEncabezado: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' },
-  modalEyebrow: { color: '#2563eb', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' },
-  modalTitulo: { margin: '4px 0 0', color: '#0f172a', fontSize: '20px' },
+  modalTitulo: { margin: 0, color: '#0f172a', fontSize: '20px', fontWeight: 700 },
   botonCerrar: { border: 0, background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: '25px', lineHeight: 1 },
   detalleTurno: { display: 'flex', flexDirection: 'column', gap: '3px', margin: '20px 0', padding: '13px 14px', border: '1px solid #e2e8f0', borderRadius: '7px', backgroundColor: '#f8fafc', color: '#475569', fontSize: '12px' },
   label: { display: 'block', marginBottom: '7px', color: '#334155', fontSize: '13px', fontWeight: 700 },
