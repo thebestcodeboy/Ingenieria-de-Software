@@ -226,7 +226,7 @@ export default function LoginView() {
           </div>
 
           {/* Texto Descriptivo */}
-          <div style={{ zIndex: 1, my: 'auto' }}>
+          <div style={{ zIndex: 1, margin: 'auto 0' }}>
             <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#f8fafc', lineHeight: 1.3, margin: '0 0 14px 0' }}>
               Control y gestión académica centralizada.
             </h2>

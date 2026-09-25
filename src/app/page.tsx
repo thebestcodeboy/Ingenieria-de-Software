@@ -135,8 +135,7 @@ export default function AteneoLayout() {
   }
 
   const menuItems = role === 'alumno' ? ALUMNO_MENU_ITEMS : ADMIN_MENU_ITEMS;
-  const nombreUsuario = user?.email ? user.email.split('@')[0].toUpperCase() : 'USUARIO';
-  const iniciales = nombreUsuario.slice(0, 2);
+  const iniciales = nombreUsuario.slice(0, 2).toUpperCase();
 
   const handleAbrirPerfil = () => {
     window.dispatchEvent(new CustomEvent('abrir-perfil-alumno'));
