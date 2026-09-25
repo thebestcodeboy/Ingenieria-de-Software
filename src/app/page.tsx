@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import LoginView from '../components/LoginView';
 import AlumnosModule from '../components/AlumnosModule';
@@ -120,7 +119,6 @@ export default function AteneoLayout() {
   const { user, role, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('calendario');
   const nombreUsuario = user?.user_metadata?.nombre?.trim() || user?.email || 'Usuario';
-  const inicialUsuario = nombreUsuario.charAt(0).toUpperCase();
 
   if (loading) {
     return (
@@ -134,7 +132,11 @@ export default function AteneoLayout() {
     return <LoginView />;
   }
 
-  const menuItems = role === 'alumno' ? ALUMNO_MENU_ITEMS : ADMIN_MENU_ITEMS;
+  const menuItems = role === 'alumno'
+    ? ALUMNO_MENU_ITEMS
+    : role === 'profesor'
+      ? PROFESOR_MENU_ITEMS
+      : ADMIN_MENU_ITEMS;
   const iniciales = nombreUsuario.slice(0, 2).toUpperCase();
 
   const handleAbrirPerfil = () => {
@@ -191,59 +193,12 @@ export default function AteneoLayout() {
             })}
           </nav>
 
-          {role === 'profesor' && (
-            <nav aria-label="Menú docente" style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 12px' }}>
-              {PROFESOR_MENU_ITEMS.map(({ id, label, Icon }) => {
-                const isActive = activeTab === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setActiveTab(id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      width: '100%',
-                      padding: '9px 12px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      backgroundColor: isActive ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
-                      color: isActive ? '#ffffff' : '#94a3b8',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: isActive ? 600 : 400,
-                      textAlign: 'left',
-                    }}
-                  >
-                    <span style={{ display: 'flex', color: isActive ? '#60a5fa' : '#64748b' }}><Icon /></span>
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          )}
         </div>
 
         {/* FOOTER SIDEBAR INTERACTIVO: AL TOCAR EL USUARIO ABRE EL PERFIL */}
         <div style={{ padding: '12px 14px 0 14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          {role === 'profesor' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '0 4px' }}>
-              <div aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#1d4ed8', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '13px', fontWeight: 700 }}>
-                {inicialUsuario}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ color: '#ffffff', fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={nombreUsuario}>
-                  {nombreUsuario}
-                </div>
-                <div style={{ color: '#94a3b8', fontSize: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user.email ?? ''}>
-                  {user.email}
-                </div>
-              </div>
-            </div>
-          )}
           <div 
-            onClick={handleAbrirPerfil}
+            onClick={role === 'alumno' ? handleAbrirPerfil : undefined}
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -251,12 +206,14 @@ export default function AteneoLayout() {
               marginBottom: '10px', 
               padding: '6px 8px',
               borderRadius: '8px',
-              cursor: 'pointer',
+              cursor: role === 'alumno' ? 'pointer' : 'default',
               transition: 'background-color 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)'}
+            onMouseEnter={(e) => {
+              if (role === 'alumno') e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+            }}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            title="Hacé clic para ver tus datos de perfil institucional"
+            title={role === 'alumno' ? 'Hacé clic para ver tus datos de perfil institucional' : undefined}
           >
             <div style={{
               width: '32px',
@@ -296,22 +253,7 @@ export default function AteneoLayout() {
         {role === 'profesor' ? (
           activeTab === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder />
         ) : role === 'alumno' ? (
-          <div style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            padding: '48px',
-            textAlign: 'center',
-            maxWidth: '560px',
-            margin: '40px auto'
-          }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
-              Portal del Alumno
-            </h2>
-            <p style={{ color: '#64748b', fontSize: '13px' }}>
-              Módulo en preparación para tu perfil.
-            </p>
-          </div>
+          <PortalAlumnoModule activeTab={activeTab} />
         ) : activeTab === 'alumnos' ? (
           <AlumnosModule />
         ) : activeTab === 'profesores' ? (
