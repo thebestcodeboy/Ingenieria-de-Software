@@ -118,9 +118,15 @@ const ALUMNO_MENU_ITEMS = [
 ];
 
 const PROFESOR_MENU_ITEMS = [
-  { id: 'calendario', label: 'Mi calendario', Icon: Icons.Calendario },
+  { id: 'calendario', label: 'Mis clases', Icon: Icons.Calendario },
   { id: 'cursos-docente', label: 'Mis cursos', Icon: Icons.Cursos },
 ];
+
+const ETIQUETAS_ROL = {
+  mesa_entrada: 'Mesa de Entrada',
+  profesor: 'Profesor',
+  alumno: 'Alumno',
+} as const;
 
 export default function AteneoLayout() {
   const { user, role, loading, logout } = useAuth();
@@ -243,6 +249,10 @@ export default function AteneoLayout() {
                 {nombreUsuario}
               </div>
             </div>
+          </div>
+
+          <div style={{ color: '#94a3b8', fontSize: '10px', margin: '0 8px 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Rol: <strong style={{ color: '#38bdf8' }}>{role ? ETIQUETAS_ROL[role] : 'Sin rol'}</strong>
           </div>
 
           <button

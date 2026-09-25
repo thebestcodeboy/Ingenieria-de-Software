@@ -56,14 +56,6 @@ export async function listarCursosProfesor(): Promise<CursoPortalProfesor[]> {
   return (data ?? []).map((fila: Record<string, unknown>) => normalizarCurso(fila));
 }
 
-export async function anotarseCursoProfesor(cursoId: string): Promise<void> {
-  const { error } = await supabase.rpc('anotarme_curso_profesor', {
-    p_curso_id: cursoId,
-  });
-
-  if (error) throw new Error(mensajeError(error));
-}
-
 export async function listarCalendarioProfesor(
   desde: string,
   hasta: string,

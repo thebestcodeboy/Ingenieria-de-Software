@@ -197,10 +197,9 @@ export async function obtenerDatosTurnos() {
  * HU08: Inserta un nuevo turno en la tabla `turnos_clase`
  */
 export async function registrarTurno(payload: FormNuevoTurnoPayload) {
-  const esParticular =
-    payload.actividadTipo === 'particular' || payload.actividadTipo === 'clase_particular';
+  const esParticular = payload.actividadTipo === 'particular';
 
-  const nuevoRegistro: Record<string, any> = {
+  const nuevoRegistro: Record<string, string | number | null> = {
     tipo_actividad: esParticular ? 'clase_particular' : 'curso_ingreso',
     materia_id: payload.materiaId,
     profesor_id: payload.profesorId,
