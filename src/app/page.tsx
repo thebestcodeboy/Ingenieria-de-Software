@@ -117,6 +117,8 @@ const PROFESOR_MENU_ITEMS = [
 export default function AteneoLayout() {
   const { user, role, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('calendario');
+  const nombreUsuario = user?.user_metadata?.nombre?.trim() || user?.email || 'Usuario';
+  const inicialUsuario = nombreUsuario.charAt(0).toUpperCase();
 
   if (loading) {
     return (
@@ -267,6 +269,21 @@ export default function AteneoLayout() {
 
         {/* Footer Sidebar */}
         <div style={{ padding: '12px 14px 0 14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          {role === 'profesor' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', padding: '0 4px' }}>
+              <div aria-hidden="true" style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#1d4ed8', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '13px', fontWeight: 700 }}>
+                {inicialUsuario}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: '#ffffff', fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={nombreUsuario}>
+                  {nombreUsuario}
+                </div>
+                <div style={{ color: '#94a3b8', fontSize: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user.email ?? ''}>
+                  {user.email}
+                </div>
+              </div>
+            </div>
+          )}
           <div style={{ color: '#94a3b8', fontSize: '11px', marginBottom: '8px', padding: '0 4px' }}>
             <span style={{ color: '#38bdf8', fontWeight: 600 }}>ROL:</span> {role}
           </div>

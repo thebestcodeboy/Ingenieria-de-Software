@@ -171,7 +171,7 @@ export default function ProfesoresModule() {
 
   const copiarCredenciales = () => {
     if (!credencialesModal) return;
-    const texto = `INSTITUTO ATENEO - ACCESO DOCENTE\nProfesor: ${credencialesModal.nombreCompleto}\nUsuario: ${credencialesModal.usuario}\nContraseña provisoria: ${credencialesModal.claveProvisoria}`;
+    const texto = `${credencialesModal.usuario}\n${credencialesModal.claveProvisoria}`;
     navigator.clipboard.writeText(texto);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2500);
