@@ -93,10 +93,30 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
     throw new Error(error.message || 'Error al guardar el profesor en Supabase.');
   }
 
-  return data?.[0];
+  const nuevoProfesor = data?.[0];
+
+  // Sincronizar tabla relacional profesor_materia para triggers de turnos
+  if (nuevoProfesor && materiasIds.length > 0) {
+    const filasRelacion = materiasIds.map((materiaId) => ({
+      profesor_id: nuevoProfesor.id,
+      materia_id: materiaId
+    }));
+
+    const { error: relError } = await supabase
+      .from('profesor_materia')
+      .insert(filasRelacion);
+
+    if (relError) {
+      console.warn('Advertencia al sincronizar profesor_materia:', relError.message);
+    }
+  }
+
+  return nuevoProfesor;
 }
 
-// HU13: Modificar datos de profesor existente
+/**
+ * HU13: Modificar datos de profesor existente y actualizar materias habilitadas
+ */
 export async function updateProfesor(id, { nombre, apellido, dni, email, telefono, materiasIds, turnos }) {
   const cleanNombre = nombre?.trim();
   const cleanApellido = apellido?.trim();
@@ -141,5 +161,29 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
     console.error('Error en updateProfesor:', error);
     throw new Error(error.message || 'Error al actualizar el profesor en Supabase.');
   }
+
+  // Sincronizar tabla relacional profesor_materia
+  if (materiasIds && materiasIds.length > 0) {
+    // 1. Borrar asociaciones previas
+    await supabase
+      .from('profesor_materia')
+      .delete()
+      .eq('profesor_id', id);
+
+    // 2. Insertar las asociaciones vigentes
+    const nuevasFilas = materiasIds.map((materiaId) => ({
+      profesor_id: id,
+      materia_id: materiaId
+    }));
+
+    const { error: relError } = await supabase
+      .from('profesor_materia')
+      .insert(nuevasFilas);
+
+    if (relError) {
+      console.warn('Advertencia al actualizar profesor_materia:', relError.message);
+    }
+  }
+
   return data?.[0];
 }

@@ -10,6 +10,7 @@ import CursosIngresoModule from '../components/CursosIngresoModule';
 import ClasesParticularesModule from '../components/ClasesParticularesModule';
 import TurnosModule from '../components/TurnosModule';
 import CalendarioAdminModule from '../components/CalendarioAdminModule';
+import AulasModule from '../components/AulasModule';
 import PortalAlumnoModule from '../components/PortalAlumnoModule';
 import ProfesorCalendarioPlaceholder from '../components/ProfesorCalendarioPlaceholder';
 import ProfesorCursosModule from '../components/ProfesorCursosModule';
@@ -48,7 +49,7 @@ const Icons = {
   ),
   Particulares: () => (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
       <line x1="16" y1="13" x2="8" y2="13" />
       <line x1="16" y1="17" x2="8" y2="17" />
@@ -58,6 +59,11 @@ const Icons = {
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
+    </svg>
+  ),
+  Aulas: () => (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 21h18M3 7v14M21 7v14M6 7V3h12v4M9 21v-6h6v6" />
     </svg>
   ),
   Calendario: () => (
@@ -99,6 +105,7 @@ const ADMIN_MENU_ITEMS = [
   { id: 'cursos', label: 'Cursos de Ingreso', Icon: Icons.Cursos },
   { id: 'particulares', label: 'Clases Particulares', Icon: Icons.Particulares },
   { id: 'turnos', label: 'Turnos y Clases', Icon: Icons.Turnos },
+  { id: 'aulas', label: 'Aulas', Icon: Icons.Aulas },
   { id: 'calendario', label: 'Calendario', Icon: Icons.Calendario },
   { id: 'inscripciones', label: 'Inscripciones', Icon: Icons.Inscripciones },
   { id: 'reportes', label: 'Reportes', Icon: Icons.Reportes },
@@ -266,6 +273,8 @@ export default function AteneoLayout() {
           <ClasesParticularesModule />
         ) : activeTab === 'turnos' ? (
           <TurnosModule />
+        ) : activeTab === 'aulas' ? (
+          <AulasModule />
         ) : activeTab === 'calendario' ? (
           <CalendarioAdminModule />
         ) : (
