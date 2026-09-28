@@ -14,6 +14,7 @@ import AulasModule from '../components/AulasModule';
 import PortalAlumnoModule from '../components/PortalAlumnoModule';
 import ProfesorCalendarioPlaceholder from '../components/ProfesorCalendarioPlaceholder';
 import ProfesorCursosModule from '../components/ProfesorCursosModule';
+import DashboardModule from '../components/DashboardModule';
 
 const Icons = {
   Inicio: () => (
@@ -271,6 +272,8 @@ export default function AteneoLayout() {
           activeTab === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder />
         ) : role === 'alumno' ? (
           <PortalAlumnoModule activeTab={activeTab} />
+        ) : activeTab === 'inicio' ? (
+          <DashboardModule />
         ) : activeTab === 'alumnos' ? (
           <AlumnosModule />
         ) : activeTab === 'profesores' ? (
