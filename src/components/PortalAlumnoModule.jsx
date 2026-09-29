@@ -14,7 +14,7 @@ export default function PortalAlumnoModule({ activeTab }) {
   const [alumnoActual, setAlumnoActual] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Filtros del catálogo
   const [filtroNivel, setFiltroNivel] = useState('todos');
   const [paginaActual, setPaginaActual] = useState(1);
@@ -26,7 +26,7 @@ export default function PortalAlumnoModule({ activeTab }) {
   const [profesoresDisponiblesMateria, setProfesoresDisponiblesMateria] = useState([]);
   const [profeSeleccionado, setProfeSeleccionado] = useState('');
   const [turnosDelProfesor, setTurnosDelProfesor] = useState([]);
-  
+
   // Detalle de comisión ("Aula del Curso")
   const [cursoDetalleActivo, setCursoDetalleActivo] = useState(null);
   const [companerosComision, setCompanerosComision] = useState([]);
@@ -41,14 +41,12 @@ export default function PortalAlumnoModule({ activeTab }) {
   const [vistaCalendario, setVistaCalendario] = useState('mes');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Escuchar el evento disparado desde la barra lateral (Sidebar)
   useEffect(() => {
     const handleAbrirPerfil = () => setMostrarModalPerfil(true);
     window.addEventListener('abrir-perfil-alumno', handleAbrirPerfil);
     return () => window.removeEventListener('abrir-perfil-alumno', handleAbrirPerfil);
   }, []);
 
-  // Reiniciar vistas internas al cambiar de pestaña en el menú
   useEffect(() => {
     setItemSeleccionado(null);
     setCursoDetalleActivo(null);
@@ -60,13 +58,11 @@ export default function PortalAlumnoModule({ activeTab }) {
     try {
       setLoading(true);
 
-      // Obtener el identificador del usuario en sesión
       const userEmail = user?.email || '';
       const usernameSesion = userEmail ? userEmail.split('@')[0] : (user?.user_metadata?.username || '');
 
       let alumnoData = null;
 
-      // 1. Buscar en la tabla alumnos por email exacto o por username_institucional
       if (userEmail) {
         const { data: porEmail } = await supabase
           .from('alumnos')
@@ -91,7 +87,6 @@ export default function PortalAlumnoModule({ activeTab }) {
         }
       }
 
-      // Si aún no existe en la tabla alumnos, generamos un objeto representativo de SU cuenta (NUNCA de otro alumno)
       if (!alumnoData && user) {
         alumnoData = {
           id: user.id,
@@ -101,7 +96,7 @@ export default function PortalAlumnoModule({ activeTab }) {
           dni: user.user_metadata?.dni || 'No registrado',
           telefono: user.user_metadata?.telefono || 'No registrado',
           email: userEmail || 'No registrado',
-          direccion: user.user_metadata?.direccion || 'No registrada'
+          direccion: user.user_metadata?.direccion || 'No registrada',
         };
       }
 
@@ -111,8 +106,13 @@ export default function PortalAlumnoModule({ activeTab }) {
         supabase.from('materias').select('*').order('nombre', { ascending: true }),
         supabase.from('cursos_ingreso').select('*').order('nombre', { ascending: true }),
         supabase.from('profesores').select('*').order('nombre', { ascending: true }),
-        supabase.from('turnos_clase').select('*, materias(nombre, nivel), cursos_ingreso(nombre), profesores(id, nombre, apellido, email)').order('fecha', { ascending: true }),
-        supabase.from('inscripciones').select('*, turnos_clase(*, materias(nombre, nivel), cursos_ingreso(nombre), profesores(id, nombre, apellido, email))')
+        supabase
+          .from('turnos_clase')
+          .select('*, materias(nombre, nivel), cursos_ingreso(nombre), profesores(id, nombre, apellido, email)')
+          .order('fecha', { ascending: true }),
+        supabase
+          .from('inscripciones')
+          .select('*, turnos_clase(*, materias(nombre, nivel), cursos_ingreso(nombre), profesores(id, nombre, apellido, email))'),
       ]);
 
       if (matRes.error) throw matRes.error;
@@ -124,16 +124,14 @@ export default function PortalAlumnoModule({ activeTab }) {
       setCursos(curRes.data || []);
       setProfesores(profRes.data || []);
       setTodosLosTurnos(turnosRes.data || []);
-      
-      // FILTRADO ESTRICTO: Únicamente las inscripciones del alumno logueado
+
       const todasInscripciones = inscRes.data || [];
       if (alumnoData?.id) {
-        const propias = todasInscripciones.filter(i => String(i.alumno_id) === String(alumnoData.id));
+        const propias = todasInscripciones.filter((i) => String(i.alumno_id) === String(alumnoData.id));
         setMisInscripciones(propias);
       } else {
         setMisInscripciones([]);
       }
-
     } catch (err) {
       setError(`Error al conectar con la base de datos: ${err.message}`);
     } finally {
@@ -147,17 +145,17 @@ export default function PortalAlumnoModule({ activeTab }) {
 
   const itemsFiltrados = useMemo(() => {
     if (filtroNivel === 'Universitario') {
-      return materias.filter(m => (m.nivel || '').toLowerCase().includes('universitario'));
+      return materias.filter((m) => (m.nivel || '').toLowerCase().includes('universitario'));
     }
     if (filtroNivel === 'Secundario') {
-      return materias.filter(m => (m.nivel || '').toLowerCase().includes('secundario'));
+      return materias.filter((m) => (m.nivel || '').toLowerCase().includes('secundario'));
     }
     if (filtroNivel === 'curso') {
-      return cursos.map(c => ({ ...c, nivel: 'Curso de Ingreso', tipoOrigen: 'curso' }));
+      return cursos.map((c) => ({ ...c, nivel: 'Curso de Ingreso', tipoOrigen: 'curso' }));
     }
     return [
-      ...materias.map(m => ({ ...m, tipoOrigen: 'materia' })),
-      ...cursos.map(c => ({ ...c, nivel: 'Curso de Ingreso', tipoOrigen: 'curso' }))
+      ...materias.map((m) => ({ ...m, tipoOrigen: 'materia' })),
+      ...cursos.map((c) => ({ ...c, nivel: 'Curso de Ingreso', tipoOrigen: 'curso' })),
     ];
   }, [materias, cursos, filtroNivel]);
 
@@ -183,18 +181,18 @@ export default function PortalAlumnoModule({ activeTab }) {
           .select('profesores(id, nombre, apellido)')
           .eq('curso_id', item.id);
         if (error) throw error;
-        listaProfs = (data || []).map(d => d.profesores).filter(Boolean);
+        listaProfs = (data || []).map((d) => d.profesores).filter(Boolean);
       } else {
         const { data, error } = await supabase
           .from('profesor_materia')
           .select('profesores(id, nombre, apellido)')
           .eq('materia_id', item.id);
         if (error) throw error;
-        listaProfs = (data || []).map(d => d.profesores).filter(Boolean);
+        listaProfs = (data || []).map((d) => d.profesores).filter(Boolean);
       }
 
       const profsMap = new Map();
-      listaProfs.forEach(p => profsMap.set(p.id, p));
+      listaProfs.forEach((p) => profsMap.set(p.id, p));
       const listaUnica = Array.from(profsMap.values());
 
       listaUnica.sort((a, b) => {
@@ -210,6 +208,7 @@ export default function PortalAlumnoModule({ activeTab }) {
     }
   };
 
+  // HU14: Se traen todos los turnos pero se identifica el estado (para no permitir inscripción a cancelados)
   const handleCambiarProfesor = async (profId) => {
     setProfeSeleccionado(profId);
     setTurnosDelProfesor([]);
@@ -231,6 +230,7 @@ export default function PortalAlumnoModule({ activeTab }) {
     }
   };
 
+  // HU14: Verificación estricta de que el turno no esté cancelado antes de guardar
   const handleInscribirseTurno = async (turnoId) => {
     try {
       if (!alumnoActual?.id) {
@@ -238,14 +238,26 @@ export default function PortalAlumnoModule({ activeTab }) {
         return;
       }
 
+      const { data: turnoDb, error: errTurno } = await supabase
+        .from('turnos_clase')
+        .select('id, estado')
+        .eq('id', turnoId)
+        .single();
+
+      if (errTurno || !turnoDb) {
+        throw new Error('El turno seleccionado no existe.');
+      }
+
+      if (turnoDb.estado === 'cancelado') {
+        throw new Error('No es posible inscribirse: este turno ha sido cancelado.');
+      }
+
       const payload = {
         turno_id: turnoId,
-        alumno_id: alumnoActual.id
+        alumno_id: alumnoActual.id,
       };
 
-      const { error: insError } = await supabase
-        .from('inscripciones')
-        .insert([payload]);
+      const { error: insError } = await supabase.from('inscripciones').insert([payload]);
 
       if (insError) throw insError;
 
@@ -269,7 +281,7 @@ export default function PortalAlumnoModule({ activeTab }) {
         .eq('turno_id', ins.turno_id);
 
       if (error) throw error;
-      const alumnos = (data || []).map(d => d.alumnos).filter(Boolean);
+      const alumnos = (data || []).map((d) => d.alumnos).filter(Boolean);
       setCompanerosComision(alumnos);
     } catch (err) {
       setCompanerosComision([]);
@@ -280,23 +292,23 @@ export default function PortalAlumnoModule({ activeTab }) {
 
   const nombresMeses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
 
   const cambiarMes = (direccion) => {
     if (direccion === 'ant') {
       if (mesActual === 0) {
         setMesActual(11);
-        setAnioActual(a => a - 1);
+        setAnioActual((a) => a - 1);
       } else {
-        setMesActual(m => m - 1);
+        setMesActual((m) => m - 1);
       }
     } else {
       if (mesActual === 11) {
         setMesActual(0);
-        setAnioActual(a => a + 1);
+        setAnioActual((a) => a + 1);
       } else {
-        setMesActual(m => m + 1);
+        setMesActual((m) => m + 1);
       }
     }
   };
@@ -316,7 +328,7 @@ export default function PortalAlumnoModule({ activeTab }) {
         tipo: 'dia',
         numero: dia,
         fechaStr,
-        clave: `dia-${fechaStr}`
+        clave: `dia-${fechaStr}`,
       });
     }
 
@@ -340,7 +352,6 @@ export default function PortalAlumnoModule({ activeTab }) {
 
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }}>
-      
       {/* 1. SELECCIÓN DE MATERIA Y CALENDARIO PARA ANOTARSE */}
       {itemSeleccionado ? (
         <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '32px', width: '100%', boxSizing: 'border-box', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -357,7 +368,7 @@ export default function PortalAlumnoModule({ activeTab }) {
             </div>
             <div>
               <span style={{ fontSize: '11px', fontWeight: 700, color: '#3730a3', backgroundColor: '#e0e7ff', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                {tipoItem === 'materia' ? (itemSeleccionado.nivel || 'Universitario') : 'Curso de Ingreso'}
+                {tipoItem === 'materia' ? itemSeleccionado.nivel || 'Universitario' : 'Curso de Ingreso'}
               </span>
               <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '6px 0 2px 0', textTransform: 'uppercase' }}>
                 {itemSeleccionado.nombre}
@@ -396,7 +407,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                     {[
                       { id: 'dia', label: 'Día' },
                       { id: 'semana', label: 'Semana' },
-                      { id: 'mes', label: 'Mes' }
+                      { id: 'mes', label: 'Mes' },
                     ].map((v) => (
                       <button
                         key={v.id}
@@ -409,7 +420,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                           color: vistaCalendario === v.id ? '#ffffff' : '#475569',
                           fontSize: '12px',
                           fontWeight: 700,
-                          cursor: 'pointer'
+                          cursor: 'pointer',
                         }}
                       >
                         {v.label}
@@ -425,7 +436,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                       <span style={{ width: '10px', height: '10px', backgroundColor: '#64748b', borderRadius: '50%', display: 'inline-block' }}></span> Ya Inscripto
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '10px', height: '10px', backgroundColor: '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span> Lleno / Pasado
+                      <span style={{ width: '10px', height: '10px', backgroundColor: '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span> Lleno / Cancelado
                     </span>
                   </div>
                 </div>
@@ -466,7 +477,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                     </button>
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
-                    Docente: {profesoresDisponiblesMateria.find(p => p.id === profeSeleccionado)?.nombre}
+                    Docente: {profesoresDisponiblesMateria.find((p) => p.id === profeSeleccionado)?.nombre}
                   </span>
                 </div>
 
@@ -481,7 +492,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderTop: '1px solid #cbd5e1' }}>
                   {celdasCalendario.map((celda, idx) => {
                     const esVacio = celda.tipo === 'vacio';
-                    const turnosDelDia = !esVacio ? turnosDelProfesor.filter(t => t.fecha === celda.fechaStr) : [];
+                    const turnosDelDia = !esVacio ? turnosDelProfesor.filter((t) => t.fecha === celda.fechaStr) : [];
                     const esPasado = !esVacio && celda.fechaStr < hoyRef;
 
                     if (vistaCalendario === 'dia' && (!celda.numero || celda.fechaStr !== '2026-09-25')) {
@@ -503,7 +514,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                           boxSizing: 'border-box',
                           display: 'flex',
                           flexDirection: 'column',
-                          justifyContent: 'space-between'
+                          justifyContent: 'space-between',
                         }}
                       >
                         <div style={{ fontSize: '12px', fontWeight: 600, color: esPasado ? '#991b1b' : '#334155', textAlign: 'left', marginBottom: '4px' }}>
@@ -515,13 +526,18 @@ export default function PortalAlumnoModule({ activeTab }) {
                             const cuposLibres = t.cupo_maximo ?? 15;
                             const estaLleno = cuposLibres <= 0;
                             const turnoVencido = t.fecha < hoyRef;
-                            const yaInscripto = misInscripciones.some(ins => ins.turno_id === t.id);
+                            const yaInscripto = misInscripciones.some((ins) => ins.turno_id === t.id);
+                            const esCancelado = t.estado === 'cancelado';
 
                             let bgColor = '#10b981';
                             let textoBoton = 'Anotarse';
                             let cursorEstilo = 'pointer';
 
-                            if (yaInscripto) {
+                            if (esCancelado) {
+                              bgColor = '#dc2626';
+                              textoBoton = 'CANCELADO';
+                              cursorEstilo = 'not-allowed';
+                            } else if (yaInscripto) {
                               bgColor = '#64748b';
                               textoBoton = 'INSCRIPTO';
                               cursorEstilo = 'not-allowed';
@@ -534,8 +550,18 @@ export default function PortalAlumnoModule({ activeTab }) {
                             return (
                               <div
                                 key={t.id}
-                                onClick={() => !estaLleno && !turnoVencido && !yaInscripto && handleInscribirseTurno(t.id)}
-                                title={yaInscripto ? 'Ya te encuentras registrado en este turno' : turnoVencido ? 'Turno pasado' : estaLleno ? 'Cupo agotado' : 'Haga clic para anotarse'}
+                                onClick={() => !esCancelado && !estaLleno && !turnoVencido && !yaInscripto && handleInscribirseTurno(t.id)}
+                                title={
+                                  esCancelado
+                                    ? 'Este turno fue cancelado y no admite inscripciones'
+                                    : yaInscripto
+                                    ? 'Ya te encuentras registrado en este turno'
+                                    : turnoVencido
+                                    ? 'Turno pasado'
+                                    : estaLleno
+                                    ? 'Cupo agotado'
+                                    : 'Haga clic para anotarse'
+                                }
                                 style={{
                                   backgroundColor: bgColor,
                                   color: '#ffffff',
@@ -544,17 +570,26 @@ export default function PortalAlumnoModule({ activeTab }) {
                                   cursor: cursorEstilo,
                                   fontSize: '11px',
                                   lineHeight: 1.25,
-                                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                  opacity: esCancelado ? 0.85 : 1,
                                 }}
                               >
-                                <div style={{ fontWeight: 700 }}>
+                                <div style={{ fontWeight: 700, textDecoration: esCancelado ? 'line-through' : 'none' }}>
                                   {t.hora_inicio.slice(0, 5)} - {t.hora_fin.slice(0, 5)}
                                 </div>
                                 <div style={{ fontSize: '10px', marginTop: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span>
-                                    {yaInscripto ? 'REGISTRADO' : turnoVencido ? 'PASADO' : estaLleno ? 'LLENO' : `Cupos: ${cuposLibres}`}
+                                    {esCancelado
+                                      ? 'CANCELADO'
+                                      : yaInscripto
+                                      ? 'REGISTRADO'
+                                      : turnoVencido
+                                      ? 'PASADO'
+                                      : estaLleno
+                                      ? 'LLENO'
+                                      : `Cupos: ${cuposLibres}`}
                                   </span>
-                                  <span style={{ fontWeight: 600, textDecoration: (!yaInscripto && !estaLleno && !turnoVencido) ? 'underline' : 'none' }}>
+                                  <span style={{ fontWeight: 600, textDecoration: (!esCancelado && !yaInscripto && !estaLleno && !turnoVencido) ? 'underline' : 'none' }}>
                                     {textoBoton}
                                   </span>
                                 </div>
@@ -569,7 +604,7 @@ export default function PortalAlumnoModule({ activeTab }) {
 
                 <div style={{ padding: '8px 12px', backgroundColor: '#f8fafc', borderTop: '1px solid #cbd5e1', fontSize: '11px', color: '#64748b' }}>
                   <span style={{ fontWeight: 700, textTransform: 'uppercase', marginRight: '6px' }}>NOTAS:</span>
-                  Los casilleros grises indican turnos en los que ya estás inscripto. En verde aquellos disponibles y en rojo los vencidos o sin cupo.
+                  En gris se indican turnos donde ya estás inscripto, en verde disponibles, y en rojo aquellos cancelados, vencidos o completos.
                 </div>
               </div>
             )}
@@ -589,8 +624,8 @@ export default function PortalAlumnoModule({ activeTab }) {
               { id: 'todos', label: 'Todos los Cursos' },
               { id: 'Universitario', label: 'Nivel Universitario' },
               { id: 'Secundario', label: 'Nivel Secundario' },
-              { id: 'curso', label: 'Cursos de Ingreso' }
-            ].map(f => (
+              { id: 'curso', label: 'Cursos de Ingreso' },
+            ].map((f) => (
               <button
                 key={f.id}
                 onClick={() => { setFiltroNivel(f.id); setPaginaActual(1); }}
@@ -602,7 +637,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                   color: filtroNivel === f.id ? '#ffffff' : '#475569',
                   fontSize: '12px',
                   fontWeight: 700,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 {f.label}
@@ -622,21 +657,21 @@ export default function PortalAlumnoModule({ activeTab }) {
                   'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
                   'linear-gradient(135deg, #065f46 0%, #10b981 100%)',
                   'linear-gradient(135deg, #581c87 0%, #8b5cf6 100%)',
-                  'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)'
+                  'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)',
                 ];
                 return (
-                  <div 
-                    key={item.id} 
-                    style={{ 
-                      backgroundColor: '#ffffff', 
-                      border: '1px solid #e2e8f0', 
-                      borderRadius: '10px', 
-                      overflow: 'hidden', 
-                      display: 'flex', 
+                  <div
+                    key={item.id}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      display: 'flex',
                       flexDirection: 'column',
                       height: '100%',
                       boxSizing: 'border-box',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
                     }}
                   >
                     <div style={{ height: '80px', background: gradients[idx % gradients.length], display: 'flex', alignItems: 'flex-end', padding: '12px' }}>
@@ -666,7 +701,7 @@ export default function PortalAlumnoModule({ activeTab }) {
           {totalPaginas > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', marginTop: '20px', paddingBottom: '20px' }}>
               <button
-                onClick={() => setPaginaActual(p => Math.max(p - 1, 1))}
+                onClick={() => setPaginaActual((p) => Math.max(p - 1, 1))}
                 disabled={paginaActual === 1}
                 style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === 1 ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '12px', fontWeight: 700, cursor: paginaActual === 1 ? 'not-allowed' : 'pointer' }}
               >
@@ -676,7 +711,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                 Página {paginaActual} de {totalPaginas}
               </span>
               <button
-                onClick={() => setPaginaActual(p => Math.min(p + 1, totalPaginas))}
+                onClick={() => setPaginaActual((p) => Math.min(p + 1, totalPaginas))}
                 disabled={paginaActual === totalPaginas}
                 style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === totalPaginas ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '12px', fontWeight: 700, cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer' }}
               >
@@ -702,10 +737,29 @@ export default function PortalAlumnoModule({ activeTab }) {
                   {(cursoDetalleActivo.turnos_clase?.materias?.nombre || cursoDetalleActivo.turnos_clase?.cursos_ingreso?.nombre || 'CU').slice(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#15803d', backgroundColor: '#f0fdf4', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                    Matriculado Activo
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? '#991b1b' : '#15803d',
+                      backgroundColor: cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? '#fee2e2' : '#f0fdf4',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? 'CLASE CANCELADA' : 'Matriculado Activo'}
                   </span>
-                  <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: '6px 0 2px 0', textTransform: 'uppercase' }}>
+                  <h2
+                    style={{
+                      fontSize: '22px',
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      margin: '6px 0 2px 0',
+                      textTransform: 'uppercase',
+                      textDecoration: cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? 'line-through' : 'none',
+                    }}
+                  >
                     {cursoDetalleActivo.turnos_clase?.materias?.nombre || cursoDetalleActivo.turnos_clase?.cursos_ingreso?.nombre}
                   </h2>
                   <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
@@ -729,8 +783,9 @@ export default function PortalAlumnoModule({ activeTab }) {
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
                       Horario de Cursada:
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#2563eb', marginTop: '2px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? '#dc2626' : '#2563eb', marginTop: '2px' }}>
                       {cursoDetalleActivo.turnos_clase?.fecha} | {cursoDetalleActivo.turnos_clase?.hora_inicio} - {cursoDetalleActivo.turnos_clase?.hora_fin}
+                      {cursoDetalleActivo.turnos_clase?.estado === 'cancelado' && ' (SUSPENDIDA)'}
                     </div>
                   </div>
                 </div>
@@ -753,16 +808,16 @@ export default function PortalAlumnoModule({ activeTab }) {
                         const esElUsuarioActual = alumnoActual?.id === comp.id || (user?.email && comp.email === user.email);
 
                         return (
-                          <div 
-                            key={comp.id} 
-                            style={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              alignItems: 'center', 
-                              padding: '10px 14px', 
-                              backgroundColor: esElUsuarioActual ? '#eff6ff' : '#f8fafc', 
-                              borderRadius: '6px', 
-                              border: esElUsuarioActual ? '1px solid #bfdbfe' : '1px solid #f1f5f9' 
+                          <div
+                            key={comp.id}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '10px 14px',
+                              backgroundColor: esElUsuarioActual ? '#eff6ff' : '#f8fafc',
+                              borderRadius: '6px',
+                              border: esElUsuarioActual ? '1px solid #bfdbfe' : '1px solid #f1f5f9',
                             }}
                           >
                             <div>
@@ -802,53 +857,55 @@ export default function PortalAlumnoModule({ activeTab }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
                   {misInscripciones.map((ins, idx) => {
                     const turno = ins.turnos_clase;
+                    const esCancelado = turno?.estado === 'cancelado';
                     const nombre = turno?.materias?.nombre || turno?.cursos_ingreso?.nombre || 'Clase Institucional';
                     const nivel = turno?.materias?.nivel || 'Curso Activo';
                     const gradients = [
                       'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
                       'linear-gradient(135deg, #065f46 0%, #10b981 100%)',
                       'linear-gradient(135deg, #581c87 0%, #8b5cf6 100%)',
-                      'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)'
+                      'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)',
                     ];
 
                     return (
-                      <div 
-                        key={ins.id} 
-                        style={{ 
-                          backgroundColor: '#ffffff', 
-                          border: '1px solid #e2e8f0', 
-                          borderRadius: '10px', 
-                          overflow: 'hidden', 
-                          display: 'flex', 
+                      <div
+                        key={ins.id}
+                        style={{
+                          backgroundColor: esCancelado ? '#fef2f2' : '#ffffff',
+                          border: esCancelado ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
+                          borderRadius: '10px',
+                          overflow: 'hidden',
+                          display: 'flex',
                           flexDirection: 'column',
                           height: '100%',
                           boxSizing: 'border-box',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                          opacity: esCancelado ? 0.9 : 1,
                         }}
                       >
-                        <div style={{ height: '80px', background: gradients[idx % gradients.length], display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '12px' }}>
+                        <div style={{ height: '80px', background: esCancelado ? 'linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%)' : gradients[idx % gradients.length], display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '12px' }}>
                           <span style={{ fontSize: '10px', fontWeight: 700, color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.35)', padding: '3px 7px', borderRadius: '4px', textTransform: 'uppercase' }}>
                             {nivel}
                           </span>
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#ffffff', backgroundColor: '#16a34a', padding: '3px 7px', borderRadius: '4px' }}>
-                            INSCRIPTO
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#ffffff', backgroundColor: esCancelado ? '#991b1b' : '#16a34a', padding: '3px 7px', borderRadius: '4px' }}>
+                            {esCancelado ? 'CANCELADO' : 'INSCRIPTO'}
                           </span>
                         </div>
                         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
                           <div>
-                            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', textTransform: 'uppercase', lineHeight: 1.35 }}>
+                            <h3 style={{ fontSize: '14px', fontWeight: 700, color: esCancelado ? '#991b1b' : '#0f172a', margin: '0 0 6px 0', textTransform: 'uppercase', lineHeight: 1.35, textDecoration: esCancelado ? 'line-through' : 'none' }}>
                               {nombre}
                             </h3>
                             <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 8px 0' }}>
                               Titular: {turno?.profesores?.apellido ? `${turno.profesores.apellido}, ${turno.profesores.nombre}` : turno?.profesores?.nombre}
                             </p>
-                            <div style={{ fontSize: '11px', fontWeight: 600, color: '#334155' }}>
-                              Fecha: {turno?.fecha} ({turno?.hora_inicio?.slice(0, 5)} hs)
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: esCancelado ? '#dc2626' : '#334155' }}>
+                              {esCancelado ? 'Clase cancelada por el instituto' : `Fecha: ${turno?.fecha} (${turno?.hora_inicio?.slice(0, 5)} hs)`}
                             </div>
                           </div>
                           <button
                             onClick={() => handleVerDetalleCursoAnotado(ins)}
-                            style={{ marginTop: '16px', backgroundColor: '#0b1e33', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '9px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
+                            style={{ marginTop: '16px', backgroundColor: esCancelado ? '#7f1d1d' : '#0b1e33', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '9px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
                           >
                             Ver Comisión y Alumnos
                           </button>
@@ -907,8 +964,8 @@ export default function PortalAlumnoModule({ activeTab }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderTop: '1px solid #cbd5e1' }}>
               {celdasCalendario.map((celda, idx) => {
                 const esVacio = celda.tipo === 'vacio';
-                const misTurnosDelDia = !esVacio 
-                  ? misInscripciones.filter(ins => ins.turnos_clase?.fecha === celda.fechaStr)
+                const misTurnosDelDia = !esVacio
+                  ? misInscripciones.filter((ins) => ins.turnos_clase?.fecha === celda.fechaStr)
                   : [];
 
                 return (
@@ -923,7 +980,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                       boxSizing: 'border-box',
                       display: 'flex',
                       flexDirection: 'column',
-                      justifyContent: 'space-between'
+                      justifyContent: 'space-between',
                     }}
                   >
                     <div style={{ fontSize: '12px', fontWeight: 600, color: '#334155', textAlign: 'left', marginBottom: '4px' }}>
@@ -933,6 +990,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, justifyContent: 'center' }}>
                       {misTurnosDelDia.map((ins) => {
                         const t = ins.turnos_clase;
+                        const esCancelado = t?.estado === 'cancelado';
                         const matNombre = t?.materias?.nombre || t?.cursos_ingreso?.nombre || 'Clase';
                         const profNombre = t?.profesores?.apellido ? `${t.profesores.apellido}` : (t?.profesores?.nombre || 'Docente');
 
@@ -940,22 +998,24 @@ export default function PortalAlumnoModule({ activeTab }) {
                           <div
                             key={ins.id}
                             style={{
-                              backgroundColor: '#2563eb',
-                              color: '#ffffff',
+                              backgroundColor: esCancelado ? '#fef2f2' : '#2563eb',
+                              border: esCancelado ? '1px solid #fca5a5' : 'none',
+                              color: esCancelado ? '#991b1b' : '#ffffff',
                               borderRadius: '4px',
                               padding: '5px 6px',
                               fontSize: '11px',
                               lineHeight: 1.25,
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                              opacity: esCancelado ? 0.9 : 1,
                             }}
                           >
-                            <div style={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                            <div style={{ fontWeight: 700, textTransform: 'uppercase', textDecoration: esCancelado ? 'line-through' : 'none' }}>
                               {matNombre}
                             </div>
-                            <div style={{ fontSize: '10px', marginTop: '2px', color: '#dbeafe' }}>
-                              Horario: {t?.hora_inicio?.slice(0, 5)} - {t?.hora_fin?.slice(0, 5)}
+                            <div style={{ fontSize: '10px', marginTop: '2px', color: esCancelado ? '#dc2626' : '#dbeafe', fontWeight: esCancelado ? 700 : 400 }}>
+                              {esCancelado ? 'CANCELADO' : `Horario: ${t?.hora_inicio?.slice(0, 5)} - ${t?.hora_fin?.slice(0, 5)}`}
                             </div>
-                            <div style={{ fontSize: '9px', color: '#e0e7ff', marginTop: '1px' }}>
+                            <div style={{ fontSize: '9px', color: esCancelado ? '#64748b' : '#e0e7ff', marginTop: '1px' }}>
                               Prof. {profNombre}
                             </div>
                           </div>
@@ -975,7 +1035,7 @@ export default function PortalAlumnoModule({ activeTab }) {
         </div>
       )}
 
-      {/* MODAL DE PERFIL INSTITUCIONAL (SIN MOSTRAR LEGAJO) */}
+      {/* MODAL DE PERFIL INSTITUCIONAL */}
       {mostrarModalPerfil && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(3px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '480px', padding: '28px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', border: '1px solid #e2e8f0' }}>
@@ -983,7 +1043,7 @@ export default function PortalAlumnoModule({ activeTab }) {
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0b1e33' }}>
                 Perfil Institucional del Alumno
               </h3>
-              <button 
+              <button
                 onClick={() => setMostrarModalPerfil(false)}
                 style={{ background: 'none', border: 'none', fontSize: '18px', color: '#64748b', cursor: 'pointer', fontWeight: 700 }}
               >

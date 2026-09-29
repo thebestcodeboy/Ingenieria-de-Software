@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 
 /**
- * Cálculo formal de CUIT/CUIL argentino a partir del DNI (solo para visualización en el formulario)
+ * Cálculo formal de CUIT/CUIL argentino a partir del DNI
  */
 export function calcularCuilArgentino(dni, esFemenino = false) {
   const dniLimpio = String(dni).replace(/\D/g, '');
@@ -47,14 +47,13 @@ export async function getProfesores() {
 }
 
 /**
- * Registrar un nuevo profesor y asociar sus materias (HU03)
+ * Registrar un nuevo profesor con franjas horarias (HU16)
  */
-export async function createProfesor({ nombre, apellido, dni, email, telefono, materiasIds, turnos }) {
+export async function createProfesor({ nombre, apellido, dni, email, telefono, materiasIds, turnos, disponibilidad }) {
   const cleanNombre = nombre?.trim();
   const cleanApellido = apellido?.trim();
   const cleanDni = dni?.trim();
 
-  // Validaciones de negocio
   if (!cleanNombre || !cleanApellido || !cleanDni) {
     throw new Error('Nombre, Apellido y DNI son campos obligatorios.');
   }
@@ -73,6 +72,9 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
     throw new Error(`Ya existe un profesor registrado con el DNI ${cleanDni}.`);
   }
 
+  // Normalizar turnos a partir de la disponibilidad si viene seteada
+  const turnosCalculados = turnos || (disponibilidad ? disponibilidad.map(d => d.franja) : []);
+
   const payload = {
     nombre: cleanNombre,
     apellido: cleanApellido,
@@ -80,7 +82,8 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
     email: email?.trim() || null,
     telefono: telefono?.trim() || null,
     materias_ids: materiasIds,
-    turnos: turnos || []
+    turnos: turnosCalculados,
+    disponibilidad: disponibilidad || []
   };
 
   const { data, error } = await supabase
@@ -95,7 +98,7 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
 
   const nuevoProfesor = data?.[0];
 
-  // Sincronizar tabla relacional profesor_materia para triggers de turnos
+  // Sincronizar tabla relacional profesor_materia
   if (nuevoProfesor && materiasIds.length > 0) {
     const filasRelacion = materiasIds.map((materiaId) => ({
       profesor_id: nuevoProfesor.id,
@@ -115,9 +118,9 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
 }
 
 /**
- * HU13: Modificar datos de profesor existente y actualizar materias habilitadas
+ * Modificar datos de profesor existente y disponibilidad horaria (HU16)
  */
-export async function updateProfesor(id, { nombre, apellido, dni, email, telefono, materiasIds, turnos }) {
+export async function updateProfesor(id, { nombre, apellido, dni, email, telefono, materiasIds, turnos, disponibilidad }) {
   const cleanNombre = nombre?.trim();
   const cleanApellido = apellido?.trim();
   const cleanDni = String(dni).trim();
@@ -129,7 +132,6 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
     throw new Error('Debe asociar al menos una materia al profesor.');
   }
 
-  // Verificar DNI duplicado excluyendo al profesor que estamos editando
   const { data: existente } = await supabase
     .from('profesores')
     .select('id')
@@ -141,6 +143,8 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
     throw new Error(`Ya existe otro profesor registrado con el DNI ${cleanDni}.`);
   }
 
+  const turnosCalculados = turnos || (disponibilidad ? disponibilidad.map(d => d.franja) : []);
+
   const payload = {
     nombre: cleanNombre,
     apellido: cleanApellido,
@@ -148,7 +152,8 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
     email: email?.trim() || null,
     telefono: telefono?.trim() || null,
     materias_ids: materiasIds,
-    turnos: turnos || []
+    turnos: turnosCalculados,
+    disponibilidad: disponibilidad || []
   };
 
   const { data, error } = await supabase
@@ -162,15 +167,12 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
     throw new Error(error.message || 'Error al actualizar el profesor en Supabase.');
   }
 
-  // Sincronizar tabla relacional profesor_materia
   if (materiasIds && materiasIds.length > 0) {
-    // 1. Borrar asociaciones previas
     await supabase
       .from('profesor_materia')
       .delete()
       .eq('profesor_id', id);
 
-    // 2. Insertar las asociaciones vigentes
     const nuevasFilas = materiasIds.map((materiaId) => ({
       profesor_id: id,
       materia_id: materiaId

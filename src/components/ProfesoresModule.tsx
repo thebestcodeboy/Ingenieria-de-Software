@@ -7,6 +7,12 @@ import { calcularCuilArgentino } from '../services/alumnos';
 import { generateTeacherUsername } from '../utils/credentials';
 import { supabase } from '../lib/supabaseClient';
 
+export interface FranjaDisponibilidad {
+  franja: 'Mañana' | 'Tarde' | 'Noche';
+  horaInicio: string;
+  horaFin: string;
+}
+
 interface Profesor {
   id: string | number;
   nombre: string;
@@ -16,6 +22,7 @@ interface Profesor {
   telefono?: string | null;
   materias_ids?: (string | number)[];
   turnos?: string[];
+  disponibilidad?: FranjaDisponibilidad[];
   activo?: boolean;
   acceso_portal?: boolean;
   username_institucional?: string | null;
@@ -34,7 +41,11 @@ type CredencialesModal = {
   claveProvisoria: string;
 };
 
-const TURNOS_DISPONIBLES = ['Mañana', 'Tarde', 'Noche'];
+const FRANJAS_CONFIG: Record<'Mañana' | 'Tarde' | 'Noche', { defInicio: string; defFin: string }> = {
+  Mañana: { defInicio: '08:00', defFin: '12:00' },
+  Tarde: { defInicio: '14:00', defFin: '18:00' },
+  Noche: { defInicio: '18:30', defFin: '22:30' }
+};
 
 function mensajeDeError(error: unknown, mensajePorDefecto: string): string {
   return error instanceof Error ? error.message : mensajePorDefecto;
@@ -63,7 +74,7 @@ export default function ProfesoresModule() {
   });
 
   const [selectedMaterias, setSelectedMaterias] = useState<(string | number)[]>([]);
-  const [selectedTurnos, setSelectedTurnos] = useState<string[]>([]);
+  const [disponibilidad, setDisponibilidad] = useState<FranjaDisponibilidad[]>([]);
   const [formSubmitting, setFormSubmitting] = useState<boolean>(false);
 
   // Credenciales Web
@@ -94,7 +105,7 @@ export default function ProfesoresModule() {
     setCurrentProfesor(null);
     setFormData({ nombre: '', apellido: '', dni: '', email: '', telefono: '' });
     setSelectedMaterias([]);
-    setSelectedTurnos([]);
+    setDisponibilidad([]);
     setErrorMsg('');
     setIsModalOpen(true);
   };
@@ -116,6 +127,7 @@ export default function ProfesoresModule() {
       email: prof.email || '',
       telefono: prof.telefono || '',
     });
+
     let parsedMaterias: (string | number)[] = [];
     if (Array.isArray(prof.materias_ids)) {
       parsedMaterias = prof.materias_ids;
@@ -127,7 +139,23 @@ export default function ProfesoresModule() {
       }
     }
     setSelectedMaterias(parsedMaterias);
-    setSelectedTurnos(prof.turnos || []);
+
+    // Cargar disponibilidad estructurada o reconstruirla desde turnos previos
+    let disp: FranjaDisponibilidad[] = [];
+    if (prof.disponibilidad && Array.isArray(prof.disponibilidad) && prof.disponibilidad.length > 0) {
+      disp = prof.disponibilidad;
+    } else if (prof.turnos && Array.isArray(prof.turnos)) {
+      disp = prof.turnos.map((t) => {
+        const franja = t as 'Mañana' | 'Tarde' | 'Noche';
+        return {
+          franja,
+          horaInicio: FRANJAS_CONFIG[franja]?.defInicio || '08:00',
+          horaFin: FRANJAS_CONFIG[franja]?.defFin || '12:00'
+        };
+      });
+    }
+    setDisponibilidad(disp);
+
     setErrorMsg('');
     setIsModalOpen(true);
   };
@@ -138,9 +166,33 @@ export default function ProfesoresModule() {
     );
   };
 
-  const toggleTurno = (turno: string) => {
-    setSelectedTurnos((prev) =>
-      prev.includes(turno) ? prev.filter((t) => t !== turno) : [...prev, turno]
+  const toggleFranja = (franja: 'Mañana' | 'Tarde' | 'Noche') => {
+    setErrorMsg('');
+    setDisponibilidad((prev) => {
+      const existe = prev.find((d) => d.franja === franja);
+      if (existe) {
+        return prev.filter((d) => d.franja !== franja);
+      } else {
+        return [
+          ...prev,
+          {
+            franja,
+            horaInicio: FRANJAS_CONFIG[franja].defInicio,
+            horaFin: FRANJAS_CONFIG[franja].defFin,
+          }
+        ];
+      }
+    });
+  };
+
+  const handleHorarioChange = (
+    franja: 'Mañana' | 'Tarde' | 'Noche',
+    campo: 'horaInicio' | 'horaFin',
+    valor: string
+  ) => {
+    setErrorMsg('');
+    setDisponibilidad((prev) =>
+      prev.map((d) => (d.franja === franja ? { ...d, [campo]: valor } : d))
     );
   };
 
@@ -286,12 +338,24 @@ export default function ProfesoresModule() {
       return setErrorMsg('Debe asociar al menos una materia al profesor.');
     }
 
-    if (selectedTurnos.length === 0) {
-      return setErrorMsg('Debe seleccionar al menos un turno disponible para el profesor.');
+    if (disponibilidad.length === 0) {
+      return setErrorMsg('Debe configurar al menos una franja horaria de disponibilidad (HU16).');
+    }
+
+    // Validación HU16: Hora de inicio < Hora de fin
+    for (const d of disponibilidad) {
+      if (!d.horaInicio || !d.horaFin) {
+        return setErrorMsg(`Debe definir tanto hora de inicio como de fin para el turno ${d.franja}.`);
+      }
+      if (d.horaInicio >= d.horaFin) {
+        return setErrorMsg(`En la franja ${d.franja}, la hora de inicio (${d.horaInicio}) debe ser anterior a la hora de fin (${d.horaFin}).`);
+      }
     }
 
     try {
       setFormSubmitting(true);
+      const turnosStrings = disponibilidad.map((d) => d.franja);
+
       const payload = {
         nombre: nomResult.limpio,
         apellido: apeResult.limpio,
@@ -299,15 +363,16 @@ export default function ProfesoresModule() {
         email: emailLimpio || null,
         telefono: telLimpio || null,
         materiasIds: selectedMaterias,
-        turnos: selectedTurnos,
+        turnos: turnosStrings,
+        disponibilidad: disponibilidad,
       };
 
       if (editingId) {
         await updateProfesor(editingId, payload);
-        setSuccessMsg('Profesor modificado correctamente.');
+        setSuccessMsg('Profesor y disponibilidad horaria actualizados correctamente.');
       } else {
         await createProfesor(payload);
-        setSuccessMsg('Profesor registrado correctamente.');
+        setSuccessMsg('Profesor registrado y disponibilidad guardada correctamente.');
       }
 
       setTimeout(() => setSuccessMsg(''), 4000);
@@ -342,7 +407,7 @@ export default function ProfesoresModule() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-            Nómina de Profesores
+            Nómina de Profesores y Disponibilidad Horaria
           </h1>
           <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 0 0', fontWeight: 500 }}>
             {profesores.length} {profesores.length === 1 ? 'docente registrado' : 'docentes registrados'}
@@ -413,18 +478,18 @@ export default function ProfesoresModule() {
         </div>
       </div>
 
-      {/* Tabla con PORTAL WEB */}
+      {/* Tabla con Disponibilidad Horaria (HU16) */}
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '22%' }}>APELLIDO Y NOMBRE</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '12%' }}>DNI</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '20%' }}>APELLIDO Y NOMBRE</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '11%' }}>DNI</th>
               <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '18%' }}>MATERIAS HABILITADAS</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '12%' }}>TURNOS</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%', textAlign: 'center' }}>ESTADO</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%', textAlign: 'center' }}>PORTAL WEB</th>
-              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '12%' }}>ACCIÓN</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '23%' }}>DISPONIBILIDAD HORARIA</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '8%', textAlign: 'center' }}>ESTADO</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%', textAlign: 'center' }}>PORTAL WEB</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -454,6 +519,9 @@ export default function ProfesoresModule() {
                   }
                 }
 
+                // Renderizar disponibilidad con horarios o turnos simples
+                const tieneDispDetalle = prof.disponibilidad && Array.isArray(prof.disponibilidad) && prof.disponibilidad.length > 0;
+
                 return (
                   <tr key={prof.id} style={{ borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.15s ease' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}>
                     <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase' }}>
@@ -476,15 +544,28 @@ export default function ProfesoresModule() {
                       </div>
                     </td>
                     <td style={{ padding: '16px 20px' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {(prof.turnos || []).length > 0 ? (
-                          (prof.turnos || []).map((t, idx) => (
-                            <span key={idx} style={{ backgroundColor: '#f1f5f9', color: '#334155', fontSize: '11px', padding: '3px 8px', borderRadius: '4px', fontWeight: 600, border: '1px solid #cbd5e1' }}>
-                              {t}
-                            </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {tieneDispDetalle ? (
+                          prof.disponibilidad!.map((disp, idx) => (
+                            <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ backgroundColor: '#f1f5f9', color: '#1e293b', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, border: '1px solid #cbd5e1' }}>
+                                {disp.franja}
+                              </span>
+                              <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: 600, fontFamily: 'monospace' }}>
+                                {disp.horaInicio} - {disp.horaFin}
+                              </span>
+                            </div>
                           ))
+                        ) : (prof.turnos || []).length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {prof.turnos!.map((t, idx) => (
+                              <span key={idx} style={{ backgroundColor: '#f1f5f9', color: '#334155', fontSize: '11px', padding: '3px 8px', borderRadius: '4px', fontWeight: 600, border: '1px solid #cbd5e1' }}>
+                                {t}
+                              </span>
+                            ))}
+                          </div>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>-</span>
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>Sin franjas asignadas</span>
                         )}
                       </div>
                     </td>
@@ -556,7 +637,7 @@ export default function ProfesoresModule() {
         </table>
       </div>
 
-      {/* Modal Registrar / Modificar Profesor */}
+      {/* Modal Registrar / Modificar Profesor con HU16 */}
       {isModalOpen && (
         <div style={{
           position: 'fixed',
@@ -575,7 +656,7 @@ export default function ProfesoresModule() {
             backgroundColor: '#ffffff',
             borderRadius: '12px',
             width: '100%',
-            maxWidth: '520px',
+            maxWidth: '560px',
             padding: '28px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box',
@@ -583,7 +664,7 @@ export default function ProfesoresModule() {
             overflowY: 'auto'
           }}>
             <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 20px 0', color: '#0f172a' }}>
-              {editingId ? 'Modificar Profesor' : 'Registrar Nuevo Profesor'}
+              {editingId ? 'Modificar Profesor y Disponibilidad' : 'Registrar Nuevo Profesor'}
             </h2>
 
             {errorMsg && (
@@ -592,7 +673,7 @@ export default function ProfesoresModule() {
               </div>
             )}
 
-            {/* TARJETA DE CONTROL: PORTAL DOCENTE (Visible al editar un profesor existente) */}
+            {/* Portal Docente Status */}
             {editingId && currentProfesor && (
               <div style={{
                 backgroundColor: currentProfesor.acceso_portal ? '#f0fdf4' : '#f8fafc',
@@ -625,7 +706,7 @@ export default function ProfesoresModule() {
                         Usuario: <strong style={{ color: '#0b1e33', fontFamily: 'monospace' }}>{currentProfesor.username_institucional}</strong>
                       </span>
                     ) : (
-                      'Generar acceso para carga de notas y asistencias.'
+                      'Generar acceso para el docente.'
                     )}
                   </p>
                 </div>
@@ -780,7 +861,7 @@ export default function ProfesoresModule() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Materias que puede dictar * ({selectedMaterias.length} seleccionadas)
                 </label>
-                <div style={{ maxHeight: '140px', overflowY: 'auto', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ maxHeight: '130px', overflowY: 'auto', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {materias.length === 0 ? (
                     <p style={{ fontSize: '12px', color: '#64748b', padding: '8px', margin: 0 }}>No hay materias disponibles.</p>
                   ) : (
@@ -800,23 +881,81 @@ export default function ProfesoresModule() {
                 </div>
               </div>
 
-              {/* Turnos Disponibles */}
+              {/* HU16: Disponibilidad Horaria Docente (Franjas y Horarios) */}
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
-                  Turnos Disponibles * ({selectedTurnos.length} seleccionados)
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#0b1e33', marginBottom: '4px' }}>
+                  Disponibilidad Horaria Docente (HU16) *
                 </label>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  {TURNOS_DISPONIBLES.map((t) => (
-                    <label key={t} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#1e293b', cursor: 'pointer', fontWeight: 500 }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedTurnos.includes(t)}
-                        onChange={() => toggleTurno(t)}
-                        style={{ width: '15px', height: '15px', accentColor: '#0b1e33' }}
-                      />
-                      <span>{t}</span>
-                    </label>
-                  ))}
+                <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 10px 0' }}>
+                  Configurá una o más franjas habilitadas con sus rangos de inicio y fin para asignación de turnos.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(['Mañana', 'Tarde', 'Noche'] as const).map((franja) => {
+                    const sel = disponibilidad.find((d) => d.franja === franja);
+                    const isChecked = Boolean(sel);
+
+                    return (
+                      <div
+                        key={franja}
+                        style={{
+                          border: isChecked ? '1.5px solid #0b1e33' : '1px solid #cbd5e1',
+                          backgroundColor: isChecked ? '#f8fafc' : '#ffffff',
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleFranja(franja)}
+                              style={{ width: '16px', height: '16px', accentColor: '#0b1e33' }}
+                            />
+                            Turno {franja}
+                          </label>
+                          {isChecked && (
+                            <span style={{ fontSize: '11px', color: '#15803d', fontWeight: 600, backgroundColor: '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
+                              Habilitado
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Rango de horarios por franja */}
+                        {isChecked && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #e2e8f0' }}>
+                            <div style={{ flex: 1 }}>
+                              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                                Hora Inicio
+                              </label>
+                              <input
+                                type="time"
+                                required
+                                value={sel?.horaInicio || '08:00'}
+                                onChange={(e) => handleHorarioChange(franja, 'horaInicio', e.target.value)}
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', color: '#0f172a', fontWeight: 600, boxSizing: 'border-box' }}
+                              />
+                            </div>
+                            <span style={{ alignSelf: 'flex-end', paddingBottom: '8px', color: '#94a3b8', fontWeight: 700 }}>a</span>
+                            <div style={{ flex: 1 }}>
+                              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                                Hora Fin
+                              </label>
+                              <input
+                                type="time"
+                                required
+                                value={sel?.horaFin || '12:00'}
+                                onChange={(e) => handleHorarioChange(franja, 'horaFin', e.target.value)}
+                                style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '12px', color: '#0f172a', fontWeight: 600, boxSizing: 'border-box' }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -841,7 +980,7 @@ export default function ProfesoresModule() {
         </div>
       )}
 
-      {/* MODAL CREDENCIALES GENERADAS */}
+      {/* MODAL CREDENCIALES */}
       {credencialesModal && (
         <div style={{
           position: 'fixed',

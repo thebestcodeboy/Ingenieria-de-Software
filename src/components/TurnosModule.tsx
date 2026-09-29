@@ -7,18 +7,33 @@ import {
   validarCupo,
   obtenerDatosTurnos,
   registrarTurno,
+  reprogramarTurno,
+  cancelarTurno,
   type TurnoConCupo,
 } from '../services/turnos';
 
-type FiltroCupo = 'todos' | 'sin_cupo' | 'con_lugar' | 'completos';
+type FiltroCupo = 'todos' | 'activos' | 'cancelados' | 'sin_cupo' | 'con_lugar' | 'completos';
 
 interface FormNuevoTurno {
   actividadTipo: 'curso' | 'particular';
   actividadId: string;
   materiaId: string;
+  franjaFiltro: string;
   profesorId: string;
   aulaNumero: string;
   cupoMaximo: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+}
+
+interface FormReprogramarTurno {
+  turnoId: string;
+  materiaId: string;
+  materiaNombre: string;
+  franjaFiltro: string;
+  profesorId: string;
+  aulaNumero: string;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -28,6 +43,7 @@ const initialNuevoTurnoForm: FormNuevoTurno = {
   actividadTipo: 'curso',
   actividadId: '',
   materiaId: '',
+  franjaFiltro: '',
   profesorId: '',
   aulaNumero: '',
   cupoMaximo: '',
@@ -63,6 +79,15 @@ function mostrarHora(hora: string | null): string {
 }
 
 function estadoDelTurno(turno: TurnoConCupo) {
+  if (turno.estado === 'cancelado') {
+    return {
+      etiqueta: 'CANCELADO',
+      fondo: '#fef2f2',
+      color: '#991b1b',
+      borde: '#fca5a5',
+    };
+  }
+
   if (turno.cupo_maximo === null) {
     return {
       etiqueta: 'SIN CUPO',
@@ -108,6 +133,18 @@ export default function TurnosModule() {
   const [formNuevo, setFormNuevo] = useState<FormNuevoTurno>(initialNuevoTurnoForm);
   const [guardandoNuevo, setGuardandoNuevo] = useState(false);
   const [errorNuevo, setErrorNuevo] = useState('');
+
+  // Modal HU14: Reprogramar Turno
+  const [modalReprogramarAbierto, setModalReprogramarAbierto] = useState(false);
+  const [formReprogramar, setFormReprogramar] = useState<FormReprogramarTurno | null>(null);
+  const [guardandoReprogramacion, setGuardandoReprogramacion] = useState(false);
+  const [errorReprogramar, setErrorReprogramar] = useState('');
+
+  // Modal HU14: Cancelar Turno
+  const [turnoParaCancelar, setTurnoParaCancelar] = useState<TurnoConCupo | null>(null);
+  const [cancelando, setCancelando] = useState(false);
+
+  // Datos Auxiliares compartidos
   const [datosAuxiliares, setDatosAuxiliares] = useState<{
     cursos: any[];
     particulares: any[];
@@ -196,7 +233,8 @@ export default function TurnosModule() {
     actividadSeleccionada,
   ]);
 
-  const profesoresHabilitados = useMemo(() => {
+  // Profesores habilitados para Crear Turno
+  const profesoresHabilitadosCrear = useMemo(() => {
     if (!formNuevo.materiaId) return [];
 
     const matIdStr = String(formNuevo.materiaId).trim();
@@ -208,14 +246,83 @@ export default function TurnosModule() {
 
     return datosAuxiliares.profesores
       .filter((p) => {
+        if (p.activo === false) return false;
+
         const enRel = desdeRelacion.has(String(p.id).trim());
         const enArray =
           Array.isArray(p.materias_ids) &&
           p.materias_ids.some((m: any) => String(m).trim() === matIdStr);
-        return enRel || enArray;
+        if (!enRel && !enArray) return false;
+
+        if (formNuevo.franjaFiltro) {
+          const tieneFranjaEnDisp =
+            Array.isArray(p.disponibilidad) &&
+            p.disponibilidad.some((d: any) => d.franja === formNuevo.franjaFiltro);
+          const tieneFranjaEnTurnos =
+            Array.isArray(p.turnos) && p.turnos.includes(formNuevo.franjaFiltro);
+
+          if (!tieneFranjaEnDisp && !tieneFranjaEnTurnos) return false;
+        }
+
+        return true;
       })
       .sort((a, b) => a.apellido.localeCompare(b.apellido));
-  }, [datosAuxiliares.profesorMaterias, datosAuxiliares.profesores, formNuevo.materiaId]);
+  }, [
+    datosAuxiliares.profesorMaterias,
+    datosAuxiliares.profesores,
+    formNuevo.materiaId,
+    formNuevo.franjaFiltro,
+  ]);
+
+  const profesorSeleccionadoCrear = useMemo(() => {
+    return profesoresHabilitadosCrear.find((p) => String(p.id) === String(formNuevo.profesorId));
+  }, [profesoresHabilitadosCrear, formNuevo.profesorId]);
+
+  // Profesores habilitados para Reprogramar Turno (HU14)
+  const profesoresHabilitadosReprogramar = useMemo(() => {
+    if (!formReprogramar?.materiaId) return datosAuxiliares.profesores.filter((p) => p.activo !== false);
+
+    const matIdStr = String(formReprogramar.materiaId).trim();
+    const desdeRelacion = new Set(
+      datosAuxiliares.profesorMaterias
+        .filter((r) => String(r.materia_id).trim() === matIdStr)
+        .map((r) => String(r.profesor_id).trim())
+    );
+
+    return datosAuxiliares.profesores
+      .filter((p) => {
+        if (p.activo === false) return false;
+
+        const enRel = desdeRelacion.has(String(p.id).trim());
+        const enArray =
+          Array.isArray(p.materias_ids) &&
+          p.materias_ids.some((m: any) => String(m).trim() === matIdStr);
+        if (!enRel && !enArray) return false;
+
+        if (formReprogramar.franjaFiltro) {
+          const tieneFranjaEnDisp =
+            Array.isArray(p.disponibilidad) &&
+            p.disponibilidad.some((d: any) => d.franja === formReprogramar.franjaFiltro);
+          const tieneFranjaEnTurnos =
+            Array.isArray(p.turnos) && p.turnos.includes(formReprogramar.franjaFiltro);
+
+          if (!tieneFranjaEnDisp && !tieneFranjaEnTurnos) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => a.apellido.localeCompare(b.apellido));
+  }, [
+    datosAuxiliares.profesorMaterias,
+    datosAuxiliares.profesores,
+    formReprogramar?.materiaId,
+    formReprogramar?.franjaFiltro,
+  ]);
+
+  const profesorSeleccionadoReprogramar = useMemo(() => {
+    if (!formReprogramar?.profesorId) return null;
+    return datosAuxiliares.profesores.find((p) => String(p.id) === String(formReprogramar.profesorId));
+  }, [datosAuxiliares.profesores, formReprogramar?.profesorId]);
 
   const aulaSeleccionadaCrear = useMemo(() => {
     return datosAuxiliares.aulas.find((a) => String(a.numero) === String(formNuevo.aulaNumero));
@@ -244,12 +351,18 @@ export default function TurnosModule() {
         actividadId: value,
         materiaId: formNuevo.actividadTipo === 'particular' ? selectedActivity?.materia_id || '' : '',
         profesorId: '',
+        franjaFiltro: '',
       });
       return;
     }
 
     if (name === 'materiaId') {
-      setFormNuevo({ ...formNuevo, materiaId: value, profesorId: '' });
+      setFormNuevo({ ...formNuevo, materiaId: value, profesorId: '', franjaFiltro: '' });
+      return;
+    }
+
+    if (name === 'franjaFiltro') {
+      setFormNuevo({ ...formNuevo, franjaFiltro: value, profesorId: '' });
       return;
     }
 
@@ -315,9 +428,100 @@ export default function TurnosModule() {
       setFormNuevo(initialNuevoTurnoForm);
       await cargarTurnos();
     } catch (saveError: any) {
-      setErrorNuevo(`No se pudo programar el turno: ${saveError.message}`);
+      const msg = saveError.message || 'No se pudo programar el turno.';
+      if (msg.includes('PROFESOR_INACTIVO')) {
+        setErrorNuevo('El profesor seleccionado no se encuentra en estado ACTIVO.');
+      } else {
+        setErrorNuevo(msg);
+      }
     } finally {
       setGuardandoNuevo(false);
+    }
+  };
+
+  // HU14: Abrir modal de Reprogramación
+  const handleAbrirReprogramar = async (turno: TurnoConCupo) => {
+    setErrorReprogramar('');
+    await cargarDatosAuxiliares();
+
+    // Buscar el id de la materia según el nombre
+    const materiaEncontrada = datosAuxiliares.materias.find(
+      (m) => m.nombre?.trim().toLowerCase() === turno.materia_nombre?.trim().toLowerCase()
+    );
+
+    setFormReprogramar({
+      turnoId: turno.turno_id,
+      materiaId: materiaEncontrada ? String(materiaEncontrada.id) : '',
+      materiaNombre: turno.materia_nombre || 'Sin materia',
+      franjaFiltro: '',
+      profesorId: turno.profesor_id ? String(turno.profesor_id) : '',
+      aulaNumero: turno.aula_numero ? String(turno.aula_numero) : '',
+      fecha: turno.fecha ? turno.fecha.slice(0, 10) : '',
+      horaInicio: turno.hora_inicio ? turno.hora_inicio.slice(0, 5) : '',
+      horaFin: turno.hora_fin ? turno.hora_fin.slice(0, 5) : '',
+    });
+
+    setModalReprogramarAbierto(true);
+  };
+
+  // HU14: Ejecutar Reprogramación
+  const handleReprogramarSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formReprogramar) return;
+    setErrorReprogramar('');
+
+    if (
+      !formReprogramar.fecha ||
+      !formReprogramar.horaInicio ||
+      !formReprogramar.horaFin ||
+      !formReprogramar.aulaNumero ||
+      !formReprogramar.profesorId
+    ) {
+      setErrorReprogramar('Todos los campos son obligatorios.');
+      return;
+    }
+
+    if (formReprogramar.horaFin <= formReprogramar.horaInicio) {
+      setErrorReprogramar('La hora de finalización debe ser posterior a la hora de inicio.');
+      return;
+    }
+
+    try {
+      setGuardandoReprogramacion(true);
+      await reprogramarTurno({
+        turnoId: formReprogramar.turnoId,
+        fecha: formReprogramar.fecha,
+        horaInicio: formReprogramar.horaInicio,
+        horaFin: formReprogramar.horaFin,
+        aulaNumero: formReprogramar.aulaNumero,
+        profesorId: formReprogramar.profesorId,
+        materiaId: formReprogramar.materiaId,
+      });
+
+      setMensajeExito('El turno fue reprogramado correctamente.');
+      setModalReprogramarAbierto(false);
+      setFormReprogramar(null);
+      await cargarTurnos();
+    } catch (err: any) {
+      setErrorReprogramar(err.message || 'No se pudo reprogramar el turno.');
+    } finally {
+      setGuardandoReprogramacion(false);
+    }
+  };
+
+  // HU14: Ejecutar Cancelación lógica
+  const handleConfirmarCancelacion = async () => {
+    if (!turnoParaCancelar) return;
+    try {
+      setCancelando(true);
+      await cancelarTurno(turnoParaCancelar.turno_id);
+      setMensajeExito('El turno ha sido cancelado y su horario quedó liberado.');
+      setTurnoParaCancelar(null);
+      await cargarTurnos();
+    } catch (err: any) {
+      alert(err.message || 'No se pudo cancelar el turno.');
+    } finally {
+      setCancelando(false);
     }
   };
 
@@ -334,10 +538,14 @@ export default function TurnosModule() {
       ].some((valor) => String(valor ?? '').toLocaleLowerCase('es').includes(termino));
 
       if (!coincideTexto) return false;
-      if (filtro === 'sin_cupo') return turno.cupo_maximo === null;
-      if (filtro === 'con_lugar') return (turno.lugares_disponibles ?? 0) > 0;
+
+      // Filtros de estado / cupo
+      if (filtro === 'activos') return turno.estado !== 'cancelado';
+      if (filtro === 'cancelados') return turno.estado === 'cancelado';
+      if (filtro === 'sin_cupo') return turno.estado !== 'cancelado' && turno.cupo_maximo === null;
+      if (filtro === 'con_lugar') return turno.estado !== 'cancelado' && (turno.lugares_disponibles ?? 0) > 0;
       if (filtro === 'completos') {
-        return turno.cupo_maximo !== null && (turno.lugares_disponibles ?? 0) <= 0;
+        return turno.estado !== 'cancelado' && turno.cupo_maximo !== null && (turno.lugares_disponibles ?? 0) <= 0;
       }
 
       return true;
@@ -370,14 +578,12 @@ export default function TurnosModule() {
 
     const nuevoCupo = Number(valorNormalizado);
 
-    // Validación 1: Mínimo inscriptos actuales
     const errorValidacion = validarCupo(nuevoCupo, turnoSeleccionado.inscriptos_actuales);
     if (errorValidacion) {
       setErrorFormulario(errorValidacion);
       return;
     }
 
-    // Validación 2: Máximo capacidad física del aula
     if (aulaDelTurnoEditar?.capacidad && nuevoCupo > aulaDelTurnoEditar.capacidad) {
       setErrorFormulario(
         `El cupo (${nuevoCupo}) no puede superar la capacidad física del aula (${aulaDelTurnoEditar.capacidad} bancos).`
@@ -425,7 +631,7 @@ export default function TurnosModule() {
             Turnos y Clases
           </h1>
           <p style={styles.subtitulo}>
-            Programación académica y administración de plazas disponibles.
+            Programación académica, reprogramación y administración de cupos.
           </p>
         </div>
 
@@ -470,16 +676,18 @@ export default function TurnosModule() {
         </label>
 
         <label>
-          <span style={styles.soloLectores}>Filtrar por estado de cupo</span>
+          <span style={styles.soloLectores}>Filtrar turnos</span>
           <select
             value={filtro}
             onChange={(event) => setFiltro(event.target.value as FiltroCupo)}
             style={styles.select}
           >
             <option value="todos">Todos los turnos</option>
-            <option value="sin_cupo">Sin cupo definido</option>
-            <option value="con_lugar">Con lugares</option>
+            <option value="activos">Solo activos</option>
+            <option value="cancelados">Solo cancelados (Historial)</option>
+            <option value="con_lugar">Con lugares disponibles</option>
             <option value="completos">Completos</option>
+            <option value="sin_cupo">Sin cupo definido</option>
           </select>
         </label>
       </div>
@@ -512,18 +720,34 @@ export default function TurnosModule() {
                   <span>
                     {turnos.length === 0
                       ? 'Podés programar una clase haciendo clic en "+ Programar Turno".'
-                      : 'Probá con otra búsqueda o estado de cupo.'}
+                      : 'Probá con otra búsqueda o filtro.'}
                   </span>
                 </td>
               </tr>
             ) : (
               turnosFiltrados.map((turno) => {
                 const estado = estadoDelTurno(turno);
+                const esCancelado = turno.estado === 'cancelado';
 
                 return (
-                  <tr key={turno.turno_id} style={styles.fila}>
+                  <tr
+                    key={turno.turno_id}
+                    style={{
+                      ...styles.fila,
+                      backgroundColor: esCancelado ? '#fafafa' : undefined,
+                      opacity: esCancelado ? 0.8 : 1,
+                    }}
+                  >
                     <td style={styles.td}>
-                      <strong style={styles.valorPrincipal}>{mostrarFecha(turno.fecha)}</strong>
+                      <strong
+                        style={{
+                          ...styles.valorPrincipal,
+                          textDecoration: esCancelado ? 'line-through' : 'none',
+                          color: esCancelado ? '#64748b' : '#0f172a',
+                        }}
+                      >
+                        {mostrarFecha(turno.fecha)}
+                      </strong>
                       <span style={styles.valorSecundario}>
                         {mostrarHora(turno.hora_inicio)}–{mostrarHora(turno.hora_fin)}
                       </span>
@@ -555,18 +779,45 @@ export default function TurnosModule() {
                       >
                         {estado.etiqueta}
                       </span>
-                      <span style={styles.ocupacion}>
-                        {turno.inscriptos_actuales} / {turno.cupo_maximo ?? '—'} inscriptos
-                      </span>
+                      {!esCancelado && (
+                        <span style={styles.ocupacion}>
+                          {turno.inscriptos_actuales} / {turno.cupo_maximo ?? '—'} inscriptos
+                        </span>
+                      )}
                     </td>
                     <td style={{ ...styles.td, textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={() => abrirEdicion(turno)}
-                        style={styles.botonEditar}
-                      >
-                        {turno.cupo_maximo === null ? 'Definir cupo' : 'Editar cupo'}
-                      </button>
+                      {esCancelado ? (
+                        <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                          Historial (Sin acciones)
+                        </span>
+                      ) : (
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => abrirEdicion(turno)}
+                            style={styles.botonAccionSecundario}
+                            title="Modificar capacidad de alumnos"
+                          >
+                            Cupo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAbrirReprogramar(turno)}
+                            style={styles.botonAccionPrincipal}
+                            title="Cambiar fecha, hora, aula o profesor (HU14)"
+                          >
+                            Reprogramar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTurnoParaCancelar(turno)}
+                            style={styles.botonAccionPeligro}
+                            title="Cancelar clase y liberar horario (HU14)"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -576,7 +827,7 @@ export default function TurnosModule() {
         </table>
       </div>
 
-      {/* MODAL: PROGRAMAR TURNO */}
+      {/* MODAL: PROGRAMAR NUEVO TURNO */}
       {modalCrearAbierto && (
         <div
           style={styles.modalFondo}
@@ -659,8 +910,25 @@ export default function TurnosModule() {
                 ))}
               </select>
 
+              <label style={styles.labelModal} htmlFor="franjaFiltro">
+                Franja horaria deseada
+              </label>
+              <select
+                id="franjaFiltro"
+                name="franjaFiltro"
+                value={formNuevo.franjaFiltro}
+                onChange={handleNuevoChange}
+                style={styles.inputModal}
+                disabled={!formNuevo.materiaId}
+              >
+                <option value="">Todas las franjas (Cualquiera)</option>
+                <option value="Mañana">Mañana</option>
+                <option value="Tarde">Tarde</option>
+                <option value="Noche">Noche</option>
+              </select>
+
               <label style={styles.labelModal} htmlFor="profesorId">
-                Profesor asignado
+                Profesor asignado (HU16)
               </label>
               <select
                 id="profesorId"
@@ -671,18 +939,54 @@ export default function TurnosModule() {
                 disabled={!formNuevo.materiaId}
               >
                 <option value="">
-                  {profesoresHabilitados.length === 0
-                    ? 'No hay profesores habilitados para esta materia'
+                  {profesoresHabilitadosCrear.length === 0
+                    ? formNuevo.franjaFiltro
+                      ? `No hay profesores para esta materia en el turno ${formNuevo.franjaFiltro}`
+                      : 'No hay profesores habilitados para esta materia'
                     : 'Seleccioná un profesor'}
                 </option>
-                {profesoresHabilitados.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {formatearNombre(p.apellido)}, {formatearNombre(p.nombre)}
-                  </option>
-                ))}
+                {profesoresHabilitadosCrear.map((p) => {
+                  const dispStr =
+                    Array.isArray(p.disponibilidad) && p.disponibilidad.length > 0
+                      ? p.disponibilidad.map((d: any) => `${d.franja} (${d.horaInicio}-${d.horaFin})`).join(', ')
+                      : (p.turnos || []).join(', ');
+                  const detalleDisp = dispStr ? ` [${dispStr}]` : ' [Sin franjas]';
+
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {formatearNombre(p.apellido)}, {formatearNombre(p.nombre)}
+                      {detalleDisp}
+                    </option>
+                  );
+                })}
               </select>
 
-              {/* Selector de Aula limpio y descriptivo */}
+              {profesorSeleccionadoCrear && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    color: '#166534',
+                  }}
+                >
+                  <strong>Disponibilidad horaria: </strong>
+                  {Array.isArray(profesorSeleccionadoCrear.disponibilidad) &&
+                  profesorSeleccionadoCrear.disponibilidad.length > 0 ? (
+                    profesorSeleccionadoCrear.disponibilidad.map((d: any, idx: number) => (
+                      <span key={idx} style={{ marginRight: '8px' }}>
+                        • {d.franja}: <strong>{d.horaInicio} a {d.horaFin}</strong>
+                      </span>
+                    ))
+                  ) : (
+                    <span>Turnos: {(profesorSeleccionadoCrear.turnos || []).join(', ') || 'Sin definir'}</span>
+                  )}
+                </div>
+              )}
+
               <label style={styles.labelModal} htmlFor="aulaNumero">
                 Aula
               </label>
@@ -712,11 +1016,13 @@ export default function TurnosModule() {
                 })}
               </select>
 
-              {/* Cupo editable vinculado al aula */}
               {formNuevo.aulaNumero && (
                 <div style={{ marginTop: '12px' }}>
                   <label style={styles.labelModal} htmlFor="cupoMaximo">
-                    Cupo de la clase {aulaSeleccionadaCrear ? `(Capacidad del aula: ${aulaSeleccionadaCrear.capacidad || 25} bancos)` : ''}
+                    Cupo de la clase{' '}
+                    {aulaSeleccionadaCrear
+                      ? `(Capacidad del aula: ${aulaSeleccionadaCrear.capacidad || 25} bancos)`
+                      : ''}
                   </label>
                   <input
                     id="cupoMaximo"
@@ -735,7 +1041,14 @@ export default function TurnosModule() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '8px', marginTop: '10px' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.4fr 1fr 1fr',
+                  gap: '8px',
+                  marginTop: '10px',
+                }}
+              >
                 <div>
                   <label style={styles.labelModal} htmlFor="fecha">
                     Fecha
@@ -778,7 +1091,17 @@ export default function TurnosModule() {
               </div>
 
               {errorNuevo && (
-                <div role="alert" style={{ ...styles.errorFormulario, marginTop: '12px' }}>
+                <div
+                  role="alert"
+                  style={{
+                    ...styles.errorFormulario,
+                    marginTop: '12px',
+                    padding: '10px 12px',
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fca5a5',
+                    borderRadius: '6px',
+                  }}
+                >
                   {errorNuevo}
                 </div>
               )}
@@ -793,10 +1116,304 @@ export default function TurnosModule() {
                   Cancelar
                 </button>
                 <button type="submit" disabled={guardandoNuevo} style={styles.botonGuardar}>
-                  {guardandoNuevo ? 'Guardando...' : 'Programar Turno'}
+                  {guardandoNuevo ? 'Validando...' : 'Programar Turno'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HU14: REPROGRAMAR TURNO */}
+      {modalReprogramarAbierto && formReprogramar && (
+        <div
+          style={styles.modalFondo}
+          role="presentation"
+          onMouseDown={() => !guardandoReprogramacion && setModalReprogramarAbierto(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{
+              ...styles.modal,
+              maxWidth: '520px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div style={styles.modalEncabezado}>
+              <div>
+                <h2 style={styles.modalTitulo}>Reprogramar turno de clase</h2>
+                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '13px' }}>
+                  Materia:{' '}
+                  <strong style={{ color: '#0f172a' }}>
+                    {formatearNombre(formReprogramar.materiaNombre)}
+                  </strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !guardandoReprogramacion && setModalReprogramarAbierto(false)}
+                style={styles.botonCerrar}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleReprogramarSubmit} style={{ marginTop: '16px' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.4fr 1fr 1fr',
+                  gap: '8px',
+                }}
+              >
+                <div>
+                  <label style={styles.labelModal} htmlFor="reprog-fecha">
+                    Nueva Fecha
+                  </label>
+                  <input
+                    id="reprog-fecha"
+                    name="fecha"
+                    type="date"
+                    value={formReprogramar.fecha}
+                    onChange={(e) =>
+                      setFormReprogramar({ ...formReprogramar, fecha: e.target.value })
+                    }
+                    style={styles.inputModal}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={styles.labelModal} htmlFor="reprog-horaInicio">
+                    Nuevo Inicio
+                  </label>
+                  <input
+                    id="reprog-horaInicio"
+                    name="horaInicio"
+                    type="time"
+                    value={formReprogramar.horaInicio}
+                    onChange={(e) =>
+                      setFormReprogramar({ ...formReprogramar, horaInicio: e.target.value })
+                    }
+                    style={styles.inputModal}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={styles.labelModal} htmlFor="reprog-horaFin">
+                    Nuevo Fin
+                  </label>
+                  <input
+                    id="reprog-horaFin"
+                    name="horaFin"
+                    type="time"
+                    value={formReprogramar.horaFin}
+                    onChange={(e) =>
+                      setFormReprogramar({ ...formReprogramar, horaFin: e.target.value })
+                    }
+                    style={styles.inputModal}
+                    required
+                  />
+                </div>
+              </div>
+
+              <label style={styles.labelModal} htmlFor="reprog-franjaFiltro">
+                Franja horaria deseada (Filtro)
+              </label>
+              <select
+                id="reprog-franjaFiltro"
+                value={formReprogramar.franjaFiltro}
+                onChange={(e) =>
+                  setFormReprogramar({
+                    ...formReprogramar,
+                    franjaFiltro: e.target.value,
+                    profesorId: '',
+                  })
+                }
+                style={styles.inputModal}
+              >
+                <option value="">Todas las franjas (Cualquiera)</option>
+                <option value="Mañana">Mañana</option>
+                <option value="Tarde">Tarde</option>
+                <option value="Noche">Noche</option>
+              </select>
+
+              <label style={styles.labelModal} htmlFor="reprog-profesorId">
+                Profesor asignado (HU14 / HU16)
+              </label>
+              <select
+                id="reprog-profesorId"
+                value={formReprogramar.profesorId}
+                onChange={(e) =>
+                  setFormReprogramar({ ...formReprogramar, profesorId: e.target.value })
+                }
+                style={styles.inputModal}
+                required
+              >
+                <option value="">Seleccioná un profesor</option>
+                {profesoresHabilitadosReprogramar.map((p) => {
+                  const dispStr =
+                    Array.isArray(p.disponibilidad) && p.disponibilidad.length > 0
+                      ? p.disponibilidad.map((d: any) => `${d.franja} (${d.horaInicio}-${d.horaFin})`).join(', ')
+                      : (p.turnos || []).join(', ');
+                  const detalleDisp = dispStr ? ` [${dispStr}]` : ' [Sin franjas]';
+
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {formatearNombre(p.apellido)}, {formatearNombre(p.nombre)}
+                      {detalleDisp}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {profesorSeleccionadoReprogramar && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    color: '#166534',
+                  }}
+                >
+                  <strong>Disponibilidad horaria docente: </strong>
+                  {Array.isArray(profesorSeleccionadoReprogramar.disponibilidad) &&
+                  profesorSeleccionadoReprogramar.disponibilidad.length > 0 ? (
+                    profesorSeleccionadoReprogramar.disponibilidad.map((d: any, idx: number) => (
+                      <span key={idx} style={{ marginRight: '8px' }}>
+                        • {d.franja}: <strong>{d.horaInicio} a {d.horaFin}</strong>
+                      </span>
+                    ))
+                  ) : (
+                    <span>
+                      Turnos: {(profesorSeleccionadoReprogramar.turnos || []).join(', ') || 'Sin definir'}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <label style={styles.labelModal} htmlFor="reprog-aulaNumero">
+                Aula (HU14)
+              </label>
+              <select
+                id="reprog-aulaNumero"
+                value={formReprogramar.aulaNumero}
+                onChange={(e) =>
+                  setFormReprogramar({ ...formReprogramar, aulaNumero: e.target.value })
+                }
+                style={styles.inputModal}
+                required
+              >
+                <option value="">Seleccioná un aula</option>
+                {datosAuxiliares.aulas.map((aula) => (
+                  <option key={aula.numero} value={aula.numero}>
+                    {`Aula ${aula.numero} (Capacidad: ${aula.capacidad || 25} bancos)`}
+                  </option>
+                ))}
+              </select>
+
+              {errorReprogramar && (
+                <div
+                  role="alert"
+                  style={{
+                    ...styles.errorFormulario,
+                    marginTop: '14px',
+                    padding: '10px 12px',
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fca5a5',
+                    borderRadius: '6px',
+                  }}
+                >
+                  {errorReprogramar}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={() => setModalReprogramarAbierto(false)}
+                  disabled={guardandoReprogramacion}
+                  style={styles.botonCancelar}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoReprogramacion}
+                  style={styles.botonGuardar}
+                >
+                  {guardandoReprogramacion ? 'Validando...' : 'Confirmar Reprogramación'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HU14: CONFIRMAR CANCELACIÓN */}
+      {turnoParaCancelar && (
+        <div
+          style={styles.modalFondo}
+          role="presentation"
+          onMouseDown={() => !cancelando && setTurnoParaCancelar(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{ ...styles.modal, maxWidth: '440px' }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ ...styles.modalTitulo, color: '#991b1b' }}>¿Cancelar este turno de clase?</h2>
+            <p style={{ margin: '12px 0', fontSize: '13px', color: '#475569', lineHeight: 1.5 }}>
+              Estás a punto de cancelar la clase de{' '}
+              <strong>{formatearNombre(turnoParaCancelar.materia_nombre)}</strong> programada para el día{' '}
+              <strong>{mostrarFecha(turnoParaCancelar.fecha)}</strong> de{' '}
+              <strong>
+                {mostrarHora(turnoParaCancelar.hora_inicio)} a {mostrarHora(turnoParaCancelar.hora_fin)}
+              </strong>.
+            </p>
+            <div
+              style={{
+                padding: '10px 12px',
+                backgroundColor: '#fff7ed',
+                border: '1px solid #fed7aa',
+                borderRadius: '6px',
+                fontSize: '12px',
+                color: '#9a3412',
+                marginBottom: '16px',
+              }}
+            >
+              • El turno permanecerá visible en el historial con la etiqueta <strong>CANCELADO</strong>.
+              <br />• Se liberará la disponibilidad horaria del aula y del profesor.
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setTurnoParaCancelar(null)}
+                disabled={cancelando}
+                style={styles.botonCancelar}
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarCancelacion}
+                disabled={cancelando}
+                style={{
+                  ...styles.botonGuardar,
+                  backgroundColor: '#dc2626',
+                  borderColor: '#dc2626',
+                }}
+              >
+                {cancelando ? 'Cancelando...' : 'Sí, Cancelar Turno'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -846,7 +1463,10 @@ export default function TurnosModule() {
 
             <form onSubmit={guardarCupo} noValidate>
               <label htmlFor="cupo-maximo" style={styles.label}>
-                Cupo máximo {aulaDelTurnoEditar?.capacidad ? `(Máximo permitido: ${aulaDelTurnoEditar.capacidad})` : ''}
+                Cupo máximo{' '}
+                {aulaDelTurnoEditar?.capacidad
+                  ? `(Máximo permitido: ${aulaDelTurnoEditar.capacidad})`
+                  : ''}
               </label>
               <input
                 id="cupo-maximo"
@@ -924,7 +1544,9 @@ const styles: Record<string, React.CSSProperties> = {
   valorSecundario: { display: 'block', marginTop: '3px', color: '#64748b', fontSize: '11px' },
   estado: { display: 'inline-block', padding: '3px 7px', border: '1px solid', borderRadius: '4px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.03em' },
   ocupacion: { display: 'block', marginTop: '5px', color: '#475569', fontSize: '11px' },
-  botonEditar: { padding: '7px 11px', border: '1px solid #cbd5e1', borderRadius: '5px', backgroundColor: '#fff', color: '#0b1e33', cursor: 'pointer', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600 },
+  botonAccionSecundario: { padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '5px', backgroundColor: '#fff', color: '#334155', cursor: 'pointer', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600 },
+  botonAccionPrincipal: { padding: '6px 10px', border: '1px solid #0284c7', borderRadius: '5px', backgroundColor: '#f0f9ff', color: '#0369a1', cursor: 'pointer', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600 },
+  botonAccionPeligro: { padding: '6px 10px', border: '1px solid #fca5a5', borderRadius: '5px', backgroundColor: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600 },
   estadoVacio: { padding: '60px 20px', color: '#64748b', textAlign: 'center' },
   estadoVacioTitulo: { display: 'block', marginBottom: '5px', color: '#1e293b', fontSize: '14px' },
   modalFondo: { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backgroundColor: 'rgba(15, 23, 42, 0.55)' },
