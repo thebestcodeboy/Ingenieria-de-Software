@@ -24,8 +24,8 @@ const VACIO: ResumenDashboard = {
 const tarjetas = [
   { campo: 'totalAlumnos', etiqueta: 'Alumnos activos', color: '#2563eb', fondo: '#eff6ff' },
   { campo: 'totalProfesores', etiqueta: 'Profesores activos', color: '#7c3aed', fondo: '#f5f3ff' },
-  { campo: 'totalMaterias', etiqueta: 'Materias activas', color: '#0891b2', fondo: '#ecfeff' },
-  { campo: 'totalCursos', etiqueta: 'Cursos activos', color: '#059669', fondo: '#ecfdf5' },
+  { campo: 'totalMaterias', etiqueta: 'Materias registradas', color: '#0891b2', fondo: '#ecfeff' },
+  { campo: 'totalCursos', etiqueta: 'Cursos registrados', color: '#059669', fondo: '#ecfdf5' },
   { campo: 'totalAulas', etiqueta: 'Aulas activas', color: '#d97706', fondo: '#fffbeb' },
 ] as const;
 

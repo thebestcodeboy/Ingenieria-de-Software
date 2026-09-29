@@ -26,7 +26,7 @@ No incluye tendencias históricas, filtros por período, exportación, edición 
 | ID | Decisión |
 |---|---|
 | RN-HU20-01 | Un registro es activo salvo que `activo = false` o su estado sea `inactivo`, `cancelado` o `cancelada`. |
-| RN-HU20-02 | “Cursos activos” corresponde a registros activos de `cursos_ingreso`. |
+| RN-HU20-02 | Materias y cursos se informan como registrados porque el modelo actual no posee estado activo/inactivo para esas entidades. |
 | RN-HU20-03 | El total de turnos representa todos los turnos persistidos, incluidos los cancelados. |
 | RN-HU20-04 | Las clases de hoy excluyen turnos cancelados. |
 | RN-HU20-05 | Cupos, inscriptos y estados de disponibilidad excluyen turnos cancelados. |
@@ -53,8 +53,8 @@ Salida:
 |---|---|
 | `totalAlumnos` | Alumnos activos. |
 | `totalProfesores` | Profesores activos. |
-| `totalMaterias` | Materias activas. |
-| `totalCursos` | Cursos de ingreso activos. |
+| `totalMaterias` | Materias registradas. |
+| `totalCursos` | Cursos de ingreso registrados. |
 | `totalAulas` | Aulas activas o registradas. |
 | `totalTurnos` | Turnos persistidos. |
 | `clasesHoy` | Turnos no cancelados programados para hoy. |
@@ -73,7 +73,7 @@ Dado un empleado de Mesa de Entrada, cuando selecciona **Inicio**, entonces visu
 
 ### CA-02 — Entidades activas
 
-Dado que existen entidades activas e inactivas, cuando carga el panel, entonces muestra únicamente las cantidades activas de alumnos, profesores, materias, cursos de ingreso y aulas.
+Dado el estado actual del modelo, cuando carga el panel, entonces muestra alumnos, profesores y aulas activas, junto con las cantidades registradas de materias y cursos de ingreso.
 
 ### CA-03 — Actividad programada
 
