@@ -372,7 +372,8 @@ export const updateAlumno = async (id, { nombre, apellido, dni, email, telefono,
         dni: checkDni.dniLimpio,
         email: checkEmail.emailLimpio,
         telefono: checkTel.telefonoLimpio,
-        direccion: checkDir.direccionLimpia
+        direccion: checkDir.direccionLimpia,
+        ...(typeof activo === 'boolean' ? { activo } : {})
       })
       .eq('id', id)
       .select()
@@ -384,4 +385,16 @@ export const updateAlumno = async (id, { nombre, apellido, dni, email, telefono,
     console.error('Fallo en updateAlumno:', err);
     throw err;
   }
+};
+
+export const cambiarEstadoAlumno = async (id, activo) => {
+  const { data, error } = await supabase
+    .from('alumnos')
+    .update({ activo })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message || 'No se pudo cambiar el estado del alumno.');
+  return data;
 };

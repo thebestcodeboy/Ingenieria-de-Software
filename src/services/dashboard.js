@@ -1,34 +1,39 @@
 import { supabase } from '../lib/supabaseClient';
+import { calcularResumenDashboard } from '../domain/dashboard';
+
+function fechaHoyArgentina() {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const valor = Object.fromEntries(partes.map(({ type, value }) => [type, value]));
+  return `${valor.year}-${valor.month}-${valor.day}`;
+}
 
 export const getDashboardSummary = async () => {
-  try {
-    const [alumnosRes, profesoresRes, materiasRes, turnosRes] = await Promise.all([
-      supabase.from('alumnos').select('*', { count: 'exact', head: true }),
-      supabase.from('profesores').select('*', { count: 'exact', head: true }),
-      supabase.from('materias').select('*', { count: 'exact', head: true }),
-      supabase.from('turnos_clase').select('*', { count: 'exact', head: true }),
-    ]);
+  const [alumnosRes, profesoresRes, materiasRes, cursosRes, aulasRes, turnosRes] = await Promise.all([
+    supabase.from('alumnos').select('*'),
+    supabase.from('profesores').select('*'),
+    supabase.from('materias').select('*'),
+    supabase.from('cursos_ingreso').select('*'),
+    supabase.from('aulas').select('*'),
+    supabase.from('vista_calendario').select('*'),
+  ]);
 
-    const today = new Date().toISOString().split('T')[0];
-    const { data: turnosHoy, error: turnosHoyErr } = await supabase
-      .from('vista_calendario')
-      .select('*')
-      .eq('fecha', today)
-      .order('hora_inicio', { ascending: true });
-
-    if (turnosHoyErr) {
-      console.warn('Aviso al cargar turnos de hoy:', turnosHoyErr.message);
-    }
-
-    return {
-      totalAlumnos: alumnosRes.count || 0,
-      totalProfesores: profesoresRes.count || 0,
-      totalMaterias: materiasRes.count || 0,
-      totalTurnos: turnosRes.count || 0,
-      turnosHoy: turnosHoy || []
-    };
-  } catch (error) {
-    console.error('Error al obtener datos del dashboard:', error);
-    throw error;
+  const consultas = [alumnosRes, profesoresRes, materiasRes, cursosRes, aulasRes, turnosRes];
+  const consultaFallida = consultas.find((consulta) => consulta.error);
+  if (consultaFallida?.error) {
+    throw new Error(`No se pudieron cargar los indicadores: ${consultaFallida.error.message}`);
   }
+
+  return calcularResumenDashboard({
+    alumnos: alumnosRes.data || [],
+    profesores: profesoresRes.data || [],
+    materias: materiasRes.data || [],
+    cursos: cursosRes.data || [],
+    aulas: aulasRes.data || [],
+    turnos: turnosRes.data || [],
+  }, fechaHoyArgentina());
 };
