@@ -224,3 +224,39 @@ export async function registrarTurno(payload: FormNuevoTurnoPayload) {
 
   return data;
 }
+/**
+ * HU15: Inscribe a un alumno en un turno.
+ * Maneja validación de cupos, duplicados y asignación a lista de espera.
+ */
+export async function inscribirAlumno(turnoId: string, alumnoId: string) {
+  const { data, error } = await supabase.rpc('inscribir_alumno_turno', {
+    p_turno_id: turnoId,
+    p_alumno_id: alumnoId,
+  });
+
+  if (error) {
+    const detalle = `${error.code ?? ''} ${error.message ?? ''}`;
+    if (detalle.includes('CUPO_NO_DEFINIDO')) throw new Error('Esta clase no tiene un cupo definido y no admite inscripciones.');
+    if (detalle.includes('TURNO_COMPLETO') || detalle.includes('TURNO_CANCELADO')) throw new Error('Este turno está cancelado y no admite inscripciones.');
+    if (detalle.includes('TURNO_PASADO')) throw new Error('No se admiten inscripciones en turnos que ya han pasado.');
+    if (error.code === '23505' || detalle.includes('INSCRIPCION_DUPLICADA')) throw new Error('Ya estás registrado en este turno.');
+    if (error.code === 'PGRST202') throw new Error('La función de inscripción HU15 todavía no fue instalada en Supabase. Aplicá la migración HU15.');
+    throw new Error(error.message || 'No se pudo registrar la inscripción.');
+  }
+
+  const inscripcion = Array.isArray(data) ? data[0] : data;
+  if (!inscripcion) throw new Error('Supabase no devolvió la inscripción creada.');
+  return { exito: true, estado: inscripcion.estado, inscripcion };
+}
+
+/**
+ * HU15: Cancela una inscripción y, si corresponde, promueve al primer alumno en espera.
+ */
+export async function cancelarInscripcion(inscripcionId: string, turnoId: string) {
+  const { data, error } = await supabase.rpc('cancelar_inscripcion_y_promover', {
+    p_inscripcion_id: inscripcionId,
+    p_turno_id: turnoId,
+  });
+  if (error) throw new Error(error.message || 'No se pudo cancelar la inscripción.');
+  return { exito: true, alumnoPromovidoId: data };
+}

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { inscribirAlumno } from '../services/turnos';
 
 export default function PortalAlumnoModule({ activeTab }) {
   const { user } = useAuth();
@@ -11,6 +12,7 @@ export default function PortalAlumnoModule({ activeTab }) {
   const [profesores, setProfesores] = useState([]);
   const [todosLosTurnos, setTodosLosTurnos] = useState([]);
   const [misInscripciones, setMisInscripciones] = useState([]);
+  const [inscripciones, setInscripciones] = useState([]);
   const [alumnoActual, setAlumnoActual] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -119,6 +121,7 @@ export default function PortalAlumnoModule({ activeTab }) {
       if (curRes.error) throw curRes.error;
       if (profRes.error) throw profRes.error;
       if (turnosRes.error) throw turnosRes.error;
+      if (inscRes.error) throw inscRes.error;
 
       setMaterias(matRes.data || []);
       setCursos(curRes.data || []);
@@ -127,6 +130,7 @@ export default function PortalAlumnoModule({ activeTab }) {
       
       // FILTRADO ESTRICTO: Únicamente las inscripciones del alumno logueado
       const todasInscripciones = inscRes.data || [];
+      setInscripciones(todasInscripciones);
       if (alumnoData?.id) {
         const propias = todasInscripciones.filter(i => String(i.alumno_id) === String(alumnoData.id));
         setMisInscripciones(propias);
@@ -238,18 +242,10 @@ export default function PortalAlumnoModule({ activeTab }) {
         return;
       }
 
-      const payload = {
-        turno_id: turnoId,
-        alumno_id: alumnoActual.id
-      };
-
-      const { error: insError } = await supabase
-        .from('inscripciones')
-        .insert([payload]);
-
-      if (insError) throw insError;
-
-      setSuccessMsg('Inscripción confirmada con éxito.');
+      const resultado = await inscribirAlumno(turnoId, alumnoActual.id);
+      setSuccessMsg(resultado.estado === 'en_espera'
+        ? 'El turno está completo. Te anotamos en la lista de espera.'
+        : 'Inscripción confirmada con éxito.');
       await cargarDatos();
       setTimeout(() => {
         setSuccessMsg('');
@@ -512,9 +508,11 @@ export default function PortalAlumnoModule({ activeTab }) {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, justifyContent: 'center' }}>
                           {turnosDelDia.map((t) => {
-                            const cuposLibres = t.cupo_maximo ?? 15;
-                            const estaLleno = cuposLibres <= 0;
-                            const turnoVencido = t.fecha < hoyRef;
+                            const totalConfirmados = inscripciones.filter(ins => ins.turno_id === t.id && ins.estado === 'confirmado').length;
+                            const cuposLibres = t.cupo_maximo == null ? null : Math.max(t.cupo_maximo - totalConfirmados, 0);
+                            const estaLleno = cuposLibres === 0;
+                            const turnoVencido = new Date(`${t.fecha}T${t.hora_inicio}`) <= new Date();
+                            const turnoCancelado = Boolean(t.cancelado);
                             const yaInscripto = misInscripciones.some(ins => ins.turno_id === t.id);
 
                             let bgColor = '#10b981';
@@ -525,17 +523,20 @@ export default function PortalAlumnoModule({ activeTab }) {
                               bgColor = '#64748b';
                               textoBoton = 'INSCRIPTO';
                               cursorEstilo = 'not-allowed';
-                            } else if (estaLleno || turnoVencido) {
+                            } else if (turnoCancelado || turnoVencido || t.cupo_maximo == null) {
                               bgColor = '#ef4444';
-                              textoBoton = turnoVencido ? 'PASADO' : 'LLENO';
+                              textoBoton = turnoCancelado ? 'CANCELADO' : turnoVencido ? 'PASADO' : 'SIN CUPO';
                               cursorEstilo = 'not-allowed';
+                            } else if (estaLleno) {
+                              bgColor = '#d97706';
+                              textoBoton = 'LISTA DE ESPERA';
                             }
 
                             return (
                               <div
                                 key={t.id}
-                                onClick={() => !estaLleno && !turnoVencido && !yaInscripto && handleInscribirseTurno(t.id)}
-                                title={yaInscripto ? 'Ya te encuentras registrado en este turno' : turnoVencido ? 'Turno pasado' : estaLleno ? 'Cupo agotado' : 'Haga clic para anotarse'}
+                                onClick={() => !turnoCancelado && !turnoVencido && t.cupo_maximo != null && !yaInscripto && handleInscribirseTurno(t.id)}
+                                title={yaInscripto ? 'Ya te encuentras registrado en este turno' : turnoCancelado ? 'Turno cancelado' : turnoVencido ? 'Turno pasado' : t.cupo_maximo == null ? 'La clase no tiene cupo definido' : estaLleno ? 'Anotarse en lista de espera' : 'Haga clic para anotarse'}
                                 style={{
                                   backgroundColor: bgColor,
                                   color: '#ffffff',
@@ -552,9 +553,9 @@ export default function PortalAlumnoModule({ activeTab }) {
                                 </div>
                                 <div style={{ fontSize: '10px', marginTop: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span>
-                                    {yaInscripto ? 'REGISTRADO' : turnoVencido ? 'PASADO' : estaLleno ? 'LLENO' : `Cupos: ${cuposLibres}`}
+                                    {turnoCancelado ? 'CANCELADO' : turnoVencido ? 'PASADO' : t.cupo_maximo == null ? 'SIN CUPO' : `${yaInscripto ? (misInscripciones.find(ins => ins.turno_id === t.id)?.estado === 'en_espera' ? 'EN ESPERA · ' : 'REGISTRADO · ') : ''}Cupo ${totalConfirmados}/${t.cupo_maximo} · Libres: ${cuposLibres}`}
                                   </span>
-                                  <span style={{ fontWeight: 600, textDecoration: (!yaInscripto && !estaLleno && !turnoVencido) ? 'underline' : 'none' }}>
+                                  <span style={{ fontWeight: 600, textDecoration: (!yaInscripto && !turnoCancelado && !turnoVencido && t.cupo_maximo != null) ? 'underline' : 'none' }}>
                                     {textoBoton}
                                   </span>
                                 </div>
