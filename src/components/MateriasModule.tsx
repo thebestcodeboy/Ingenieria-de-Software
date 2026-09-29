@@ -15,6 +15,7 @@ interface Materia {
   area?: string | null;
   carreras?: Carrera[];
   carreras_ids?: (string | number)[];
+  activo?: boolean;
 }
 
 export default function MateriasModule() {
@@ -132,6 +133,17 @@ export default function MateriasModule() {
       setFormSubmitting(false);
     }
   }
+
+  const handleCambiarEstado = async (materia: Materia) => {
+    try {
+      await cambiarEstadoMateria(materia.id, materia.activo === false);
+      setSuccessMsg(`Materia ${materia.activo === false ? 'activada' : 'desactivada'} correctamente.`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+      await fetchData();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'No se pudo cambiar el estado de la materia.');
+    }
+  };
 
   // Filtrado reactivo
   const materiasFiltradas = materias.filter((m) => {
