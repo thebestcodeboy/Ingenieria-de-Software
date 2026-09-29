@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getMaterias, createMateria, updateMateria } from '../services/materias';
+import { getMaterias, createMateria, updateMateria, cambiarEstadoMateria } from '../services/materias';
 
 interface Materia {
   id: string | number;
   nombre: string;
   nivel: string;
   area?: string | null;
+  activo?: boolean;
 }
 
 const AREAS_UNIVERSITARIAS = [
@@ -25,6 +26,7 @@ export default function MateriasModule() {
   // Filtros de búsqueda
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterNivel, setFilterNivel] = useState<string>('TODOS');
+  const [filterEstado, setFilterEstado] = useState<string>('TODOS');
 
   // Estado del modal unificado (Alta / Edición)
   const [editingId, setEditingId] = useState<string | number | null>(null);
@@ -116,6 +118,17 @@ export default function MateriasModule() {
     }
   };
 
+  const handleCambiarEstado = async (materia: Materia) => {
+    try {
+      await cambiarEstadoMateria(materia.id, materia.activo === false);
+      setSuccessMsg(`Materia ${materia.activo === false ? 'activada' : 'desactivada'} correctamente.`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+      await fetchMaterias();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'No se pudo cambiar el estado de la materia.');
+    }
+  };
+
   // Filtrado reactivo
   const materiasFiltradas = materias.filter((m) => {
     const matchNombre = m.nombre?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -124,7 +137,8 @@ export default function MateriasModule() {
       filterNivel === 'TODOS' ||
       (filterNivel === 'Universitario' && nivelNorm.includes('univ')) ||
       (filterNivel === 'Secundario' && (nivelNorm.includes('secun') || !nivelNorm.includes('univ')));
-    return matchNombre && matchNivel;
+    const matchEstado = filterEstado === 'TODOS' || (m.activo !== false) === (filterEstado === 'ACTIVO');
+    return matchNombre && matchNivel && matchEstado;
   });
 
   return (
@@ -225,6 +239,18 @@ export default function MateriasModule() {
             <option value="Universitario">Nivel Universitario</option>
           </select>
         </div>
+        <div style={{ width: '190px' }}>
+          <select
+            aria-label="Filtrar materias por estado"
+            value={filterEstado}
+            onChange={(e) => setFilterEstado(e.target.value)}
+            style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', cursor: 'pointer' }}
+          >
+            <option value="TODOS">Todos los estados</option>
+            <option value="ACTIVO">Activas</option>
+            <option value="INACTIVO">Inactivas</option>
+          </select>
+        </div>
       </div>
 
       {/* Tabla */}
@@ -284,19 +310,15 @@ export default function MateriasModule() {
                       )}
                     </td>
                     <td style={{ padding: '16px 20px' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        backgroundColor: '#f0fdf4',
-                        color: '#15803d',
-                        border: '1px solid #bbf7d0',
-                        padding: '3px 10px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.04em'
-                      }}>
-                        ACTIVO
-                      </span>
+                      <button
+                        type="button"
+                        title="Haz clic para cambiar estado"
+                        aria-label={`Cambiar estado de ${materia.nombre}`}
+                        onClick={() => handleCambiarEstado(materia)}
+                        style={{ backgroundColor: materia.activo === false ? '#fef2f2' : '#f0fdf4', color: materia.activo === false ? '#991b1b' : '#15803d', border: `1px solid ${materia.activo === false ? '#fca5a5' : '#bbf7d0'}`, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                      >
+                        {materia.activo === false ? 'INACTIVO' : 'ACTIVO'}
+                      </button>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <button

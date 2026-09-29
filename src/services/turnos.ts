@@ -166,10 +166,10 @@ export async function obtenerDatosTurnos() {
     cursoMateriasRes,
     aulasRes,
   ] = await Promise.all([
-    supabase.from('cursos_ingreso').select('id, nombre'),
+    supabase.from('cursos_ingreso').select('id, nombre').eq('activo', true),
     supabase.from('clases_particulares').select('id, nombre, materia_id'),
-    supabase.from('materias').select('id, nombre'),
-    supabase.from('profesores').select('id, nombre, apellido, materias_ids'),
+    supabase.from('materias').select('id, nombre').eq('activo', true),
+    supabase.from('profesores').select('id, nombre, apellido, materias_ids').eq('activo', true),
     supabase.from('profesor_materia').select('profesor_id, materia_id'),
     supabase.from('curso_ingreso_materias').select('curso_id, materia_id'),
     supabase.from('aulas').select('numero, descripcion, capacidad'),

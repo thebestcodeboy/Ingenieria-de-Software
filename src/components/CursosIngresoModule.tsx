@@ -4,14 +4,26 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   getCursosIngreso,
   getMateriasDisponibles,
-  createCursoIngreso
+  createCursoIngreso,
+  cambiarEstadoCursoIngreso
 } from '../services/cursosIngreso';
 
+type CursoIngreso = {
+  id: string | number;
+  nombre: string;
+  descripcion?: string | null;
+  activo?: boolean;
+  curso_ingreso_materias?: Array<{
+    materias?: { nombre?: string | null } | null;
+  }>;
+};
+
 export default function CursosIngresoModule() {
-  const [cursos, setCursos] = useState<any[]>([]);
+  const [cursos, setCursos] = useState<CursoIngreso[]>([]);
   const [materias, setMaterias] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterEstado, setFilterEstado] = useState('TODOS');
 
   // Modal - Registrar Curso de Ingreso
   const [showModal, setShowModal] = useState(false);
@@ -22,9 +34,10 @@ export default function CursosIngresoModule() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   // Detalle / Ficha del Curso
-  const [selectedCurso, setSelectedCurso] = useState<any | null>(null);
+  const [selectedCurso, setSelectedCurso] = useState<CursoIngreso | null>(null);
 
   const loadData = async () => {
     try {
@@ -51,17 +64,29 @@ export default function CursosIngresoModule() {
 
   const filteredCursos = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return cursos;
     return cursos.filter((c) => {
       const nombre = (c.nombre || '').toLowerCase();
       const desc = (c.descripcion || '').toLowerCase();
       const matNames = (c.curso_ingreso_materias || [])
-        .map((cim: any) => cim.materias?.nombre || '')
+        .map((cim) => cim.materias?.nombre || '')
         .join(' ')
         .toLowerCase();
-      return nombre.includes(term) || desc.includes(term) || matNames.includes(term);
+      const matchTerm = !term || nombre.includes(term) || desc.includes(term) || matNames.includes(term);
+      const matchEstado = filterEstado === 'TODOS' || (c.activo !== false) === (filterEstado === 'ACTIVO');
+      return matchTerm && matchEstado;
     });
-  }, [cursos, searchTerm]);
+  }, [cursos, searchTerm, filterEstado]);
+
+  const handleCambiarEstado = async (curso: CursoIngreso) => {
+    try {
+      setErrorMsg('');
+      await cambiarEstadoCursoIngreso(curso.id, curso.activo === false);
+      setSuccessMsg(`Curso ${curso.activo === false ? 'activado' : 'desactivado'} correctamente.`);
+      await loadData();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'No se pudo cambiar el estado del curso.');
+    }
+  };
 
   // Bloquea números en tiempo real en el input del nombre del curso
   const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,6 +187,11 @@ export default function CursosIngresoModule() {
           {errorMsg}
         </div>
       )}
+      {successMsg && !showModal && (
+        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+          {successMsg}
+        </div>
+      )}
 
       {/* Buscador */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
@@ -190,6 +220,16 @@ export default function CursosIngresoModule() {
             style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
           />
         </div>
+        <select
+          aria-label="Filtrar cursos por estado"
+          value={filterEstado}
+          onChange={(e) => setFilterEstado(e.target.value)}
+          style={{ padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', cursor: 'pointer' }}
+        >
+          <option value="TODOS">Todos los estados</option>
+          <option value="ACTIVO">Activos</option>
+          <option value="INACTIVO">Inactivos</option>
+        </select>
       </div>
 
       {/* Tabla institucional */}
@@ -197,21 +237,22 @@ export default function CursosIngresoModule() {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 24px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '35%' }}>CURSO DE INGRESO</th>
-              <th style={{ padding: '14px 24px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '45%' }}>MATERIAS UNIVERSITARIAS ASOCIADAS</th>
-              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '20%' }}>ACCIÓN</th>
+              <th style={{ padding: '14px 24px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '30%' }}>CURSO DE INGRESO</th>
+              <th style={{ padding: '14px 24px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '40%' }}>MATERIAS UNIVERSITARIAS ASOCIADAS</th>
+              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ESTADO</th>
+              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: '#475569', fontWeight: 500 }}>
+                <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#475569', fontWeight: 500 }}>
                   Cargando cursos de ingreso...
                 </td>
               </tr>
             ) : filteredCursos.length === 0 ? (
               <tr>
-                <td colSpan={3} style={{ padding: '54px 20px', textAlign: 'center', color: '#64748b' }}>
+                <td colSpan={4} style={{ padding: '54px 20px', textAlign: 'center', color: '#64748b' }}>
                   <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>No se encontraron cursos de ingreso registrados</div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Utiliza el botón superior &quot;+ Registrar Curso&quot; para dar de alta una oferta.</div>
                 </td>
@@ -219,8 +260,8 @@ export default function CursosIngresoModule() {
             ) : (
               filteredCursos.map((c, idx) => {
                 const listaMaterias = (c.curso_ingreso_materias || [])
-                  .map((rel: any) => rel.materias?.nombre)
-                  .filter(Boolean);
+                  .map((rel) => rel.materias?.nombre)
+                  .filter((nombre): nombre is string => Boolean(nombre));
 
                 return (
                   <tr
@@ -261,6 +302,17 @@ export default function CursosIngresoModule() {
                           <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Sin materias</span>
                         )}
                       </div>
+                    </td>
+                    <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        title="Haz clic para cambiar estado"
+                        aria-label={`Cambiar estado del curso ${c.nombre}`}
+                        onClick={(e) => { e.stopPropagation(); handleCambiarEstado(c); }}
+                        style={{ backgroundColor: c.activo === false ? '#fef2f2' : '#f0fdf4', color: c.activo === false ? '#991b1b' : '#15803d', border: `1px solid ${c.activo === false ? '#fca5a5' : '#bbf7d0'}`, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                      >
+                        {c.activo === false ? 'INACTIVO' : 'ACTIVO'}
+                      </button>
                     </td>
                     <td style={{ padding: '16px 24px', textAlign: 'center' }}>
                       <button

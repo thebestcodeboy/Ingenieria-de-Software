@@ -149,3 +149,15 @@ export async function updateMateria(id, { nombre, nivel, area }) {
 
   return data?.[0];
 }
+
+export async function cambiarEstadoMateria(id, activo) {
+  const { data, error } = await supabase
+    .from('materias')
+    .update({ activo })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message || 'No se pudo cambiar el estado de la materia.');
+  return data;
+}

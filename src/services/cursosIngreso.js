@@ -50,6 +50,7 @@ export const getMateriasDisponibles = async () => {
     const { data, error } = await supabase
       .from('materias')
       .select('id, nombre, nivel')
+      .eq('activo', true)
       .order('nombre', { ascending: true });
 
     if (error) throw new Error(error.message);
@@ -111,6 +112,18 @@ export const getCursosIngreso = async () => {
   }
 };
 
+export const cambiarEstadoCursoIngreso = async (id, activo) => {
+  const { data, error } = await supabase
+    .from('cursos_ingreso')
+    .update({ activo })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message || 'No se pudo cambiar el estado del curso.');
+  return data;
+};
+
 // Registro de curso de ingreso
 export const createCursoIngreso = async ({ nombre, descripcion, materiasIds }) => {
   try {
@@ -127,6 +140,17 @@ export const createCursoIngreso = async ({ nombre, descripcion, materiasIds }) =
 
     if (materiasUnicas.length === 0) {
       throw new Error('El curso de ingreso debe tener al menos una materia asociada.');
+    }
+
+    const { data: materiasActivas, error: materiasError } = await supabase
+      .from('materias')
+      .select('id')
+      .in('id', materiasUnicas)
+      .eq('activo', true);
+
+    if (materiasError) throw new Error(materiasError.message);
+    if ((materiasActivas || []).length !== materiasUnicas.length) {
+      throw new Error('Solo se pueden asociar materias activas a un curso nuevo.');
     }
 
     // Validar duplicados por nombre

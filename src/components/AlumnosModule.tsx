@@ -4,7 +4,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { 
   getAlumnos, 
   createAlumno,
-  updateAlumno, 
+  updateAlumno,
+  cambiarEstadoAlumno,
   calcularCuilArgentino, 
   validarDireccionReal 
 } from '../services/alumnos';
@@ -42,8 +43,10 @@ export default function AlumnosModule() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterEstado, setFilterEstado] = useState<string>('TODOS');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
+  const [changingStatusId, setChangingStatusId] = useState<string | null>(null);
 
   // Modal Registrar Alumno
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -118,14 +121,15 @@ export default function AlumnosModule() {
 
   const filteredAlumnos = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return alumnos;
     return alumnos.filter((a) => {
       const fullName = `${a.apellido || ''} ${a.nombre || ''}`.toLowerCase();
       const dniStr = String(a.dni || '');
       const legajoStr = String(a.legajo || '').toLowerCase();
-      return fullName.includes(term) || dniStr.includes(term) || legajoStr.includes(term);
+      const matchTerm = !term || fullName.includes(term) || dniStr.includes(term) || legajoStr.includes(term);
+      const matchEstado = filterEstado === 'TODOS' || estaAlumnoActivo(a) === (filterEstado === 'ACTIVO');
+      return matchTerm && matchEstado;
     });
-  }, [alumnos, searchTerm]);
+  }, [alumnos, searchTerm, filterEstado]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMsg('');
@@ -240,6 +244,35 @@ export default function AlumnosModule() {
       setErrorMsg(mensajeDeError(err, 'Error al modificar el alumno.'));
     } finally {
       setEditSubmitting(false);
+    }
+  };
+
+  const handleCambiarEstado = async (alumno: Alumno) => {
+    const alumnoId = alumno.id || alumno.alumno_id;
+    if (!alumnoId) {
+      setErrorMsg('No se pudo identificar al alumno.');
+      return;
+    }
+
+    const activo = !estaAlumnoActivo(alumno);
+    try {
+      setChangingStatusId(alumnoId);
+      setErrorMsg('');
+      await cambiarEstadoAlumno(alumnoId, activo);
+      setAlumnos((current) => current.map((item) => (
+        String(item.id || item.alumno_id) === String(alumnoId) ? { ...item, activo } : item
+      )));
+      setSelectedAlumno((current) => (
+        current && String(current.id || current.alumno_id) === String(alumnoId)
+          ? { ...current, activo }
+          : current
+      ));
+      setSuccessMsg(`Alumno ${activo ? 'activado' : 'desactivado'} correctamente.`);
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: unknown) {
+      setErrorMsg(mensajeDeError(err, 'No se pudo cambiar el estado del alumno.'));
+    } finally {
+      setChangingStatusId(null);
     }
   };
 
@@ -388,6 +421,16 @@ export default function AlumnosModule() {
             }}
           />
         </div>
+        <select
+          aria-label="Filtrar alumnos por estado"
+          value={filterEstado}
+          onChange={(e) => setFilterEstado(e.target.value)}
+          style={{ padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', cursor: 'pointer' }}
+        >
+          <option value="TODOS">Todos los estados</option>
+          <option value="ACTIVO">Activos</option>
+          <option value="INACTIVO">Inactivos</option>
+        </select>
       </div>
 
       {/* Tabla sin la columna Contacto */}
@@ -435,19 +478,16 @@ export default function AlumnosModule() {
                       {String(alumno.dni).padStart(8, '0')}
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        backgroundColor: activo ? '#f0fdf4' : '#f1f5f9',
-                        color: activo ? '#15803d' : '#64748b',
-                        border: `1px solid ${activo ? '#bbf7d0' : '#cbd5e1'}`,
-                        padding: '3px 10px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.04em'
-                      }}>
+                      <button
+                        title="Haz clic para cambiar estado"
+                        aria-label={`Cambiar estado de ${alumno.apellido}, ${alumno.nombre}`}
+                        type="button"
+                        disabled={changingStatusId === String(alumno.id || alumno.alumno_id)}
+                        onClick={() => handleCambiarEstado(alumno)}
+                        style={{ backgroundColor: activo ? '#f0fdf4' : '#fef2f2', color: activo ? '#15803d' : '#991b1b', border: `1px solid ${activo ? '#bbf7d0' : '#fca5a5'}`, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', cursor: changingStatusId ? 'wait' : 'pointer', transition: 'all 0.15s ease' }}
+                      >
                         {activo ? 'ACTIVO' : 'INACTIVO'}
-                      </span>
+                      </button>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <span style={{
@@ -849,6 +889,15 @@ export default function AlumnosModule() {
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box' }}
                     />
                   </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                    <input
+                      type="checkbox"
+                      checked={editFormData.activo}
+                      onChange={(e) => setEditFormData({ ...editFormData, activo: e.target.checked })}
+                    />
+                    Alumno activo
+                  </label>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
                     <button

@@ -187,3 +187,15 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
 
   return data?.[0];
 }
+
+export async function cambiarEstadoProfesor(id, activo) {
+  const { data, error } = await supabase
+    .from('profesores')
+    .update({ activo })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message || 'No se pudo cambiar el estado del profesor.');
+  return data;
+}

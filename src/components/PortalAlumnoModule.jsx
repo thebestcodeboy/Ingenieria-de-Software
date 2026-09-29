@@ -233,6 +233,11 @@ export default function PortalAlumnoModule({ activeTab }) {
 
   const handleInscribirseTurno = async (turnoId) => {
     try {
+      if (alumnoActual?.activo === false) {
+        setError('Tu cuenta está inactiva y no puede realizar nuevas inscripciones. Contactá a Mesa de Entrada.');
+        return;
+      }
+
       if (!alumnoActual?.id) {
         setError('No se pudo identificar una cuenta de alumno activa.');
         return;
