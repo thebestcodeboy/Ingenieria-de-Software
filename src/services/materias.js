@@ -249,3 +249,27 @@ export async function updateMateria(id, { nombre, nivel, area, carrerasIds }) {
 
   return matData[0];
 }
+
+export async function cambiarEstadoMateria(id, activo) {
+  const { data, error } = await supabase
+    .from('materias')
+    .update({ activo })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message || 'No se pudo cambiar el estado de la materia.');
+  return data;
+}
+
+export async function cambiarEstadoMateria(id, activo) {
+  const { data, error } = await supabase
+    .from('materias')
+    .update({ activo })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message || 'No se pudo cambiar el estado de la materia.');
+  return data;
+}

@@ -189,7 +189,7 @@ export async function obtenerDatosTurnos() {
     cursoMateriasRes,
     aulasRes,
   ] = await Promise.all([
-    supabase.from('cursos_ingreso').select('id, nombre'),
+    supabase.from('cursos_ingreso').select('id, nombre').eq('activo', true),
     supabase.from('clases_particulares').select('id, nombre, materia_id'),
     supabase.from('materias').select('id, nombre'),
     supabase.from('profesores').select('id, nombre, apellido, materias_ids, turnos, disponibilidad, activo'),

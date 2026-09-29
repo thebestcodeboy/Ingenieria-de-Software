@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { getProfesores, createProfesor, updateProfesor } from '../services/profesores';
+import { getProfesores, createProfesor, updateProfesor, cambiarEstadoProfesor } from '../services/profesores';
 import { getMaterias } from '../services/materias';
 import { calcularCuilArgentino } from '../services/alumnos';
 import { generateTeacherUsername } from '../utils/credentials';
@@ -33,6 +33,7 @@ interface Materia {
   nombre: string;
   nivel: string;
   area?: string;
+  activo?: boolean;
 }
 
 type CredencialesModal = {
@@ -59,6 +60,7 @@ export default function ProfesoresModule() {
   const [successMsg, setSuccessMsg] = useState<string>('');
 
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterEstado, setFilterEstado] = useState<string>('TODOS');
 
   // Modal y formulario de creación/edición
   const [editingId, setEditingId] = useState<string | number | null>(null);
@@ -387,13 +389,25 @@ export default function ProfesoresModule() {
 
   const profesoresFiltrados = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return profesores;
     return profesores.filter((p) => {
       const nombreCompleto = `${p.apellido || ''} ${p.nombre || ''}`.toLowerCase();
       const dniStr = String(p.dni || '');
-      return nombreCompleto.includes(term) || dniStr.includes(term);
+      const matchTerm = !term || nombreCompleto.includes(term) || dniStr.includes(term);
+      const activo = p.activo !== false;
+      const matchEstado = filterEstado === 'TODOS' || activo === (filterEstado === 'ACTIVO');
+      return matchTerm && matchEstado;
     });
-  }, [profesores, searchTerm]);
+  }, [profesores, searchTerm, filterEstado]);
+
+  const handleCambiarEstado = async (profesor: Profesor) => {
+    try {
+      await cambiarEstadoProfesor(profesor.id, profesor.activo === false);
+      setSuccessMsg(`Profesor ${profesor.activo === false ? 'activado' : 'desactivado'} correctamente.`);
+      await loadData();
+    } catch (err: unknown) {
+      setErrorMsg(mensajeDeError(err, 'No se pudo cambiar el estado del profesor.'));
+    }
+  };
 
   const obtenerNombreMateria = (mId: string | number) => {
     const encontrada = materias.find((m) => String(m.id).trim() === String(mId).trim());
@@ -476,6 +490,16 @@ export default function ProfesoresModule() {
             style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
           />
         </div>
+        <select
+          aria-label="Filtrar profesores por estado"
+          value={filterEstado}
+          onChange={(e) => setFilterEstado(e.target.value)}
+          style={{ padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', cursor: 'pointer' }}
+        >
+          <option value="TODOS">Todos los estados</option>
+          <option value="ACTIVO">Activos</option>
+          <option value="INACTIVO">Inactivos</option>
+        </select>
       </div>
 
       {/* Tabla con Disponibilidad Horaria (HU16) */}
@@ -570,19 +594,15 @@ export default function ProfesoresModule() {
                       </div>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        backgroundColor: '#f0fdf4',
-                        color: '#15803d',
-                        border: '1px solid #bbf7d0',
-                        padding: '3px 10px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.04em'
-                      }}>
-                        ACTIVO
-                      </span>
+                      <button
+                        type="button"
+                        title="Haz clic para cambiar estado"
+                        aria-label={`Cambiar estado de ${prof.apellido}, ${prof.nombre}`}
+                        onClick={() => handleCambiarEstado(prof)}
+                        style={{ backgroundColor: prof.activo === false ? '#fef2f2' : '#f0fdf4', color: prof.activo === false ? '#991b1b' : '#15803d', border: `1px solid ${prof.activo === false ? '#fca5a5' : '#bbf7d0'}`, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                      >
+                        {prof.activo === false ? 'INACTIVO' : 'ACTIVO'}
+                      </button>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <span style={{
@@ -865,18 +885,23 @@ export default function ProfesoresModule() {
                   {materias.length === 0 ? (
                     <p style={{ fontSize: '12px', color: '#64748b', padding: '8px', margin: 0 }}>No hay materias disponibles.</p>
                   ) : (
-                    materias.map((mat) => (
-                      <label key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 6px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#1e293b', fontWeight: 500 }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedMaterias.map(String).includes(String(mat.id))}
-                          onChange={() => toggleMateria(mat.id)}
-                          style={{ width: '15px', height: '15px', accentColor: '#0b1e33' }}
-                        />
-                        <span>{mat.nombre}</span>
-                        <span style={{ color: '#64748b', fontSize: '10px' }}>({mat.nivel})</span>
-                      </label>
-                    ))
+                    materias.map((mat) => {
+                      const yaAsignada = selectedMaterias.map(String).includes(String(mat.id));
+                      if (mat.activo === false && !yaAsignada) return null;
+
+                      return (
+                        <label key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 6px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#1e293b', fontWeight: 500 }}>
+                          <input
+                            type="checkbox"
+                            checked={yaAsignada}
+                            onChange={() => toggleMateria(mat.id)}
+                            style={{ width: '15px', height: '15px', accentColor: '#0b1e33' }}
+                          />
+                          <span>{mat.nombre}</span>
+                          <span style={{ color: '#64748b', fontSize: '10px' }}>{mat.activo === false ? '(inactiva, ya asignada)' : `(${mat.nivel})`}</span>
+                        </label>
+                      );
+                    })
                   )}
                 </div>
               </div>
