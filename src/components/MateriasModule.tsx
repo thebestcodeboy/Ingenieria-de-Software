@@ -1,23 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getMaterias, createMateria, updateMateria } from '../services/materias';
+import { getMaterias, getCarreras, createMateria, updateMateria } from '../services/materias';
+
+interface Carrera {
+  id: string | number;
+  nombre: string;
+}
 
 interface Materia {
   id: string | number;
   nombre: string;
   nivel: string;
   area?: string | null;
+  carreras?: Carrera[];
+  carreras_ids?: (string | number)[];
 }
-
-const AREAS_UNIVERSITARIAS = [
-  'Ingeniería y Ciencias Exactas',
-  'Medicina y Ciencias de la Salud',
-  'Economía y Ciencias Económicas'
-];
 
 export default function MateriasModule() {
   const [materias, setMaterias] = useState<Materia[]>([]);
+  const [carrerasDisponibles, setCarrerasDisponibles] = useState<Carrera[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -31,32 +33,33 @@ export default function MateriasModule() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [formNombre, setFormNombre] = useState<string>('');
   const [formNivel, setFormNivel] = useState<'Secundario' | 'Universitario'>('Universitario');
-  const [formArea, setFormArea] = useState<string>(AREAS_UNIVERSITARIAS[0]);
+  const [formCarrerasIds, setFormCarrerasIds] = useState<(string | number)[]>([]);
   const [formSubmitting, setFormSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const fetchMaterias = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       setErrorMsg(null);
-      const data = await getMaterias();
-      setMaterias(data);
+      const [matsData, carsData] = await Promise.all([getMaterias(), getCarreras()]);
+      setMaterias(matsData);
+      setCarrerasDisponibles(carsData);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Error al cargar el catálogo de materias.');
+      setErrorMsg(err instanceof Error ? err.message : 'Error al cargar el catálogo de materias y carreras.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMaterias();
+    fetchData();
   }, []);
 
   const handleOpenModal = () => {
     setEditingId(null);
     setFormNombre('');
     setFormNivel('Universitario');
-    setFormArea(AREAS_UNIVERSITARIAS[0]);
+    setFormCarrerasIds([]);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -68,7 +71,7 @@ export default function MateriasModule() {
     const esUniv = nivelUpper.includes('univ');
     setFormNivel(esUniv ? 'Universitario' : 'Secundario');
     
-    setFormArea(materia.area || AREAS_UNIVERSITARIAS[0]);
+    setFormCarrerasIds(materia.carreras_ids || []);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -77,6 +80,13 @@ export default function MateriasModule() {
     setEditingId(null);
     setIsModalOpen(false);
     setFormError(null);
+  };
+
+  const toggleCarrera = (id: string | number) => {
+    setFormError(null);
+    setFormCarrerasIds((prev) =>
+      prev.includes(id) ? prev.filter((cId) => cId !== id) : [...prev, id]
+    );
   };
 
   // Validación de escritura en tiempo real (bloquea números por completo)
@@ -90,12 +100,18 @@ export default function MateriasModule() {
     e.preventDefault();
     setFormError(null);
 
+    if (formNivel === 'Universitario' && formCarrerasIds.length === 0) {
+      setFormError('Debe asociar al menos una carrera universitaria a la materia.');
+      return;
+    }
+
     try {
       setFormSubmitting(true);
       const payload = {
         nombre: formNombre,
         nivel: formNivel,
-        area: formNivel === 'Universitario' ? formArea : undefined
+        area: null, // <-- Propiedad añadida para satisfacer el tipado
+        carrerasIds: formNivel === 'Universitario' ? formCarrerasIds : []
       };
 
       if (editingId) {
@@ -108,13 +124,13 @@ export default function MateriasModule() {
 
       setTimeout(() => setSuccessMsg(null), 4000);
       handleCloseModal();
-      await fetchMaterias();
+      await fetchData();
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'No se pudo guardar la materia.');
     } finally {
       setFormSubmitting(false);
     }
-  };
+  }
 
   // Filtrado reactivo
   const materiasFiltradas = materias.filter((m) => {
@@ -134,10 +150,10 @@ export default function MateriasModule() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-            Catálogo de Materias
+            Catálogo de Materias (HU17)
           </h1>
           <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 0 0', fontWeight: 500 }}>
-            {materias.length} {materias.length === 1 ? 'asignatura registrada' : 'asignaturas registradas'}
+            {materias.length} {materias.length === 1 ? 'asignatura registrada' : 'asignaturas registradas'} compartidas entre carreras
           </p>
         </div>
         <button
@@ -232,9 +248,9 @@ export default function MateriasModule() {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '34%' }}>NOMBRE ASIGNATURA</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '30%' }}>NOMBRE ASIGNATURA</th>
               <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '18%' }}>NIVEL EDUCATIVO</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '24%' }}>ÁREA / CARRERA</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '28%' }}>CARRERAS ASOCIADAS</th>
               <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
               <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%' }}>ACCIÓN</th>
             </tr>
@@ -278,7 +294,17 @@ export default function MateriasModule() {
                     </td>
                     <td style={{ padding: '16px 20px', color: '#475569', fontSize: '12.5px', fontWeight: 500 }}>
                       {esUniversitario ? (
-                        materia.area || '-'
+                        materia.carreras && materia.carreras.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {materia.carreras.map((c, idx) => (
+                              <span key={idx} style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, color: '#0b1e33' }}>
+                                {c.nombre}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>Sin carreras asociadas</span>
+                        )
                       ) : (
                         <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>No aplica</span>
                       )}
@@ -355,13 +381,15 @@ export default function MateriasModule() {
             backgroundColor: '#ffffff',
             borderRadius: '12px',
             width: '100%',
-            maxWidth: '480px',
+            maxWidth: '520px',
             padding: '28px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            maxHeight: '90vh',
+            overflowY: 'auto'
           }}>
             <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 20px 0', color: '#0f172a' }}>
-              {editingId ? 'Modificar Materia' : 'Registrar Nueva Materia'}
+              {editingId ? 'Modificar Materia (HU17)' : 'Registrar Nueva Materia (HU17)'}
             </h2>
 
             {formError && (
@@ -402,30 +430,52 @@ export default function MateriasModule() {
               {formNivel === 'Universitario' && (
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
-                    Área o Carrera Universitaria *
+                    Carreras Universitarias Asociadas * ({formCarrerasIds.length} seleccionadas)
                   </label>
-                  <select
-                    value={formArea}
-                    onChange={(e) => setFormArea(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '6px',
-                      border: '1.5px solid #cbd5e1',
-                      fontSize: '13px',
-                      backgroundColor: '#ffffff',
-                      color: '#0f172a',
-                      fontWeight: 500,
-                      boxSizing: 'border-box',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {AREAS_UNIVERSITARIAS.map((area) => (
-                      <option key={area} value={area}>
-                        {area}
-                      </option>
-                    ))}
-                  </select>
+                  <div style={{
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    border: '1.5px solid #cbd5e1',
+                    borderRadius: '6px',
+                    padding: '8px',
+                    backgroundColor: '#f8fafc',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    {carrerasDisponibles.length === 0 ? (
+                      <span style={{ fontSize: '12px', color: '#94a3b8', padding: '6px' }}>No hay carreras registradas en la base de datos.</span>
+                    ) : (
+                      carrerasDisponibles.map((carrera) => (
+                        <label
+                          key={carrera.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '6px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: formCarrerasIds.includes(carrera.id) ? '#ffffff' : 'transparent',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            color: '#0f172a',
+                            fontWeight: 600
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formCarrerasIds.includes(carrera.id)}
+                            onChange={() => toggleCarrera(carrera.id)}
+                            style={{ cursor: 'pointer' }}
+                          />
+                          <span>{carrera.nombre}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                    Una misma asignatura puede pertenecer a múltiples carreras simultáneamente.
+                  </span>
                 </div>
               )}
 
