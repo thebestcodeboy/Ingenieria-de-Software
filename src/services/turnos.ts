@@ -3,6 +3,12 @@ import { validarCupo } from '@/domain/cupo';
 
 export { validarCupo } from '@/domain/cupo';
 
+export interface FranjaDisponibilidad {
+  franja: 'Mañana' | 'Tarde' | 'Noche';
+  horaInicio: string;
+  horaFin: string;
+}
+
 export type TurnoConCupo = {
   turno_id: string;
   fecha: string | null;
@@ -34,6 +40,7 @@ export interface FormNuevoTurnoPayload {
   fecha: string;
   horaInicio: string;
   horaFin: string;
+  turnoIdExcluir?: string; // Para usar en reprogramación (HU14 / HU16)
 }
 
 const CAMPOS_TURNO = [
@@ -154,7 +161,7 @@ export async function definirCupoTurno(
 }
 
 /**
- * HU08: Carga las entidades maestras y relaciones para armar los desplegables de nuevo turno
+ * HU08 y HU16: Carga entidades maestras incluyendo disponibilidad horaria docente
  */
 export async function obtenerDatosTurnos() {
   const [
@@ -169,7 +176,7 @@ export async function obtenerDatosTurnos() {
     supabase.from('cursos_ingreso').select('id, nombre'),
     supabase.from('clases_particulares').select('id, nombre, materia_id'),
     supabase.from('materias').select('id, nombre'),
-    supabase.from('profesores').select('id, nombre, apellido, materias_ids'),
+    supabase.from('profesores').select('id, nombre, apellido, materias_ids, turnos, disponibilidad'),
     supabase.from('profesor_materia').select('profesor_id, materia_id'),
     supabase.from('curso_ingreso_materias').select('curso_id, materia_id'),
     supabase.from('aulas').select('numero, descripcion, capacidad'),
@@ -194,9 +201,105 @@ export async function obtenerDatosTurnos() {
 }
 
 /**
- * HU08: Inserta un nuevo turno en la tabla `turnos_clase`
+ * HU16: Validación de disponibilidad horaria docente y control de superposición
+ */
+export async function validarDisponibilidadProfesor(
+  profesorId: string,
+  fecha: string,
+  horaInicio: string,
+  horaFin: string,
+  turnoIdExcluir?: string
+): Promise<{ valido: boolean; motivo?: string }> {
+  // 1. Obtener datos del profesor
+  const { data: prof, error: profError } = await supabase
+    .from('profesores')
+    .select('nombre, apellido, turnos, disponibilidad')
+    .eq('id', profesorId)
+    .single();
+
+  if (profError || !prof) {
+    return { valido: false, motivo: 'No se encontró el profesor seleccionado.' };
+  }
+
+  const nombreDocente = `${prof.apellido}, ${prof.nombre}`;
+  const disponibilidad: FranjaDisponibilidad[] = Array.isArray(prof.disponibilidad)
+    ? prof.disponibilidad
+    : [];
+
+  // Si tiene franjas con horarios definidos, verificar que el rango del turno calce en alguna franja
+  if (disponibilidad.length > 0) {
+    const encajaEnAlgunaFranja = disponibilidad.some((franja) => {
+      return horaInicio >= franja.horaInicio && horaFin <= franja.horaFin;
+    });
+
+    if (!encajaEnAlgunaFranja) {
+      const franjasTexto = disponibilidad
+        .map((f) => `${f.franja} (${f.horaInicio} a ${f.horaFin})`)
+        .join(', ');
+      return {
+        valido: false,
+        motivo: `El horario seleccionado (${horaInicio} a ${horaFin}) no coincide con la disponibilidad configurada de ${nombreDocente}. Sus franjas habilitadas son: ${franjasTexto}.`,
+      };
+    }
+  }
+
+  // 2. Control de turnos superpuestos en la misma fecha
+  let query = supabase
+    .from('turnos_clase')
+    .select('id, hora_inicio, hora_fin')
+    .eq('profesor_id', profesorId)
+    .eq('fecha', fecha);
+
+  if (turnoIdExcluir) {
+    query = query.neq('id', turnoIdExcluir);
+  }
+
+  const { data: turnosMismoDia, error: queryError } = await query;
+
+  if (queryError) {
+    console.error('Error al verificar turnos existentes:', queryError);
+  } else if (turnosMismoDia && turnosMismoDia.length > 0) {
+    const solapado = turnosMismoDia.find((t) => {
+      const tInicio = String(t.hora_inicio).slice(0, 5);
+      const tFin = String(t.hora_fin).slice(0, 5);
+      // Hay solapamiento si: Max(horaInicio, tInicio) < Min(horaFin, tFin)
+      return horaInicio < tFin && horaFin > tInicio;
+    });
+
+    if (solapado) {
+      const solapadoInicio = String(solapado.hora_inicio).slice(0, 5);
+      const solapadoFin = String(solapado.hora_fin).slice(0, 5);
+      return {
+        valido: false,
+        motivo: `${nombreDocente} ya tiene asignada otra clase en ese horario (${solapadoInicio} a ${solapadoFin}) el día ${fecha}.`,
+      };
+    }
+  }
+
+  return { valido: true };
+}
+
+/**
+ * HU08 y HU16: Inserta un nuevo turno validando disponibilidad horaria
  */
 export async function registrarTurno(payload: FormNuevoTurnoPayload) {
+  if (payload.horaInicio >= payload.horaFin) {
+    throw new Error('La hora de inicio debe ser anterior a la hora de fin.');
+  }
+
+  // Validación HU16 de disponibilidad y superposición docente
+  const chequeo = await validarDisponibilidadProfesor(
+    payload.profesorId,
+    payload.fecha,
+    payload.horaInicio,
+    payload.horaFin,
+    payload.turnoIdExcluir
+  );
+
+  if (!chequeo.valido) {
+    throw new Error(chequeo.motivo);
+  }
+
   const esParticular = payload.actividadTipo === 'particular';
 
   const nuevoRegistro: Record<string, string | number | null> = {

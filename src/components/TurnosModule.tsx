@@ -16,6 +16,7 @@ interface FormNuevoTurno {
   actividadTipo: 'curso' | 'particular';
   actividadId: string;
   materiaId: string;
+  franjaFiltro: string; // '' | 'Mañana' | 'Tarde' | 'Noche'
   profesorId: string;
   aulaNumero: string;
   cupoMaximo: string;
@@ -28,6 +29,7 @@ const initialNuevoTurnoForm: FormNuevoTurno = {
   actividadTipo: 'curso',
   actividadId: '',
   materiaId: '',
+  franjaFiltro: '',
   profesorId: '',
   aulaNumero: '',
   cupoMaximo: '',
@@ -196,6 +198,7 @@ export default function TurnosModule() {
     actividadSeleccionada,
   ]);
 
+  // HU16: Profesores activos, asignados a la materia y filtrados opcionalmente por franja horaria
   const profesoresHabilitados = useMemo(() => {
     if (!formNuevo.materiaId) return [];
 
@@ -208,14 +211,40 @@ export default function TurnosModule() {
 
     return datosAuxiliares.profesores
       .filter((p) => {
+        // Excluir inactivos (evita trigger PROFESOR_INACTIVO)
+        if (p.activo === false) return false;
+
+        // 1. Debe dictar la materia
         const enRel = desdeRelacion.has(String(p.id).trim());
         const enArray =
           Array.isArray(p.materias_ids) &&
           p.materias_ids.some((m: any) => String(m).trim() === matIdStr);
-        return enRel || enArray;
+        if (!enRel && !enArray) return false;
+
+        // 2. Si se eligió una franja horaria deseada, debe estar en su disponibilidad
+        if (formNuevo.franjaFiltro) {
+          const tieneFranjaEnDisp =
+            Array.isArray(p.disponibilidad) &&
+            p.disponibilidad.some((d: any) => d.franja === formNuevo.franjaFiltro);
+          const tieneFranjaEnTurnos =
+            Array.isArray(p.turnos) && p.turnos.includes(formNuevo.franjaFiltro);
+
+          if (!tieneFranjaEnDisp && !tieneFranjaEnTurnos) return false;
+        }
+
+        return true;
       })
       .sort((a, b) => a.apellido.localeCompare(b.apellido));
-  }, [datosAuxiliares.profesorMaterias, datosAuxiliares.profesores, formNuevo.materiaId]);
+  }, [
+    datosAuxiliares.profesorMaterias,
+    datosAuxiliares.profesores,
+    formNuevo.materiaId,
+    formNuevo.franjaFiltro,
+  ]);
+
+  const profesorSeleccionado = useMemo(() => {
+    return profesoresHabilitados.find((p) => String(p.id) === String(formNuevo.profesorId));
+  }, [profesoresHabilitados, formNuevo.profesorId]);
 
   const aulaSeleccionadaCrear = useMemo(() => {
     return datosAuxiliares.aulas.find((a) => String(a.numero) === String(formNuevo.aulaNumero));
@@ -244,12 +273,18 @@ export default function TurnosModule() {
         actividadId: value,
         materiaId: formNuevo.actividadTipo === 'particular' ? selectedActivity?.materia_id || '' : '',
         profesorId: '',
+        franjaFiltro: '',
       });
       return;
     }
 
     if (name === 'materiaId') {
-      setFormNuevo({ ...formNuevo, materiaId: value, profesorId: '' });
+      setFormNuevo({ ...formNuevo, materiaId: value, profesorId: '', franjaFiltro: '' });
+      return;
+    }
+
+    if (name === 'franjaFiltro') {
+      setFormNuevo({ ...formNuevo, franjaFiltro: value, profesorId: '' });
       return;
     }
 
@@ -315,7 +350,12 @@ export default function TurnosModule() {
       setFormNuevo(initialNuevoTurnoForm);
       await cargarTurnos();
     } catch (saveError: any) {
-      setErrorNuevo(`No se pudo programar el turno: ${saveError.message}`);
+      const msg = saveError.message || 'No se pudo programar el turno.';
+      if (msg.includes('PROFESOR_INACTIVO')) {
+        setErrorNuevo('El profesor seleccionado no se encuentra en estado ACTIVO.');
+      } else {
+        setErrorNuevo(msg);
+      }
     } finally {
       setGuardandoNuevo(false);
     }
@@ -370,14 +410,12 @@ export default function TurnosModule() {
 
     const nuevoCupo = Number(valorNormalizado);
 
-    // Validación 1: Mínimo inscriptos actuales
     const errorValidacion = validarCupo(nuevoCupo, turnoSeleccionado.inscriptos_actuales);
     if (errorValidacion) {
       setErrorFormulario(errorValidacion);
       return;
     }
 
-    // Validación 2: Máximo capacidad física del aula
     if (aulaDelTurnoEditar?.capacidad && nuevoCupo > aulaDelTurnoEditar.capacidad) {
       setErrorFormulario(
         `El cupo (${nuevoCupo}) no puede superar la capacidad física del aula (${aulaDelTurnoEditar.capacidad} bancos).`
@@ -659,8 +697,27 @@ export default function TurnosModule() {
                 ))}
               </select>
 
+              {/* Selector de Franja Horaria (Filtro inteligente) */}
+              <label style={styles.labelModal} htmlFor="franjaFiltro">
+                Franja horaria deseada
+              </label>
+              <select
+                id="franjaFiltro"
+                name="franjaFiltro"
+                value={formNuevo.franjaFiltro}
+                onChange={handleNuevoChange}
+                style={styles.inputModal}
+                disabled={!formNuevo.materiaId}
+              >
+                <option value="">Todas las franjas (Cualquiera)</option>
+                <option value="Mañana">Mañana</option>
+                <option value="Tarde">Tarde</option>
+                <option value="Noche">Noche</option>
+              </select>
+
+              {/* Selector de Profesor Asignado */}
               <label style={styles.labelModal} htmlFor="profesorId">
-                Profesor asignado
+                Profesor asignado (HU16)
               </label>
               <select
                 id="profesorId"
@@ -672,17 +729,42 @@ export default function TurnosModule() {
               >
                 <option value="">
                   {profesoresHabilitados.length === 0
-                    ? 'No hay profesores habilitados para esta materia'
+                    ? formNuevo.franjaFiltro
+                      ? `No hay profesores para esta materia en el turno ${formNuevo.franjaFiltro}`
+                      : 'No hay profesores habilitados para esta materia'
                     : 'Seleccioná un profesor'}
                 </option>
-                {profesoresHabilitados.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {formatearNombre(p.apellido)}, {formatearNombre(p.nombre)}
-                  </option>
-                ))}
+                {profesoresHabilitados.map((p) => {
+                  const dispStr = Array.isArray(p.disponibilidad) && p.disponibilidad.length > 0
+                    ? p.disponibilidad.map((d: any) => `${d.franja} (${d.horaInicio}-${d.horaFin})`).join(', ')
+                    : (p.turnos || []).join(', ');
+                  const detalleDisp = dispStr ? ` [${dispStr}]` : ' [Sin franjas]';
+
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {formatearNombre(p.apellido)}, {formatearNombre(p.nombre)}{detalleDisp}
+                    </option>
+                  );
+                })}
               </select>
 
-              {/* Selector de Aula limpio y descriptivo */}
+              {/* Tarjeta informativa de disponibilidad */}
+              {profesorSeleccionado && (
+                <div style={{ marginTop: '8px', padding: '8px 12px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', fontSize: '11.5px', color: '#166534' }}>
+                  <strong>Disponibilidad horaria: </strong>
+                  {Array.isArray(profesorSeleccionado.disponibilidad) && profesorSeleccionado.disponibilidad.length > 0 ? (
+                    profesorSeleccionado.disponibilidad.map((d: any, idx: number) => (
+                      <span key={idx} style={{ marginRight: '8px' }}>
+                        • {d.franja}: <strong>{d.horaInicio} a {d.horaFin}</strong>
+                      </span>
+                    ))
+                  ) : (
+                    <span>Turnos: {(profesorSeleccionado.turnos || []).join(', ') || 'Sin definir'}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Selector de Aula */}
               <label style={styles.labelModal} htmlFor="aulaNumero">
                 Aula
               </label>
@@ -712,7 +794,7 @@ export default function TurnosModule() {
                 })}
               </select>
 
-              {/* Cupo editable vinculado al aula */}
+              {/* Cupo editable */}
               {formNuevo.aulaNumero && (
                 <div style={{ marginTop: '12px' }}>
                   <label style={styles.labelModal} htmlFor="cupoMaximo">
@@ -778,7 +860,7 @@ export default function TurnosModule() {
               </div>
 
               {errorNuevo && (
-                <div role="alert" style={{ ...styles.errorFormulario, marginTop: '12px' }}>
+                <div role="alert" style={{ ...styles.errorFormulario, marginTop: '12px', padding: '10px 12px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px' }}>
                   {errorNuevo}
                 </div>
               )}
@@ -793,7 +875,7 @@ export default function TurnosModule() {
                   Cancelar
                 </button>
                 <button type="submit" disabled={guardandoNuevo} style={styles.botonGuardar}>
-                  {guardandoNuevo ? 'Guardando...' : 'Programar Turno'}
+                  {guardandoNuevo ? 'Validando...' : 'Programar Turno'}
                 </button>
               </div>
             </form>
