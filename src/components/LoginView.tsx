@@ -147,7 +147,7 @@ export default function LoginView() {
         }
       }
     } catch (err: any) {
-      console.error('Error durante login:', err);
+      console.warn('No se pudo iniciar sesión:', err);
       const rawMsg = (err?.message || '').toLowerCase();
 
       if (rawMsg.includes('invalid') || rawMsg.includes('incorrectos') || rawMsg.includes('credentials')) {
