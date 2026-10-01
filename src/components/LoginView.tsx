@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { loginPortal, actualizarPasswordPrimerIngreso } from '../services/authPortales';
+import { getRoleFromUser } from '../services/auth';
 
-type PortalType = 'admin' | 'alumno' | 'profesor';
+type PortalType = 'alumno' | 'profesor' | 'staff'; // staff = Mesa de Entrada + Gerencia
 
 interface FieldErrors {
   identifier?: string;
@@ -14,9 +15,10 @@ interface FieldErrors {
 }
 
 export default function LoginView() {
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
 
-  const [portal, setPortal] = useState<PortalType>('admin');
+  // Por defecto el portal público arranca en 'alumno'
+  const [portal, setPortal] = useState<PortalType>('alumno');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,19 +33,23 @@ export default function LoginView() {
   const [generalSuccess, setGeneralSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const esStaff = portal === 'staff';
+
   const getPlaceholder = () => {
     switch (portal) {
       case 'alumno':
         return 'Usuario (ej: acolque22)';
       case 'profesor':
         return 'Usuario (ej: prof.agimenez)';
+      case 'staff':
+        return 'personal@ateneo.com';
       default:
-        return 'mesa@ateneo.com';
+        return 'usuario@ateneo.com';
     }
   };
 
   const getLabelIdentifier = () => {
-    return portal === 'admin' ? 'Correo electrónico' : 'Usuario institucional';
+    return esStaff ? 'Correo institucional' : 'Usuario institucional';
   };
 
   const validateLoginForm = (): boolean => {
@@ -51,10 +57,10 @@ export default function LoginView() {
     const cleanId = identifier.trim();
 
     if (!cleanId) {
-      errors.identifier = portal === 'admin' 
-        ? 'El correo electrónico es obligatorio.' 
+      errors.identifier = esStaff
+        ? 'El correo electrónico es obligatorio.'
         : 'El usuario institucional es obligatorio.';
-    } else if (portal === 'admin' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanId)) {
+    } else if (esStaff && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanId)) {
       errors.identifier = 'Ingresá un formato de correo válido (ej: usuario@ateneo.com).';
     }
 
@@ -87,6 +93,8 @@ export default function LoginView() {
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+
     setGeneralError(null);
     setGeneralSuccess(null);
 
@@ -95,10 +103,41 @@ export default function LoginView() {
     setLoading(true);
 
     try {
-      if (portal === 'admin') {
-        await login(identifier.trim(), password);
+      if (esStaff) {
+        // Login para Mesa de Entrada y Gerencia
+        const { user, error } = await login(identifier.trim(), password);
+
+        if (error) {
+          const rawMsg = (error.message || error.error_description || '').toLowerCase();
+          if (
+            rawMsg.includes('invalid') ||
+            rawMsg.includes('credentials') ||
+            rawMsg.includes('grant') ||
+            rawMsg.includes('incorrect')
+          ) {
+            setGeneralError('Correo o contraseña incorrectos. Verificá los datos ingresados.');
+          } else if (rawMsg.includes('not confirmed') || rawMsg.includes('unconfirmed')) {
+            setGeneralError('Esta cuenta aún no ha sido confirmada en el sistema.');
+          } else if (rawMsg.includes('too many requests') || rawMsg.includes('rate limit')) {
+            setGeneralError('Demasiados intentos fallidos. Por seguridad, aguardá unos minutos.');
+          } else {
+            setGeneralError(error.message || 'No se pudo iniciar sesión. Verificá tus credenciales.');
+          }
+          return;
+        }
+
+        // Validar que el usuario autenticado sea realmente staff (gerente o mesa_entrada)
+        const userRole = getRoleFromUser(user);
+        if (userRole !== 'gerente' && userRole !== 'mesa_entrada') {
+          await logout();
+          setGeneralError('Acceso denegado: Esta cuenta no posee permisos de personal administrativo o gerencial.');
+          return;
+        }
+
+        // Si es válido, AuthContext actualiza la sesión automáticamente
       } else {
-        const resultado = await loginPortal(identifier, password, portal);
+        // Login para Alumnos y Profesores (portal institucional)
+        const resultado = await loginPortal(identifier.trim(), password, portal);
 
         if (resultado.debeCambiarPass) {
           setRequiereCambioPass(true);
@@ -108,18 +147,15 @@ export default function LoginView() {
         }
       }
     } catch (err: any) {
+      console.error('Error durante login:', err);
       const rawMsg = (err?.message || '').toLowerCase();
 
-      if (rawMsg.includes('invalid') || rawMsg.includes('incorrectos')) {
+      if (rawMsg.includes('invalid') || rawMsg.includes('incorrectos') || rawMsg.includes('credentials')) {
         setGeneralError('Usuario o contraseña incorrectos. Verificá los datos ingresados.');
       } else if (rawMsg.includes('permisos')) {
         setGeneralError(err.message);
-      } else if (rawMsg.includes('not confirmed')) {
-        setGeneralError('Esta cuenta aún no ha sido confirmada en el sistema.');
-      } else if (rawMsg.includes('too many requests') || rawMsg.includes('rate limit')) {
-        setGeneralError('Demasiados intentos fallidos. Por seguridad, aguardá unos minutos.');
       } else {
-        setGeneralError(err.message || 'No se pudo iniciar sesión. Consultá con Mesa de Entrada.');
+        setGeneralError(err.message || 'Ocurrió un error inesperado al iniciar sesión.');
       }
     } finally {
       setLoading(false);
@@ -128,6 +164,8 @@ export default function LoginView() {
 
   const handlePasswordUpdateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+
     setGeneralError(null);
 
     if (!validatePasswordChangeForm()) return;
@@ -158,7 +196,7 @@ export default function LoginView() {
       boxSizing: 'border-box',
       fontFamily: 'inherit'
     }}>
-      {/* CONTENEDOR PRINCIPAL CENTRADO Y ESTÉTICO */}
+      {/* TARJETA PRINCIPAL */}
       <div style={{
         width: '100%',
         maxWidth: '1020px',
@@ -171,7 +209,7 @@ export default function LoginView() {
         border: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
         
-        {/* PANEL IZQUIERDO: BRANDING INSTITUCIONAL */}
+        {/* PANEL IZQUIERDO INSTITUCIONAL */}
         <div style={{
           flex: '1.05',
           backgroundColor: '#0b1e33',
@@ -182,7 +220,6 @@ export default function LoginView() {
           position: 'relative',
           overflow: 'hidden'
         }}>
-          {/* Brillo decorativo sutil */}
           <div style={{
             position: 'absolute',
             top: '-20%',
@@ -194,7 +231,7 @@ export default function LoginView() {
             pointerEvents: 'none'
           }} />
 
-          {/* Logo y Encabezado */}
+          {/* Logo y Nombre */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', zIndex: 1 }}>
             <div style={{
               width: '44px',
@@ -225,7 +262,6 @@ export default function LoginView() {
             </div>
           </div>
 
-          {/* Texto Descriptivo */}
           <div style={{ zIndex: 1, margin: 'auto 0' }}>
             <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#f8fafc', lineHeight: 1.3, margin: '0 0 14px 0' }}>
               Control y gestión académica centralizada.
@@ -235,117 +271,175 @@ export default function LoginView() {
             </p>
           </div>
 
-          {/* Pie */}
           <div style={{ color: '#64748b', fontSize: '11.5px', zIndex: 1 }}>
             &copy; {new Date().getFullYear()} Instituto Ateneo. Acceso institucional.
           </div>
         </div>
 
-        {/* PANEL DERECHO: FORMULARIO PERFECTAMENTE INTEGRADO */}
+        {/* PANEL DERECHO DE FORMULARIO */}
         <div style={{
           flex: '1.15',
           backgroundColor: '#ffffff',
           padding: '48px 44px',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          position: 'relative'
         }}>
+          {/* BOTÓN SUPERIOR DERECHO: TOGGLE STAFF / GENERAL */}
+          {!requiereCambioPass && (
+            <button
+              type="button"
+              onClick={() => {
+                setPortal(esStaff ? 'alumno' : 'staff');
+                setFieldErrors({});
+                setGeneralError(null);
+                setIdentifier('');
+                setPassword('');
+              }}
+              title={esStaff ? 'Volver a portales de alumnos y docentes' : 'Acceso a Mesa de Entrada y Gerencia'}
+              style={{
+                position: 'absolute',
+                top: '24px',
+                right: '28px',
+                background: esStaff ? '#0b1e33' : '#f8fafc',
+                color: esStaff ? '#38bdf8' : '#475569',
+                border: esStaff ? '1px solid #1e3a5f' : '1px solid #cbd5e1',
+                borderRadius: '8px',
+                padding: '7px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+              }}
+              onMouseEnter={(e) => {
+                if (!esStaff) {
+                  e.currentTarget.style.color = '#0b1e33';
+                  e.currentTarget.style.borderColor = '#94a3b8';
+                  e.currentTarget.style.backgroundColor = '#f1f5f9';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!esStaff) {
+                  e.currentTarget.style.color = '#475569';
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                  e.currentTarget.style.backgroundColor = '#f8fafc';
+                }
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <span>{esStaff ? 'Volver a Portales' : 'Acceso Personal'}</span>
+            </button>
+          )}
+
           {!requiereCambioPass ? (
             <div>
-              {/* Selector de Portales */}
-              <div style={{
-                display: 'flex',
-                backgroundColor: '#f1f5f9',
-                padding: '4px',
-                borderRadius: '8px',
-                marginBottom: '28px',
-                gap: '4px'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => { setPortal('admin'); setFieldErrors({}); setGeneralError(null); }}
-                  style={{
-                    flex: 1,
-                    padding: '8px 4px',
-                    fontSize: '12px',
-                    fontWeight: portal === 'admin' ? 700 : 600,
-                    border: 'none',
-                    borderRadius: '6px',
-                    backgroundColor: portal === 'admin' ? '#0b1e33' : 'transparent',
-                    color: portal === 'admin' ? '#ffffff' : '#64748b',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  Mesa Entrada
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setPortal('alumno'); setFieldErrors({}); setGeneralError(null); }}
-                  style={{
-                    flex: 1,
-                    padding: '8px 4px',
-                    fontSize: '12px',
-                    fontWeight: portal === 'alumno' ? 700 : 600,
-                    border: 'none',
-                    borderRadius: '6px',
-                    backgroundColor: portal === 'alumno' ? '#0b1e33' : 'transparent',
-                    color: portal === 'alumno' ? '#ffffff' : '#64748b',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  Alumnos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setPortal('profesor'); setFieldErrors({}); setGeneralError(null); }}
-                  style={{
-                    flex: 1,
-                    padding: '8px 4px',
-                    fontSize: '12px',
-                    fontWeight: portal === 'profesor' ? 700 : 600,
-                    border: 'none',
-                    borderRadius: '6px',
-                    backgroundColor: portal === 'profesor' ? '#0b1e33' : 'transparent',
-                    color: portal === 'profesor' ? '#ffffff' : '#64748b',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  Profesores
-                </button>
-              </div>
+              {/* SOLO 2 BOTONES EN LA VISTA PRINCIPAL: ALUMNOS Y PROFESORES */}
+              {!esStaff ? (
+                <div style={{
+                  display: 'flex',
+                  backgroundColor: '#f1f5f9',
+                  padding: '4px',
+                  borderRadius: '8px',
+                  marginBottom: '28px',
+                  gap: '4px'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => { setPortal('alumno'); setFieldErrors({}); setGeneralError(null); }}
+                    style={{
+                      flex: 1,
+                      padding: '9px 4px',
+                      fontSize: '12.5px',
+                      fontWeight: portal === 'alumno' ? 700 : 600,
+                      border: 'none',
+                      borderRadius: '6px',
+                      backgroundColor: portal === 'alumno' ? '#0b1e33' : 'transparent',
+                      color: portal === 'alumno' ? '#ffffff' : '#64748b',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Alumnos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPortal('profesor'); setFieldErrors({}); setGeneralError(null); }}
+                    style={{
+                      flex: 1,
+                      padding: '9px 4px',
+                      fontSize: '12.5px',
+                      fontWeight: portal === 'profesor' ? 700 : 600,
+                      border: 'none',
+                      borderRadius: '6px',
+                      backgroundColor: portal === 'profesor' ? '#0b1e33' : 'transparent',
+                      color: portal === 'profesor' ? '#ffffff' : '#64748b',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Profesores
+                  </button>
+                </div>
+              ) : (
+                /* BADGE INSTITUCIONAL CUANDO ENTRA A PERSONAL */
+                <div style={{
+                  marginBottom: '20px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#e0f2fe',
+                  color: '#0369a1',
+                  border: '1px solid #bae6fd',
+                  padding: '5px 12px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em'
+                }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#0284c7' }}></span>
+                  Mesa de Entrada & Gerencia
+                </div>
+              )}
 
+              {/* Título de la sección */}
               <div style={{ marginBottom: '22px' }}>
                 <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
-                  {portal === 'admin' && 'Panel Administrativo'}
-                  {portal === 'alumno' && 'Portal del Estudiante'}
-                  {portal === 'profesor' && 'Portal Docente'}
+                  {esStaff ? 'Acceso de Personal' : portal === 'alumno' ? 'Portal del Estudiante' : 'Portal Docente'}
                 </h1>
                 <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
-                  {portal === 'admin'
-                    ? 'Ingresá con tu correo institucional asignado.'
-                    : 'Ingresá con tu usuario y contraseña.'}
+                  {esStaff
+                    ? 'Ingresá con tu correo institucional (Mesa de Entrada o Gerencia).'
+                    : 'Ingresá con tu usuario y contraseña asignada.'}
                 </p>
               </div>
 
-              {/* Feedback Error */}
+              {/* Cartel de Error con feedback visual claro */}
               {generalError && (
                 <div style={{
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: '8px',
                   backgroundColor: '#fef2f2',
-                  border: '1px solid #fecaca',
+                  border: '1.5px solid #fca5a5',
                   color: '#991b1b',
-                  padding: '10px 12px',
+                  padding: '11px 13px',
                   borderRadius: '6px',
                   fontSize: '12.5px',
                   lineHeight: 1.4,
                   marginBottom: '18px'
                 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginTop: '2px' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ flexShrink: 0, marginTop: '2px' }}>
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -505,12 +599,12 @@ export default function LoginView() {
                   onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#162a42'; }}
                   onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#0b1e33'; }}
                 >
-                  {loading ? 'Validando credenciales...' : 'Iniciar Sesión'}
+                  {loading ? 'Validando credenciales...' : esStaff ? 'Ingresar como Personal' : 'Iniciar Sesión'}
                 </button>
               </form>
             </div>
           ) : (
-            /* VISTA: PRIMER INGRESO */
+            /* VISTA: CAMBIO CONTRASEÑA OBLIGATORIA PRIMER INGRESO */
             <div>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <div style={{
@@ -533,7 +627,7 @@ export default function LoginView() {
                   Configurá tu Contraseña
                 </h2>
                 <p style={{ color: '#64748b', fontSize: '12.5px', margin: 0 }}>
-                  Por seguridad institucional, reemplazá tu contraseña provisoria por una personal.
+                  Por seguridad institucional, reemplazá tu contraseña provisoria por una definitiva.
                 </p>
               </div>
 

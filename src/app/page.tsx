@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import LoginView from '../components/LoginView';
 import AlumnosModule from '../components/AlumnosModule';
@@ -106,7 +106,8 @@ const Icons = {
   )
 };
 
-const ADMIN_MENU_ITEMS = [
+// Mesa de Entrada: gestión operativa (SIN Reportes)
+const MESA_ENTRADA_MENU_ITEMS = [
   { id: 'inicio', label: 'Inicio', Icon: Icons.Inicio },
   { id: 'alumnos', label: 'Alumnos', Icon: Icons.Alumnos },
   { id: 'profesores', label: 'Profesores', Icon: Icons.Profesores },
@@ -118,6 +119,11 @@ const ADMIN_MENU_ITEMS = [
   { id: 'aulas', label: 'Aulas', Icon: Icons.Aulas },
   { id: 'calendario', label: 'Calendario', Icon: Icons.Calendario },
   { id: 'inscripciones', label: 'Inscripciones', Icon: Icons.Inscripciones },
+];
+
+// Gerente: visión ejecutiva completa (incluye Reportes)
+const GERENTE_MENU_ITEMS = [
+  ...MESA_ENTRADA_MENU_ITEMS,
   { id: 'reportes', label: 'Reportes', Icon: Icons.Reportes },
 ];
 
@@ -133,6 +139,7 @@ const PROFESOR_MENU_ITEMS = [
 ];
 
 const ETIQUETAS_ROL = {
+  gerente: 'Gerente',
   mesa_entrada: 'Mesa de Entrada',
   profesor: 'Profesor',
   alumno: 'Alumno',
@@ -142,6 +149,15 @@ export default function AteneoLayout() {
   const { user, role, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('calendario');
   const nombreUsuario = user?.user_metadata?.nombre?.trim() || user?.email || 'Usuario';
+
+  // Si Mesa de Entrada quedó parada en Reportes (o si un alumno/profesor entra), protegemos la pestaña
+  useEffect(() => {
+    if (role === 'mesa_entrada' && activeTab === 'reportes') {
+      setActiveTab('calendario');
+    } else if (role === 'profesor' || role === 'alumno') {
+      setActiveTab('calendario');
+    }
+  }, [role, activeTab]);
 
   if (loading) {
     return (
@@ -155,11 +171,14 @@ export default function AteneoLayout() {
     return <LoginView />;
   }
 
-  const menuItems = role === 'alumno'
-    ? ALUMNO_MENU_ITEMS
-    : role === 'profesor'
-      ? PROFESOR_MENU_ITEMS
-      : ADMIN_MENU_ITEMS;
+  const menuItems = role === 'gerente'
+    ? GERENTE_MENU_ITEMS
+    : role === 'alumno'
+      ? ALUMNO_MENU_ITEMS
+      : role === 'profesor'
+        ? PROFESOR_MENU_ITEMS
+        : MESA_ENTRADA_MENU_ITEMS;
+
   const iniciales = nombreUsuario.slice(0, 2).toUpperCase();
 
   const handleAbrirPerfil = () => {
@@ -226,8 +245,8 @@ export default function AteneoLayout() {
               alignItems: 'center', 
               gap: '10px', 
               marginBottom: '10px', 
-              padding: '6px 8px',
-              borderRadius: '8px',
+              padding: '6px 8px', 
+              borderRadius: '8px', 
               cursor: role === 'alumno' ? 'pointer' : 'default',
               transition: 'background-color 0.2s'
             }}
@@ -280,6 +299,20 @@ export default function AteneoLayout() {
           activeTab === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder />
         ) : role === 'alumno' ? (
           <PortalAlumnoModule activeTab={activeTab} />
+        ) : activeTab === 'reportes' ? (
+          role === 'gerente' ? (
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '32px' }}>
+              <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: '0 0 8px 0' }}>Panel Gerencial de Reportes</h1>
+              <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 24px 0' }}>Indicadores, métricas de ocupación y reportes ejecutivos del Instituto Ateneo.</p>
+              <div style={{ padding: '48px', border: '1px dashed #cbd5e1', borderRadius: '8px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                Módulo de Reportes Gerenciales activo.
+              </div>
+            </div>
+          ) : (
+            <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: '8px', padding: '32px', textAlign: 'center', fontSize: '13px', fontWeight: 600 }}>
+              Acceso restringido: Esta sección requiere rol de Gerencia.
+            </div>
+          )
         ) : activeTab === 'inicio' ? (
           <DashboardModule />
         ) : activeTab === 'alumnos' ? (
