@@ -20,13 +20,12 @@ export default function ClasesParticularesModule() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
-  // Estado para el modal unificado (Crear / Editar)
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterNivel, setFilterNivel] = useState('TODOS');
-  const [filterEstado, setFilterEstado] = useState('TODOS'); // Nuevo filtro por estado
+  const [filterEstado, setFilterEstado] = useState('TODOS');
 
   useEffect(() => {
     loadData();
@@ -114,24 +113,13 @@ export default function ClasesParticularesModule() {
         setSuccess('Clase particular registrada correctamente.');
       }
 
-      setTimeout(() => {
-        setSuccess('');
-        setShowModal(false);
-      }, 2000);
+      setShowModal(false);
+      await loadData();
+      setTimeout(() => setSuccess(''), 3500);
     } catch (saveError) {
       setError(`No se pudo guardar la clase: ${saveError.message}`);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleToggleEstado = async (id, activoActual) => {
-    try {
-      setError('');
-      await cambiarEstadoClase(id, activoActual);
-      setClases(clases.map((c) => (c.id === id ? { ...c, activo: !activoActual } : c)));
-    } catch (err) {
-      setError(`No se pudo cambiar el estado: ${err.message}`);
     }
   };
 
@@ -244,7 +232,6 @@ export default function ClasesParticularesModule() {
           />
         </div>
 
-        {/* Filtro de Nivel */}
         <div style={{ width: '200px' }}>
           <select
             value={filterNivel}
@@ -268,7 +255,6 @@ export default function ClasesParticularesModule() {
           </select>
         </div>
 
-        {/* Filtro de Estado */}
         <div style={{ width: '180px' }}>
           <select
             value={filterEstado}
@@ -298,11 +284,11 @@ export default function ClasesParticularesModule() {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '32%' }}>NOMBRE DE LA ACTIVIDAD</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '26%' }}>MATERIA ASOCIADA</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>NIVEL</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
-              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ACCIÓN</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '32%' }}>NOMBRE DE LA ACTIVIDAD</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '26%' }}>MATERIA ASOCIADA</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>NIVEL</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -345,10 +331,9 @@ export default function ClasesParticularesModule() {
                         {esUniv ? 'Universitario' : 'Secundario'}
                       </span>
                     </td>
+                    {/* Badge informativo de estado sin click directo */}
                     <td style={{ padding: '16px 20px' }}>
-                      <button
-                        onClick={() => handleToggleEstado(c.id, estaActivo)}
-                        title="Haz clic para cambiar estado"
+                      <span
                         style={{
                           backgroundColor: estaActivo ? '#f0fdf4' : '#fef2f2',
                           color: estaActivo ? '#15803d' : '#991b1b',
@@ -358,12 +343,12 @@ export default function ClasesParticularesModule() {
                           fontSize: '11px',
                           fontWeight: 700,
                           letterSpacing: '0.04em',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
+                          userSelect: 'none',
+                          display: 'inline-block'
                         }}
                       >
                         {estaActivo ? 'ACTIVO' : 'INACTIVO'}
-                      </button>
+                      </span>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <button
