@@ -181,11 +181,9 @@ export default function PortalAlumnoModule({ activeTab }) {
       let listaProfs = [];
       if (tipo === 'curso') {
         const { data, error } = await supabase
-          .from('profesor_curso')
-          .select('profesores(id, nombre, apellido)')
-          .eq('curso_id', item.id);
+          .rpc('listar_docentes_curso_alumno', { p_curso_id: item.id });
         if (error) throw error;
-        listaProfs = (data || []).map((d) => d.profesores).filter(Boolean);
+        listaProfs = data || [];
       } else {
         const { data, error } = await supabase
           .from('profesor_materia')

@@ -4,22 +4,22 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { loginWithEmail, logoutUser, getRoleFromUser } from '../services/auth';
 
-export type UserRole = 'mesa_entrada' | 'profesor' | 'alumno' | null;
+export type UserRole = 'mesa_entrada' | 'profesor' | 'alumno' | 'gerente' | null;
 
 interface AuthContextType {
   user: any;
   role: UserRole;
   loading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
+  login: (email: string, pass: string) => Promise<{ user?: any; error?: any }>;
   logout: () => Promise<void>;
-  impersonateRole: (role: UserRole) => void; // Switcher rápido para agilizar pruebas en local
+  impersonateRole: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   role: null,
   loading: true,
-  login: async () => {},
+  login: async () => ({}),
   logout: async () => {},
   impersonateRole: () => {},
 });
@@ -30,16 +30,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Cargar la sesión actual al montar el componente
     supabase.auth.getSession().then(({ data: { session } }) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
-      // Si hay usuario toma su rol; si no hay login en local iniciamos como mesa_entrada por defecto
-      setRole(currentUser ? (getRoleFromUser(currentUser) as UserRole) : 'mesa_entrada');
+      setRole(currentUser ? (getRoleFromUser(currentUser) as UserRole) : null);
       setLoading(false);
     });
 
-    // 2. Suscribirse a cambios de estado de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
@@ -55,9 +52,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (email: string, pass: string) => {
     setLoading(true);
     try {
-      const { user: loggedUser } = await loginWithEmail(email, pass);
+      const { user: loggedUser, error } = await loginWithEmail(email, pass);
+      if (error) {
+        return { error };
+      }
       setUser(loggedUser);
       setRole(getRoleFromUser(loggedUser) as UserRole);
+      return { user: loggedUser, error: null };
+    } catch (err) {
+      return { error: err };
     } finally {
       setLoading(false);
     }

@@ -16,6 +16,7 @@ import PortalAlumnoModule from '../components/PortalAlumnoModule';
 import ProfesorCalendarioPlaceholder from '../components/ProfesorCalendarioPlaceholder';
 import ProfesorCursosModule from '../components/ProfesorCursosModule';
 import DashboardModule from '../components/DashboardModule';
+import DashboardGerenteModule from '../components/DashboardGerenteModule';
 
 const Icons = {
   Inicio: () => (
@@ -106,7 +107,8 @@ const Icons = {
   )
 };
 
-const ADMIN_MENU_ITEMS = [
+// Mesa de Entrada: gestión operativa (SIN Reportes)
+const MESA_ENTRADA_MENU_ITEMS = [
   { id: 'inicio', label: 'Inicio', Icon: Icons.Inicio },
   { id: 'alumnos', label: 'Alumnos', Icon: Icons.Alumnos },
   { id: 'profesores', label: 'Profesores', Icon: Icons.Profesores },
@@ -118,6 +120,11 @@ const ADMIN_MENU_ITEMS = [
   { id: 'aulas', label: 'Aulas', Icon: Icons.Aulas },
   { id: 'calendario', label: 'Calendario', Icon: Icons.Calendario },
   { id: 'inscripciones', label: 'Inscripciones', Icon: Icons.Inscripciones },
+];
+
+// Gerente: visión ejecutiva completa (incluye Reportes)
+const GERENTE_MENU_ITEMS = [
+  ...MESA_ENTRADA_MENU_ITEMS,
   { id: 'reportes', label: 'Reportes', Icon: Icons.Reportes },
 ];
 
@@ -133,6 +140,7 @@ const PROFESOR_MENU_ITEMS = [
 ];
 
 const ETIQUETAS_ROL = {
+  gerente: 'Gerente',
   mesa_entrada: 'Mesa de Entrada',
   profesor: 'Profesor',
   alumno: 'Alumno',
@@ -155,11 +163,15 @@ export default function AteneoLayout() {
     return <LoginView />;
   }
 
-  const menuItems = role === 'alumno'
-    ? ALUMNO_MENU_ITEMS
-    : role === 'profesor'
-      ? PROFESOR_MENU_ITEMS
-      : ADMIN_MENU_ITEMS;
+  const menuItems = role === 'gerente'
+    ? GERENTE_MENU_ITEMS
+    : role === 'alumno'
+      ? ALUMNO_MENU_ITEMS
+      : role === 'profesor'
+        ? PROFESOR_MENU_ITEMS
+        : MESA_ENTRADA_MENU_ITEMS;
+  const activeTabForRole = menuItems.some(({ id }) => id === activeTab) ? activeTab : 'calendario';
+
   const iniciales = nombreUsuario.slice(0, 2).toUpperCase();
 
   const handleAbrirPerfil = () => {
@@ -188,7 +200,7 @@ export default function AteneoLayout() {
 
           <nav style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 12px' }}>
             {menuItems.map(({ id, label, Icon }) => {
-              const isActive = activeTab === id;
+              const isActive = activeTabForRole === id;
               return (
                 <button
                   key={id}
@@ -226,8 +238,8 @@ export default function AteneoLayout() {
               alignItems: 'center', 
               gap: '10px', 
               marginBottom: '10px', 
-              padding: '6px 8px',
-              borderRadius: '8px',
+              padding: '6px 8px', 
+              borderRadius: '8px', 
               cursor: role === 'alumno' ? 'pointer' : 'default',
               transition: 'background-color 0.2s'
             }}
@@ -277,28 +289,36 @@ export default function AteneoLayout() {
       {/* CONTENIDO PRINCIPAL */}
       <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
         {role === 'profesor' ? (
-          activeTab === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder />
+          activeTabForRole === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder />
         ) : role === 'alumno' ? (
-          <PortalAlumnoModule activeTab={activeTab} />
-        ) : activeTab === 'inicio' ? (
+          <PortalAlumnoModule activeTab={activeTabForRole} />
+        ) : activeTabForRole === 'reportes' ? (
+          role === 'gerente' ? (
+            <DashboardGerenteModule />
+          ) : (
+            <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: '8px', padding: '32px', textAlign: 'center', fontSize: '13px', fontWeight: 600 }}>
+              Acceso restringido: Esta sección requiere rol de Gerencia.
+            </div>
+          )
+        ) : activeTabForRole === 'inicio' ? (
           <DashboardModule />
-        ) : activeTab === 'alumnos' ? (
+        ) : activeTabForRole === 'alumnos' ? (
           <AlumnosModule />
-        ) : activeTab === 'profesores' ? (
+        ) : activeTabForRole === 'profesores' ? (
           <ProfesoresModule />
-        ) : activeTab === 'materias' ? (
+        ) : activeTabForRole === 'materias' ? (
           <MateriasModule />
-        ) : activeTab === 'cursos' ? (
+        ) : activeTabForRole === 'cursos' ? (
           <CursosIngresoModule />
-        ) : activeTab === 'particulares' ? (
+        ) : activeTabForRole === 'particulares' ? (
           <ClasesParticularesModule />
-        ) : activeTab === 'turnos' ? (
+        ) : activeTabForRole === 'turnos' ? (
           <TurnosModule />
-        ) : activeTab === 'aulas' ? (
+        ) : activeTabForRole === 'aulas' ? (
           <AulasModule />
-        ) : activeTab === 'pagos' ? (
+        ) : activeTabForRole === 'pagos' ? (
           <PagosModule />
-        ) : activeTab === 'calendario' ? (
+        ) : activeTabForRole === 'calendario' ? (
           <CalendarioAdminModule />
         ) : (
           <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '48px', textAlign: 'center', color: '#64748b' }}>

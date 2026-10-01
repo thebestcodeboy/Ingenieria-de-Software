@@ -8,8 +8,7 @@ export async function loginWithEmail(email, password) {
     email,
     password,
   });
-  if (error) throw error;
-  return data;
+  return { user: data?.user ?? null, session: data?.session ?? null, error };
 }
 
 /**
@@ -30,9 +29,30 @@ export async function getActiveSession() {
 }
 
 /**
- * Obtiene el rol normalizado a partir de los metadatos del usuario
+ * Obtiene el rol normalizado a partir de los metadatos o email del usuario
  */
 export function getRoleFromUser(user) {
-  if (!user || !user.user_metadata) return null;
-  return user.user_metadata.rol || null;
+  if (!user) return null;
+
+  const rawRole = (user.user_metadata?.rol || user.user_metadata?.role || '').toLowerCase().trim();
+
+  if (rawRole === 'gerente' || rawRole === 'gerencia') {
+    return 'gerente';
+  }
+  if (rawRole === 'profesor' || rawRole === 'docente') {
+    return 'profesor';
+  }
+  if (rawRole === 'alumno' || rawRole === 'estudiante') {
+    return 'alumno';
+  }
+  if (rawRole === 'mesa_entrada' || rawRole === 'admin' || rawRole === 'administrador') {
+    return 'mesa_entrada';
+  }
+
+  const email = (user.email || '').toLowerCase().trim();
+  if (email.startsWith('gerente') || email.startsWith('gerencia')) {
+    return 'gerente';
+  }
+
+  return rawRole || null;
 }
