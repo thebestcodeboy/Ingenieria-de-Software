@@ -8,6 +8,7 @@ import {
   actualizarClaseParticular,
   cambiarEstadoClase
 } from '../services/clasesParticulares';
+import { Pagination, usePagination } from './Pagination';
 
 const initialForm = { nombre: '', materiaId: '', nivel: 'universitario', activo: true };
 
@@ -154,6 +155,12 @@ export default function ClasesParticularesModule() {
       return matchTerm && matchNivel && matchEstado;
     });
   }, [clases, searchTerm, filterNivel, filterEstado]);
+  const {
+    elementosPaginados: clasesPaginadas,
+    paginaActual,
+    totalPaginas,
+    cambiarPagina,
+  } = usePagination(clasesFiltradas, JSON.stringify([searchTerm, filterNivel, filterEstado]));
 
   return (
     <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a' }}>
@@ -306,7 +313,7 @@ export default function ClasesParticularesModule() {
                 </td>
               </tr>
             ) : (
-              clasesFiltradas.map((c) => {
+              clasesPaginadas.map((c) => {
                 const esUniv = (c.nivel || '').toLowerCase().includes('univ');
                 const estaActivo = c.activo !== false;
 
@@ -387,6 +394,7 @@ export default function ClasesParticularesModule() {
           </tbody>
         </table>
       </div>
+      <Pagination paginaActual={paginaActual} totalPaginas={totalPaginas} onCambiarPagina={cambiarPagina} />
 
       {/* Modal Registrar / Modificar Clase Particular */}
       {showModal && (

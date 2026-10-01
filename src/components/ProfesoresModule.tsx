@@ -6,6 +6,7 @@ import { getMaterias } from '../services/materias';
 import { calcularCuilArgentino } from '../services/alumnos';
 import { generateTeacherUsername } from '../utils/credentials';
 import { supabase } from '../lib/supabaseClient';
+import { Pagination, usePagination } from './Pagination';
 
 export interface FranjaDisponibilidad {
   franja: 'Mañana' | 'Tarde' | 'Noche';
@@ -403,6 +404,12 @@ export default function ProfesoresModule() {
       return matchTerm && matchEstado;
     });
   }, [profesores, searchTerm, filterEstado]);
+  const {
+    elementosPaginados: profesoresPaginados,
+    paginaActual,
+    totalPaginas,
+    cambiarPagina,
+  } = usePagination(profesoresFiltrados, JSON.stringify([searchTerm, filterEstado]));
 
   const obtenerNombreMateria = (mId: string | number) => {
     const encontrada = materias.find((m) => String(m.id).trim() === String(mId).trim());
@@ -526,7 +533,7 @@ export default function ProfesoresModule() {
                 </td>
               </tr>
             ) : (
-              profesoresFiltrados.map((prof) => {
+              profesoresPaginados.map((prof) => {
                 let listMids: (string | number)[] = [];
                 if (Array.isArray(prof.materias_ids)) {
                   listMids = prof.materias_ids;
@@ -658,6 +665,7 @@ export default function ProfesoresModule() {
           </tbody>
         </table>
       </div>
+      <Pagination paginaActual={paginaActual} totalPaginas={totalPaginas} onCambiarPagina={cambiarPagina} />
 
       {/* Modal Registrar / Modificar Profesor */}
       {isModalOpen && (

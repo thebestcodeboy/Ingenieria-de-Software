@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getMaterias, getCarreras, createMateria, updateMateria, cambiarEstadoMateria } from '../services/materias';
+import { Pagination, usePagination } from './Pagination';
 
 interface Carrera {
   id: string | number;
@@ -150,6 +151,12 @@ export default function MateriasModule() {
     const matchEstado = filterEstado === 'TODOS' || (m.activo !== false) === (filterEstado === 'ACTIVO');
     return matchNombre && matchNivel && matchEstado;
   });
+  const {
+    elementosPaginados: materiasPaginadas,
+    paginaActual,
+    totalPaginas,
+    cambiarPagina,
+  } = usePagination(materiasFiltradas, JSON.stringify([searchTerm, filterNivel, filterEstado]));
 
   return (
     <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a' }}>
@@ -289,7 +296,7 @@ export default function MateriasModule() {
                 </td>
               </tr>
             ) : (
-              materiasFiltradas.map((materia) => {
+              materiasPaginadas.map((materia) => {
                 const nivelTexto = materia.nivel || 'Secundario';
                 const esUniversitario = nivelTexto.toLowerCase().includes('univ');
 
@@ -384,6 +391,7 @@ export default function MateriasModule() {
           </tbody>
         </table>
       </div>
+      <Pagination paginaActual={paginaActual} totalPaginas={totalPaginas} onCambiarPagina={cambiarPagina} />
 
       {/* Modal Registrar / Modificar Materia con selector de Estado */}
       {isModalOpen && (

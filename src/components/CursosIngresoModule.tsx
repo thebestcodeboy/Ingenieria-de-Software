@@ -8,6 +8,7 @@ import {
   cambiarEstadoCursoIngreso,
 } from '../services/cursosIngreso';
 import { supabase } from '../lib/supabaseClient';
+import { Pagination, usePagination } from './Pagination';
 
 type CursoIngreso = {
   id: string | number;
@@ -77,6 +78,12 @@ export default function CursosIngresoModule() {
       return matchTerm && matchEstado;
     });
   }, [cursos, searchTerm, filterEstado]);
+  const {
+    elementosPaginados: cursosPaginados,
+    paginaActual,
+    totalPaginas,
+    cambiarPagina,
+  } = usePagination(filteredCursos, JSON.stringify([searchTerm, filterEstado]));
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -288,7 +295,7 @@ export default function CursosIngresoModule() {
                 </td>
               </tr>
             ) : (
-              filteredCursos.map((c, idx) => {
+              cursosPaginados.map((c, idx) => {
                 const listaMaterias = (c.curso_ingreso_materias || [])
                   .map((rel) => rel.materias?.nombre)
                   .filter((nombre): nombre is string => Boolean(nombre));
@@ -388,6 +395,7 @@ export default function CursosIngresoModule() {
           </tbody>
         </table>
       </div>
+      <Pagination paginaActual={paginaActual} totalPaginas={totalPaginas} onCambiarPagina={cambiarPagina} />
 
       {/* Modal Crear / Modificar Curso */}
       {showModal && (

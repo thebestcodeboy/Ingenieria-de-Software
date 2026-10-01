@@ -10,6 +10,7 @@ import {
   validarDireccionReal 
 } from '../services/alumnos';
 import { generateStudentUsername } from '../utils/credentials';
+import { Pagination, usePagination } from './Pagination';
 
 type Alumno = {
   id?: string;
@@ -129,6 +130,12 @@ export default function AlumnosModule() {
       return matchTerm && matchEstado;
     });
   }, [alumnos, searchTerm, filterEstado]);
+  const {
+    elementosPaginados: alumnosPaginados,
+    paginaActual,
+    totalPaginas,
+    cambiarPagina,
+  } = usePagination(filteredAlumnos, JSON.stringify([searchTerm, filterEstado]));
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMsg('');
@@ -435,8 +442,9 @@ export default function AlumnosModule() {
                 </td>
               </tr>
             ) : (
-              filteredAlumnos.map((alumno, idx) => {
-                const legajoTexto = obtenerLegajo(alumno, idx);
+              alumnosPaginados.map((alumno, idx) => {
+                const indiceAlumno = (paginaActual - 1) * 8 + idx;
+                const legajoTexto = obtenerLegajo(alumno, indiceAlumno);
                 const activo = estaAlumnoActivo(alumno);
 
                 return (
@@ -522,6 +530,7 @@ export default function AlumnosModule() {
           </tbody>
         </table>
       </div>
+      <Pagination paginaActual={paginaActual} totalPaginas={totalPaginas} onCambiarPagina={cambiarPagina} />
 
       {/* MODAL FICHA / EDICIÓN */}
       {selectedAlumno && (

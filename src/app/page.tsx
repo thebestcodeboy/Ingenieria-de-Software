@@ -104,6 +104,18 @@ const Icons = {
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
+  ),
+  ContraerMenu: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m15 18-6-6 6-6" />
+      <path d="M3 4v16" />
+    </svg>
+  ),
+  ExpandirMenu: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m9 18 6-6-6-6" />
+      <path d="M21 4v16" />
+    </svg>
   )
 };
 
@@ -149,6 +161,7 @@ const ETIQUETAS_ROL = {
 export default function AteneoLayout() {
   const { user, role, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('calendario');
+  const [sidebarColapsada, setSidebarColapsada] = useState(false);
   const nombreUsuario = user?.user_metadata?.nombre?.trim() || user?.email || 'Usuario';
 
   if (loading) {
@@ -181,48 +194,65 @@ export default function AteneoLayout() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f6f8', fontFamily: 'inherit', color: '#1e293b' }}>
       {/* SIDEBAR PRINCIPAL */}
-      <aside style={{ width: '240px', backgroundColor: '#0b1e33', borderRight: '1px solid #162a42', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px 0 16px 0', flexShrink: 0 }}>
+      <aside style={{ width: sidebarColapsada ? '76px' : '240px', backgroundColor: '#0b1e33', borderRight: '1px solid #162a42', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px 0 16px 0', flexShrink: 0, transition: 'width 180ms ease' }}>
         <div>
-          <div style={{ padding: '0 20px 22px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '8px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)', flexShrink: 0, padding: '3px' }}>
-              <svg viewBox="0 0 120 120" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M60 12L24 95H38L47 73H73L82 95H96L60 12Z" fill="#0b1e33" />
-                <polygon points="60,32 51,56 69,56" fill="#ffffff" />
-                <path d="M26 62C48 54 72 54 94 62C85 58 60 51 26 62Z" fill="#94a3b8" />
-                <rect x="53" y="54" width="2.5" height="26" fill="#ffffff" />
-              </svg>
+          <div style={{ padding: sidebarColapsada ? '0 8px 16px' : '0 20px 22px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', flexDirection: sidebarColapsada ? 'column' : 'row', alignItems: 'center', justifyContent: sidebarColapsada ? 'center' : 'space-between', gap: sidebarColapsada ? '12px' : '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '8px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)', flexShrink: 0, padding: '3px' }}>
+                <svg viewBox="0 0 120 120" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M60 12L24 95H38L47 73H73L82 95H96L60 12Z" fill="#0b1e33" />
+                  <polygon points="60,32 51,56 69,56" fill="#ffffff" />
+                  <path d="M26 62C48 54 72 54 94 62C85 58 60 51 26 62Z" fill="#94a3b8" />
+                  <rect x="53" y="54" width="2.5" height="26" fill="#ffffff" />
+                </svg>
+              </div>
+              {!sidebarColapsada && (
+                <div>
+                  <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase' }}>Instituto Ateneo</div>
+                  <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '1px' }}>Gestión Académica</div>
+                </div>
+              )}
             </div>
-            <div>
-              <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>Instituto Ateneo</div>
-              <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '1px' }}>Gestión Académica</div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setSidebarColapsada((colapsada) => !colapsada)}
+              aria-label={sidebarColapsada ? 'Expandir menú lateral' : 'Contraer menú lateral'}
+              aria-expanded={!sidebarColapsada}
+              title={sidebarColapsada ? 'Expandir menú' : 'Contraer menú'}
+              style={{ display: 'grid', placeItems: 'center', width: '30px', height: '30px', flexShrink: 0, border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', backgroundColor: 'transparent', color: '#cbd5e1', cursor: 'pointer' }}
+            >
+              {sidebarColapsada ? <Icons.ExpandirMenu /> : <Icons.ContraerMenu />}
+            </button>
           </div>
 
-          <nav style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '3px', padding: '0 12px' }}>
+          <nav style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '3px', padding: sidebarColapsada ? '0 8px' : '0 12px' }}>
             {menuItems.map(({ id, label, Icon }) => {
               const isActive = activeTabForRole === id;
               return (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
+                  aria-label={sidebarColapsada ? label : undefined}
+                  title={sidebarColapsada ? label : undefined}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '12px',
+                    justifyContent: sidebarColapsada ? 'center' : 'flex-start',
+                    gap: sidebarColapsada ? 0 : '12px',
                     width: '100%',
-                    padding: '9px 12px',
+                    padding: sidebarColapsada ? '11px 0' : '10px 12px',
                     borderRadius: '6px',
                     border: 'none',
                     backgroundColor: isActive ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
                     color: isActive ? '#ffffff' : '#94a3b8',
                     cursor: 'pointer',
-                    fontSize: '13px',
+                    fontSize: '15px',
                     fontWeight: isActive ? 600 : 400,
                     textAlign: 'left'
                   }}
                 >
                   <span style={{ display: 'flex', color: isActive ? '#60a5fa' : '#64748b' }}><Icon /></span>
-                  <span>{label}</span>
+                  {!sidebarColapsada && <span>{label}</span>}
                 </button>
               );
             })}
@@ -230,12 +260,13 @@ export default function AteneoLayout() {
         </div>
 
         {/* FOOTER SIDEBAR INTERACTIVO */}
-        <div style={{ padding: '12px 14px 0 14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ padding: sidebarColapsada ? '12px 8px 0' : '12px 14px 0', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <div 
             onClick={role === 'alumno' ? handleAbrirPerfil : undefined}
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
+              justifyContent: sidebarColapsada ? 'center' : 'flex-start',
               gap: '10px', 
               marginBottom: '10px', 
               padding: '6px 8px', 
@@ -264,24 +295,28 @@ export default function AteneoLayout() {
             }}>
               {iniciales}
             </div>
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ color: '#94a3b8', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Usuario</div>
-              <div style={{ color: '#ffffff', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {nombreUsuario}
+            {!sidebarColapsada && (
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Usuario</div>
+                <div style={{ color: '#ffffff', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {nombreUsuario}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          <div style={{ color: '#94a3b8', fontSize: '10px', margin: '0 8px 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {!sidebarColapsada && <div style={{ color: '#94a3b8', fontSize: '11px', margin: '0 8px 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Rol: <strong style={{ color: '#38bdf8' }}>{role ? ETIQUETAS_ROL[role] : 'Sin rol'}</strong>
-          </div>
+          </div>}
 
           <button
             onClick={() => logout()}
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '8px 10px', borderRadius: '6px', border: 'none', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
+            aria-label={sidebarColapsada ? 'Cerrar sesión' : undefined}
+            title={sidebarColapsada ? 'Cerrar sesión' : undefined}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarColapsada ? 'center' : 'flex-start', gap: '10px', width: '100%', padding: sidebarColapsada ? '10px 0' : '9px 10px', borderRadius: '6px', border: 'none', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', cursor: 'pointer', fontSize: '14px', fontWeight: 500 }}
           >
             <span style={{ display: 'flex' }}><Icons.Logout /></span>
-            <span>Cerrar Sesión</span>
+            {!sidebarColapsada && <span>Cerrar Sesión</span>}
           </button>
         </div>
       </aside>
