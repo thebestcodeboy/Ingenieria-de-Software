@@ -7,7 +7,9 @@ import {
   validarCupo,
   obtenerDatosTurnos,
   registrarTurno,
+  registrarTurnosSemanales,
   reprogramarTurno,
+  reprogramarTurnoPeriodico,
   cancelarTurno,
   type TurnoConCupo,
 } from '../services/turnos';
@@ -37,6 +39,8 @@ interface FormReprogramarTurno {
   fecha: string;
   horaInicio: string;
   horaFin: string;
+  repetirSemanal: boolean;
+  mesesRepeticion: string;
 }
 
 const initialNuevoTurnoForm: FormNuevoTurno = {
@@ -51,6 +55,13 @@ const initialNuevoTurnoForm: FormNuevoTurno = {
   horaInicio: '',
   horaFin: '',
 };
+
+function fechaLocalParaInput(fecha: Date): string {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
 
 function formatearNombre(texto: string | null | undefined): string {
   if (!texto) return '';
@@ -133,6 +144,8 @@ export default function TurnosModule() {
   const [formNuevo, setFormNuevo] = useState<FormNuevoTurno>(initialNuevoTurnoForm);
   const [guardandoNuevo, setGuardandoNuevo] = useState(false);
   const [errorNuevo, setErrorNuevo] = useState('');
+  const [repetirSemanal, setRepetirSemanal] = useState(false);
+  const [mesesRepeticion, setMesesRepeticion] = useState('1');
 
   // Modal HU14: Reprogramar Turno
   const [modalReprogramarAbierto, setModalReprogramarAbierto] = useState(false);
@@ -143,6 +156,7 @@ export default function TurnosModule() {
   // Modal HU14: Cancelar Turno
   const [turnoParaCancelar, setTurnoParaCancelar] = useState<TurnoConCupo | null>(null);
   const [cancelando, setCancelando] = useState(false);
+  const [errorCancelacion, setErrorCancelacion] = useState('');
 
   // Datos Auxiliares compartidos
   const [datosAuxiliares, setDatosAuxiliares] = useState<{
@@ -199,6 +213,9 @@ export default function TurnosModule() {
 
   const handleAbrirModalCrear = async () => {
     setErrorNuevo('');
+    setFormNuevo({ ...initialNuevoTurnoForm, fecha: fechaLocalParaInput(new Date()) });
+    setRepetirSemanal(false);
+    setMesesRepeticion('1');
     await cargarDatosAuxiliares();
     setModalCrearAbierto(true);
   };
@@ -419,11 +436,16 @@ export default function TurnosModule() {
 
     try {
       setGuardandoNuevo(true);
-      await registrarTurno({
+      const payload = {
         ...formNuevo,
         cupoMaximo: formNuevo.cupoMaximo ? Number(formNuevo.cupoMaximo) : null,
-      });
-      setMensajeExito('El turno fue programado correctamente.');
+      };
+      const turnosCreados = repetirSemanal
+        ? await registrarTurnosSemanales(payload, Number(mesesRepeticion))
+        : [await registrarTurno(payload)];
+      setMensajeExito(turnosCreados.length > 1
+        ? `Se programaron ${turnosCreados.length} clases semanales correctamente.`
+        : 'El turno fue programado correctamente.');
       setModalCrearAbierto(false);
       setFormNuevo(initialNuevoTurnoForm);
       await cargarTurnos();
@@ -459,6 +481,8 @@ export default function TurnosModule() {
       fecha: turno.fecha ? turno.fecha.slice(0, 10) : '',
       horaInicio: turno.hora_inicio ? turno.hora_inicio.slice(0, 5) : '',
       horaFin: turno.hora_fin ? turno.hora_fin.slice(0, 5) : '',
+      repetirSemanal: false,
+      mesesRepeticion: '1',
     });
 
     setModalReprogramarAbierto(true);
@@ -488,7 +512,7 @@ export default function TurnosModule() {
 
     try {
       setGuardandoReprogramacion(true);
-      await reprogramarTurno({
+      const payload = {
         turnoId: formReprogramar.turnoId,
         fecha: formReprogramar.fecha,
         horaInicio: formReprogramar.horaInicio,
@@ -496,9 +520,14 @@ export default function TurnosModule() {
         aulaNumero: formReprogramar.aulaNumero,
         profesorId: formReprogramar.profesorId,
         materiaId: formReprogramar.materiaId,
-      });
+      };
+      const resultado = formReprogramar.repetirSemanal
+        ? await reprogramarTurnoPeriodico(payload, Number(formReprogramar.mesesRepeticion))
+        : { cantidadProgramada: 1, turnoActualizado: await reprogramarTurno(payload) };
 
-      setMensajeExito('El turno fue reprogramado correctamente.');
+      setMensajeExito(resultado.cantidadProgramada > 1
+        ? `El turno fue reprogramado y se programaron ${resultado.cantidadProgramada - 1} clases semanales adicionales.`
+        : 'El turno fue reprogramado correctamente.');
       setModalReprogramarAbierto(false);
       setFormReprogramar(null);
       await cargarTurnos();
@@ -519,7 +548,7 @@ export default function TurnosModule() {
       setTurnoParaCancelar(null);
       await cargarTurnos();
     } catch (err: any) {
-      alert(err.message || 'No se pudo cancelar el turno.');
+      setErrorCancelacion(err.message || 'No se pudo cancelar el turno.');
     } finally {
       setCancelando(false);
     }
@@ -810,7 +839,10 @@ export default function TurnosModule() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setTurnoParaCancelar(turno)}
+                            onClick={() => {
+                              setErrorCancelacion('');
+                              setTurnoParaCancelar(turno);
+                            }}
                             style={styles.botonAccionPeligro}
                             title="Cancelar clase y liberar horario (HU14)"
                           >
@@ -1090,6 +1122,32 @@ export default function TurnosModule() {
                 </div>
               </div>
 
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+                <input
+                  type="checkbox"
+                  checked={repetirSemanal}
+                  onChange={(e) => setRepetirSemanal(e.target.checked)}
+                />
+                Repetir semanalmente
+              </label>
+              {repetirSemanal && (
+                <div style={{ marginTop: '8px' }}>
+                  <label style={styles.labelModal} htmlFor="mesesRepeticion">Duración</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      id="mesesRepeticion"
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={mesesRepeticion}
+                      onChange={(e) => setMesesRepeticion(e.target.value)}
+                      style={{ ...styles.inputModal, width: '100px', margin: 0 }}
+                    />
+                    <span style={{ fontSize: '12px', color: '#475569' }}>meses, desde la fecha indicada</span>
+                  </div>
+                </div>
+              )}
+
               {errorNuevo && (
                 <div
                   role="alert"
@@ -1218,6 +1276,32 @@ export default function TurnosModule() {
                   />
                 </div>
               </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+                <input
+                  type="checkbox"
+                  checked={formReprogramar.repetirSemanal}
+                  onChange={(e) => setFormReprogramar({ ...formReprogramar, repetirSemanal: e.target.checked })}
+                />
+                Repetir semanalmente
+              </label>
+              {formReprogramar.repetirSemanal && (
+                <div style={{ marginTop: '8px' }}>
+                  <label style={styles.labelModal} htmlFor="reprog-mesesRepeticion">Duración</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      id="reprog-mesesRepeticion"
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={formReprogramar.mesesRepeticion}
+                      onChange={(e) => setFormReprogramar({ ...formReprogramar, mesesRepeticion: e.target.value })}
+                      style={{ ...styles.inputModal, width: '100px', margin: 0 }}
+                    />
+                    <span style={{ fontSize: '12px', color: '#475569' }}>meses, desde la nueva fecha</span>
+                  </div>
+                </div>
+              )}
 
               <label style={styles.labelModal} htmlFor="reprog-franjaFiltro">
                 Franja horaria deseada (Filtro)
@@ -1391,6 +1475,12 @@ export default function TurnosModule() {
               • El turno permanecerá visible en el historial con la etiqueta <strong>CANCELADO</strong>.
               <br />• Se liberará la disponibilidad horaria del aula y del profesor.
             </div>
+
+            {errorCancelacion && (
+              <div role="alert" style={{ ...styles.errorFormulario, marginBottom: '14px' }}>
+                {errorCancelacion}
+              </div>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button

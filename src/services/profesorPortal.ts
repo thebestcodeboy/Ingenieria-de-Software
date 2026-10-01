@@ -78,3 +78,23 @@ export async function listarCalendarioProfesor(
     cantidad_alumnos: Number(fila.cantidad_alumnos ?? 0),
   }));
 }
+
+export async function cancelarTurnoProfesor(turnoId: string): Promise<void> {
+  const { error } = await supabase.rpc('cancelar_turno_profesor', {
+    p_turno_id: turnoId,
+  });
+
+  if (error) {
+    const detalle = `${error.code ?? ''} ${error.message ?? ''}`;
+    if (detalle.includes('TURNO_NO_ASIGNADO')) {
+      throw new Error('Solo podés cancelar una clase que tenés asignada.');
+    }
+    if (detalle.includes('TURNO_PASADO')) {
+      throw new Error('No se puede cancelar una clase que ya pasó.');
+    }
+    if (detalle.includes('TURNO_YA_CANCELADO')) {
+      throw new Error('Esta clase ya fue cancelada.');
+    }
+    throw new Error(mensajeError(error));
+  }
+}

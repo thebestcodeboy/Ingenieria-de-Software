@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabaseClient';
 import { validarCupo } from '@/domain/cupo';
+import { generarFechasSemanales } from '@/domain/turnosPeriodicos';
 
 export { validarCupo } from '@/domain/cupo';
 
@@ -47,6 +48,7 @@ export interface FormNuevoTurnoPayload {
 
 export interface ReprogramarTurnoPayload {
   turnoId: string;
+  serieId?: string;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -346,7 +348,7 @@ export async function validarDisponibilidadAula(
 /**
  * HU08, HU14 y HU16: Registrar nuevo turno
  */
-export async function registrarTurno(payload: FormNuevoTurnoPayload) {
+async function validarDisponibilidadTurno(payload: FormNuevoTurnoPayload) {
   if (payload.horaInicio >= payload.horaFin) {
     throw new Error('La hora de finalización debe ser posterior a la hora de inicio.');
   }
@@ -372,10 +374,11 @@ export async function registrarTurno(payload: FormNuevoTurnoPayload) {
   if (!chequeoAula.valido) {
     throw new Error(chequeoAula.motivo);
   }
+}
 
+function crearRegistroTurno(payload: FormNuevoTurnoPayload) {
   const esParticular = payload.actividadTipo === 'particular';
-
-  const nuevoRegistro: Record<string, string | number | null> = {
+  return {
     tipo_actividad: esParticular ? 'clase_particular' : 'curso_ingreso',
     materia_id: payload.materiaId,
     profesor_id: payload.profesorId,
@@ -388,10 +391,14 @@ export async function registrarTurno(payload: FormNuevoTurnoPayload) {
     clase_particular_id: esParticular ? payload.actividadId : null,
     estado: 'activo',
   };
+}
+
+export async function registrarTurno(payload: FormNuevoTurnoPayload) {
+  await validarDisponibilidadTurno(payload);
 
   const { data, error } = await supabase
     .from('turnos_clase')
-    .insert([nuevoRegistro])
+    .insert([crearRegistroTurno(payload)])
     .select()
     .single();
 
@@ -400,6 +407,29 @@ export async function registrarTurno(payload: FormNuevoTurnoPayload) {
   }
 
   return data;
+}
+
+export async function registrarTurnosSemanales(payload: FormNuevoTurnoPayload, meses: number) {
+  const fechas = generarFechasSemanales(payload.fecha, meses);
+  const serieId = globalThis.crypto.randomUUID();
+
+  for (const fecha of fechas) {
+    await validarDisponibilidadTurno({ ...payload, fecha });
+  }
+
+  const { data, error } = await supabase
+    .from('turnos_clase')
+    .insert(fechas.map((fecha) => ({
+      ...crearRegistroTurno({ ...payload, fecha }),
+      serie_id: serieId,
+    })))
+    .select();
+
+  if (error) {
+    throw new Error(error.message || 'No se pudieron programar las clases semanales.');
+  }
+
+  return data || [];
 }
 /**
  * HU15: Inscribe a un alumno en un turno.
@@ -426,15 +456,84 @@ export async function inscribirAlumno(turnoId: string, alumnoId: string) {
   return { exito: true, estado: inscripcion.estado, inscripcion };
 }
 
+export async function inscribirAlumnoSerie(serieId: string, alumnoId: string) {
+  const { data, error } = await supabase.rpc('inscribir_alumno_serie', {
+    p_serie_id: serieId,
+    p_alumno_id: alumnoId,
+  });
+
+  if (error) {
+    const detalle = `${error.code ?? ''} ${error.message ?? ''}`;
+    if (detalle.includes('CUPO_NO_DEFINIDO')) {
+      throw new Error('Una de las fechas del curso no tiene cupo definido y no se pudo completar la inscripción.');
+    }
+    if (detalle.includes('SERIE_SIN_SESIONES_FUTURAS')) {
+      throw new Error('Este curso no tiene sesiones futuras disponibles para inscribirse.');
+    }
+    if (error.code === 'PGRST202') {
+      throw new Error('La función de inscripción periódica todavía no fue instalada en Supabase. Aplicá la migración correspondiente.');
+    }
+    throw new Error(error.message || 'No se pudo completar la inscripción al curso.');
+  }
+
+  const sesiones = (data ?? []) as Array<{ inscripcion_id: string; fecha: string; estado: string }>;
+  if (sesiones.length === 0) throw new Error('Supabase no devolvió sesiones para este curso.');
+
+  return {
+    sesiones,
+    cantidadSesiones: sesiones.length,
+    cantidadEnEspera: sesiones.filter((sesion) => sesion.estado === 'en_espera').length,
+  };
+}
+
+export async function inscribirAlumnoCurso(cursoId: string, profesorId: string, alumnoId: string) {
+  const { data, error } = await supabase.rpc('inscribir_alumno_curso', {
+    p_curso_id: cursoId,
+    p_profesor_id: profesorId,
+    p_alumno_id: alumnoId,
+  });
+
+  if (error) {
+    const detalle = `${error.code ?? ''} ${error.message ?? ''}`;
+    if (detalle.includes('CUPO_NO_DEFINIDO')) {
+      throw new Error('Una de las fechas del curso no tiene cupo definido. No se completó la inscripción.');
+    }
+    if (detalle.includes('CURSO_SIN_TURNOS_FUTUROS')) {
+      throw new Error('El curso no tiene turnos futuros disponibles para este docente.');
+    }
+    if (error.code === 'PGRST202') {
+      throw new Error('La inscripción integral de cursos todavía no fue instalada en Supabase. Aplicá la migración correspondiente.');
+    }
+    throw new Error(error.message || 'No se pudo completar la inscripción al curso.');
+  }
+
+  const sesiones = (data ?? []) as Array<{ inscripcion_id: string; turno_id: string; fecha: string; estado: string }>;
+  if (sesiones.length === 0) throw new Error('Supabase no devolvió turnos para este curso.');
+
+  return {
+    sesiones,
+    cantidadSesiones: sesiones.length,
+    cantidadEnEspera: sesiones.filter((sesion) => sesion.estado === 'en_espera').length,
+  };
+}
+
 /**
  * HU15: Cancela una inscripción y, si corresponde, promueve al primer alumno en espera.
  */
 export async function cancelarInscripcion(inscripcionId: string, turnoId: string) {
-  const { data, error } = await supabase.rpc('cancelar_inscripcion_y_promover', {
+  const { data, error } = await supabase.rpc('baja_inscripcion_alumno', {
     p_inscripcion_id: inscripcionId,
     p_turno_id: turnoId,
   });
-  if (error) throw new Error(error.message || 'No se pudo cancelar la inscripción.');
+  if (error) {
+    if (error.message.includes('INSCRIPCION_ACTIVA_NO_ENCONTRADA')) {
+      throw new Error('La inscripción ya no está activa o no corresponde a tu cuenta.');
+    }
+    if (error.message.includes('ROL_ALUMNO_REQUERIDO') || error.message.includes('ALUMNO_NO_VINCULADO')) {
+      throw new Error('Solo el alumno titular puede cancelar esta inscripción.');
+    }
+    throw new Error(error.message || 'No se pudo cancelar la inscripción.');
+  }
   return { exito: true, alumnoPromovidoId: data };
 }
 
@@ -494,6 +593,7 @@ export async function reprogramarTurno(payload: ReprogramarTurnoPayload) {
       hora_fin: payload.horaFin,
       aula_numero: Number(payload.aulaNumero) || payload.aulaNumero,
       profesor_id: payload.profesorId,
+      ...(payload.serieId ? { serie_id: payload.serieId } : {}),
     })
     .eq('id', payload.turnoId)
     .select()
@@ -504,4 +604,69 @@ export async function reprogramarTurno(payload: ReprogramarTurnoPayload) {
   }
 
   return data;
+}
+
+export async function reprogramarTurnoPeriodico(payload: ReprogramarTurnoPayload, meses: number) {
+  const fechas = generarFechasSemanales(payload.fecha, meses);
+  const { data: turnoOriginal, error: turnoError } = await supabase
+    .from('turnos_clase')
+    .select('tipo_actividad, materia_id, curso_id, clase_particular_id, cupo_maximo')
+    .eq('id', payload.turnoId)
+    .single();
+
+  if (turnoError || !turnoOriginal) {
+    throw new Error(turnoError?.message || 'No se encontró el turno que se quiere reprogramar.');
+  }
+
+  for (const fecha of fechas) {
+    const turnoEnFecha = { ...payload, fecha };
+    const chequeoProfesor = await validarDisponibilidadProfesor(
+      turnoEnFecha.profesorId,
+      fecha,
+      turnoEnFecha.horaInicio,
+      turnoEnFecha.horaFin,
+      turnoEnFecha.turnoId
+    );
+    if (!chequeoProfesor.valido) throw new Error(chequeoProfesor.motivo);
+
+    const chequeoAula = await validarDisponibilidadAula(
+      turnoEnFecha.aulaNumero,
+      fecha,
+      turnoEnFecha.horaInicio,
+      turnoEnFecha.horaFin,
+      turnoEnFecha.turnoId
+    );
+    if (!chequeoAula.valido) throw new Error(chequeoAula.motivo);
+  }
+
+  const serieId = globalThis.crypto.randomUUID();
+  const turnoActualizado = await reprogramarTurno({ ...payload, serieId });
+  const ocurrenciasSiguientes = fechas.slice(1).map((fecha) => ({
+    serie_id: serieId,
+    tipo_actividad: turnoOriginal.tipo_actividad,
+    materia_id: payload.materiaId || turnoOriginal.materia_id,
+    profesor_id: payload.profesorId,
+    aula_numero: Number(payload.aulaNumero) || payload.aulaNumero,
+    cupo_maximo: turnoOriginal.cupo_maximo,
+    fecha,
+    hora_inicio: payload.horaInicio,
+    hora_fin: payload.horaFin,
+    curso_id: turnoOriginal.curso_id,
+    clase_particular_id: turnoOriginal.clase_particular_id,
+    estado: 'activo',
+  }));
+
+  if (ocurrenciasSiguientes.length === 0) {
+    return { turnoActualizado, cantidadProgramada: fechas.length };
+  }
+
+  const { error: insertError } = await supabase
+    .from('turnos_clase')
+    .insert(ocurrenciasSiguientes);
+
+  if (insertError) {
+    throw new Error(insertError.message || 'El turno se reprogramó, pero no se pudieron guardar todas las repeticiones.');
+  }
+
+  return { turnoActualizado, cantidadProgramada: fechas.length };
 }

@@ -120,7 +120,7 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
 /**
  * Modificar datos de profesor existente y disponibilidad horaria (HU16)
  */
-export async function updateProfesor(id, { nombre, apellido, dni, email, telefono, materiasIds, turnos, disponibilidad }) {
+export async function updateProfesor(id, { nombre, apellido, dni, email, telefono, activo, materiasIds, turnos, disponibilidad }) {
   const cleanNombre = nombre?.trim();
   const cleanApellido = apellido?.trim();
   const cleanDni = String(dni).trim();
@@ -151,6 +151,7 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
     dni: cleanDni,
     email: email?.trim() || null,
     telefono: telefono?.trim() || null,
+    activo: activo !== false,
     materias_ids: materiasIds,
     turnos: turnosCalculados,
     disponibilidad: disponibilidad || []

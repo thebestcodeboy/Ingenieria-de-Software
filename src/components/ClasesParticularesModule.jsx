@@ -130,7 +130,10 @@ export default function ClasesParticularesModule() {
       setError('');
       await cambiarEstadoClase(id, activoActual);
       setClases(clases.map((c) => (c.id === id ? { ...c, activo: !activoActual } : c)));
+      setSuccess(`Clase particular ${activoActual ? 'desactivada' : 'activada'} correctamente.`);
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
+      setSuccess('');
       setError(`No se pudo cambiar el estado: ${err.message}`);
     }
   };

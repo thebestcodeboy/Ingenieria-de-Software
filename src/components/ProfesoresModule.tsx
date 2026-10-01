@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { getProfesores, createProfesor, updateProfesor, cambiarEstadoProfesor } from '../services/profesores';
+import { getProfesores, createProfesor, updateProfesor } from '../services/profesores';
 import { getMaterias } from '../services/materias';
 import { calcularCuilArgentino } from '../services/alumnos';
 import { generateTeacherUsername } from '../utils/credentials';
@@ -73,6 +73,7 @@ export default function ProfesoresModule() {
     dni: '',
     email: '',
     telefono: '',
+    activo: true,
   });
 
   const [selectedMaterias, setSelectedMaterias] = useState<(string | number)[]>([]);
@@ -105,7 +106,7 @@ export default function ProfesoresModule() {
   const handleOpenModal = () => {
     setEditingId(null);
     setCurrentProfesor(null);
-    setFormData({ nombre: '', apellido: '', dni: '', email: '', telefono: '' });
+    setFormData({ nombre: '', apellido: '', dni: '', email: '', telefono: '', activo: true });
     setSelectedMaterias([]);
     setDisponibilidad([]);
     setErrorMsg('');
@@ -128,6 +129,7 @@ export default function ProfesoresModule() {
       dni: String(prof.dni || ''),
       email: prof.email || '',
       telefono: prof.telefono || '',
+      activo: prof.activo !== false,
     });
 
     let parsedMaterias: (string | number)[] = [];
@@ -364,6 +366,7 @@ export default function ProfesoresModule() {
         dni: dniLimpio,
         email: emailLimpio || null,
         telefono: telLimpio || null,
+        activo: formData.activo,
         materiasIds: selectedMaterias,
         turnos: turnosStrings,
         disponibilidad: disponibilidad,
@@ -398,16 +401,6 @@ export default function ProfesoresModule() {
       return matchTerm && matchEstado;
     });
   }, [profesores, searchTerm, filterEstado]);
-
-  const handleCambiarEstado = async (profesor: Profesor) => {
-    try {
-      await cambiarEstadoProfesor(profesor.id, profesor.activo === false);
-      setSuccessMsg(`Profesor ${profesor.activo === false ? 'activado' : 'desactivado'} correctamente.`);
-      await loadData();
-    } catch (err: unknown) {
-      setErrorMsg(mensajeDeError(err, 'No se pudo cambiar el estado del profesor.'));
-    }
-  };
 
   const obtenerNombreMateria = (mId: string | number) => {
     const encontrada = materias.find((m) => String(m.id).trim() === String(mId).trim());
@@ -594,15 +587,11 @@ export default function ProfesoresModule() {
                       </div>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        title="Haz clic para cambiar estado"
-                        aria-label={`Cambiar estado de ${prof.apellido}, ${prof.nombre}`}
-                        onClick={() => handleCambiarEstado(prof)}
-                        style={{ backgroundColor: prof.activo === false ? '#fef2f2' : '#f0fdf4', color: prof.activo === false ? '#991b1b' : '#15803d', border: `1px solid ${prof.activo === false ? '#fca5a5' : '#bbf7d0'}`, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                      <span
+                        style={{ backgroundColor: prof.activo === false ? '#fef2f2' : '#f0fdf4', color: prof.activo === false ? '#991b1b' : '#15803d', border: `1px solid ${prof.activo === false ? '#fca5a5' : '#bbf7d0'}`, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em' }}
                       >
                         {prof.activo === false ? 'INACTIVO' : 'ACTIVO'}
-                      </button>
+                      </span>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <span style={{
@@ -780,6 +769,21 @@ export default function ProfesoresModule() {
             )}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {editingId && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                    Estado del profesor
+                  </label>
+                  <select
+                    value={formData.activo ? 'true' : 'false'}
+                    onChange={(e) => setFormData({ ...formData, activo: e.target.value === 'true' })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                  >
+                    <option value="true">Activo</option>
+                    <option value="false">Inactivo</option>
+                  </select>
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Nombre *</label>
