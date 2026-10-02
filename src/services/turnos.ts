@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabaseClient';
 import { validarCupo } from '@/domain/cupo';
+import { validarAlumnoActivoParaInscripcion } from '../utils/alumnoInscripcion';
 
 export { validarCupo } from '@/domain/cupo';
 
@@ -406,6 +407,21 @@ export async function registrarTurno(payload: FormNuevoTurnoPayload) {
  * Maneja validación de cupos, duplicados y asignación a lista de espera.
  */
 export async function inscribirAlumno(turnoId: string, alumnoId: string) {
+  const { data: alumno, error: errorAlumno } = await supabase
+    .from('alumnos')
+    .select('id, activo, estado')
+    .eq('id', alumnoId)
+    .maybeSingle();
+
+  if (errorAlumno) {
+    throw new Error(errorAlumno.message || 'No se pudo validar la cuenta del alumno.');
+  }
+
+  const validacion = validarAlumnoActivoParaInscripcion(alumno as Record<string, unknown> | null | undefined);
+  if (!validacion.valido) {
+    throw new Error(validacion.motivo);
+  }
+
   const { data, error } = await supabase.rpc('inscribir_alumno_turno', {
     p_turno_id: turnoId,
     p_alumno_id: alumnoId,
@@ -413,6 +429,7 @@ export async function inscribirAlumno(turnoId: string, alumnoId: string) {
 
   if (error) {
     const detalle = `${error.code ?? ''} ${error.message ?? ''}`;
+    if (detalle.includes('ALUMNO_INACTIVO')) throw new Error('Tu cuenta está inactiva y no puede realizar nuevas inscripciones. Contactá a Mesa de Entrada.');
     if (detalle.includes('CUPO_NO_DEFINIDO')) throw new Error('Esta clase no tiene un cupo definido y no admite inscripciones.');
     if (detalle.includes('TURNO_COMPLETO') || detalle.includes('TURNO_CANCELADO')) throw new Error('Este turno está cancelado y no admite inscripciones.');
     if (detalle.includes('TURNO_PASADO')) throw new Error('No se admiten inscripciones en turnos que ya han pasado.');
