@@ -70,6 +70,15 @@ function nombreCurso(turno: FilaGerencial): string {
   return String(nombre).trim() || 'Curso sin nombre';
 }
 
+function idTurno(fila: FilaGerencial): string {
+  return String(fila.turno_id ?? fila.id ?? '').trim();
+}
+
+function idCurso(turno: FilaGerencial): string {
+  const id = String(turno.curso_id ?? '').trim();
+  return id || `nombre:${normalizar(nombreCurso(turno))}`;
+}
+
 export function calcularResumenGerencial(
   { inscripciones = [], turnos = [] }: DatosGerenciales,
   fechaReferencia: string,
@@ -92,14 +101,21 @@ export function calcularResumenGerencial(
     (turno) => periodo(fechaFila(turno)) === mesActual && !estaCancelado(turno),
   );
   const turnosCursos = turnosMes.filter(esCursoIngreso);
-  const demanda = new Map<string, number>();
+  const cursosPorClave = new Map<string, { nombre: string; alumnos: Set<string> }>();
+  const cursoPorTurno = new Map<string, string>();
   let inscriptosConCupo = 0;
   let cuposDefinidos = 0;
 
   for (const turno of turnosCursos) {
     const nombre = nombreCurso(turno);
+    const claveCurso = idCurso(turno);
+    if (!cursosPorClave.has(claveCurso)) {
+      cursosPorClave.set(claveCurso, { nombre, alumnos: new Set<string>() });
+    }
+    const turnoId = idTurno(turno);
+    if (turnoId) cursoPorTurno.set(turnoId, claveCurso);
+
     const inscriptos = numeroNoNegativo(turno.inscriptos_actuales);
-    demanda.set(nombre, (demanda.get(nombre) ?? 0) + inscriptos);
 
     const cupo = numeroNoNegativo(turno.cupo_maximo);
     if (cupo > 0) {
@@ -108,8 +124,17 @@ export function calcularResumenGerencial(
     }
   }
 
-  const cursos = [...demanda.entries()]
-    .map(([nombre, inscriptos]) => ({ nombre, inscriptos }))
+
+  for (const inscripcion of inscripcionesVigentes) {
+    const claveCurso = cursoPorTurno.get(String(inscripcion.turno_id ?? '').trim());
+    const alumnoId = String(inscripcion.alumno_id ?? '').trim();
+    if (claveCurso && alumnoId) {
+      cursosPorClave.get(claveCurso)?.alumnos.add(alumnoId);
+    }
+  }
+
+  const cursos = [...cursosPorClave.values()]
+    .map(({ nombre, alumnos }) => ({ nombre, inscriptos: alumnos.size }))
     .sort((a, b) => b.inscriptos - a.inscriptos || a.nombre.localeCompare(b.nombre, 'es'));
   const cursosAscendentes = [...cursos]
     .sort((a, b) => a.inscriptos - b.inscriptos || a.nombre.localeCompare(b.nombre, 'es'));

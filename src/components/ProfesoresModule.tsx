@@ -369,16 +369,12 @@ export default function ProfesoresModule() {
         materiasIds: selectedMaterias,
         turnos: turnosStrings,
         disponibilidad: disponibilidad,
-        activo: formData.activo,
       };
 
       if (editingId) {
         const profActual = profesores.find((p) => p.id === editingId);
         const cambioEstado = Boolean(profActual && (profActual.activo !== false) !== formData.activo);
         await updateProfesor(editingId, payload);
-        if (cambioEstado) {
-          await cambiarEstadoProfesor(editingId, formData.activo);
-        }
         setSuccessMsg(cambioEstado
           ? `Profesor ${formData.activo ? 'activado' : 'desactivado'} correctamente.`
           : 'Profesor y disponibilidad horaria actualizados correctamente.');
@@ -794,21 +790,6 @@ export default function ProfesoresModule() {
             )}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {editingId && (
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
-                    Estado del profesor
-                  </label>
-                  <select
-                    value={formData.activo ? 'true' : 'false'}
-                    onChange={(e) => setFormData({ ...formData, activo: e.target.value === 'true' })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
-                  >
-                    <option value="true">Activo</option>
-                    <option value="false">Inactivo</option>
-                  </select>
-                </div>
-              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Nombre *</label>

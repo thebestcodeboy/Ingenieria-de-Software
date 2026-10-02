@@ -153,7 +153,7 @@ export default function DashboardGerenteModule() {
 
             <article style={{ ...styles.panel, gridColumn: '1 / -1' }}>
               <h2 style={styles.tituloPanel}>Demanda de cursos</h2>
-              <p style={styles.textoSecundario}>Cantidad de inscriptos por curso de ingreso durante el mes.</p>
+              <p style={styles.textoSecundario}>Cantidad de alumnos únicos por curso de ingreso durante el mes.</p>
               <GraficoDemanda
                 cursos={resumen.demandaCursos}
                 mayor={resumen.cursoMayorDemanda}
