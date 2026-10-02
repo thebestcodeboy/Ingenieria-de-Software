@@ -238,14 +238,15 @@ export default function AlumnosModule() {
       const alumnoId = selectedAlumno?.id || selectedAlumno?.alumno_id;
       if (!alumnoId) throw new Error('No se pudo identificar al alumno.');
 
+      const cambioEstado = estaAlumnoActivo(selectedAlumno) !== editFormData.activo;
       await updateAlumno(alumnoId, editFormData);
-      
-      const estadoActual = estaAlumnoActivo(selectedAlumno);
-      if (estadoActual !== editFormData.activo) {
+      if (cambioEstado) {
         await cambiarEstadoAlumno(alumnoId, editFormData.activo);
       }
       
-      setSuccessMsg('Alumno modificado correctamente.');
+      setSuccessMsg(cambioEstado
+        ? `Alumno ${editFormData.activo ? 'activado' : 'desactivado'} correctamente.`
+        : 'Alumno modificado correctamente.');
       setTimeout(() => setSuccessMsg(''), 4000);
       
       setIsEditing(false);
@@ -363,7 +364,7 @@ export default function AlumnosModule() {
       )}
 
       {successMsg && !showModal && !isEditing && (
-        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '12px 16px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px', fontWeight: 500 }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '12px 16px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px', fontWeight: 500 }}>
           {successMsg}
         </div>
       )}

@@ -140,6 +140,8 @@ export default function CursosIngresoModule() {
       setSubmitting(true);
 
       if (editingId) {
+        const cursoActual = cursos.find((curso) => curso.id === editingId);
+        const cambioEstado = Boolean(cursoActual && (cursoActual.activo !== false) !== formData.activo);
         const { error: updErr } = await supabase
           .from('cursos_ingreso')
           .update({
@@ -160,7 +162,9 @@ export default function CursosIngresoModule() {
           await supabase.from('curso_ingreso_materias').insert(nuevasRelaciones);
         }
 
-        setSuccessMsg(`Curso "${formData.nombre.trim().toUpperCase()}" modificado correctamente.`);
+        setSuccessMsg(cambioEstado
+          ? `Curso de ingreso ${formData.activo ? 'activado' : 'desactivado'} correctamente.`
+          : `Curso "${formData.nombre.trim().toUpperCase()}" modificado correctamente.`);
       } else {
         await createCursoIngreso({
           nombre: formData.nombre,
@@ -225,7 +229,7 @@ export default function CursosIngresoModule() {
         </div>
       )}
       {successMsg && !showModal && (
-        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
           {successMsg}
         </div>
       )}

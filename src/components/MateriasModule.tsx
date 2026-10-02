@@ -120,12 +120,15 @@ export default function MateriasModule() {
       };
 
       if (editingId) {
-        await updateMateria(editingId, payload);
         const materiaActual = materias.find((m) => m.id === editingId);
-        if (materiaActual && (materiaActual.activo !== false) !== formActivo) {
+        const cambioEstado = Boolean(materiaActual && (materiaActual.activo !== false) !== formActivo);
+        await updateMateria(editingId, payload);
+        if (cambioEstado) {
           await cambiarEstadoMateria(editingId, formActivo);
         }
-        setSuccessMsg(`Materia "${formNombre.trim().toUpperCase()}" modificada con éxito.`);
+        setSuccessMsg(cambioEstado
+          ? `Materia ${formActivo ? 'activada' : 'desactivada'} correctamente.`
+          : `Materia "${formNombre.trim().toUpperCase()}" modificada con éxito.`);
       } else {
         await createMateria(payload);
         setSuccessMsg(`Materia "${formNombre.trim().toUpperCase()}" registrada con éxito.`);
@@ -201,7 +204,7 @@ export default function MateriasModule() {
         </div>
       )}
       {successMsg && (
-        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
           {successMsg}
         </div>
       )}

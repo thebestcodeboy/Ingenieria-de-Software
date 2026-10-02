@@ -105,9 +105,13 @@ export default function ClasesParticularesModule() {
     try {
       setSaving(true);
       if (editingId) {
+        const claseActual = clases.find((clase) => clase.id === editingId);
+        const cambioEstado = Boolean(claseActual && (claseActual.activo !== false) !== form.activo);
         const actualizada = await actualizarClaseParticular(editingId, form);
         setClases(clases.map((c) => (c.id === editingId ? actualizada : c)));
-        setSuccess('Clase particular modificada correctamente.');
+        setSuccess(cambioEstado
+          ? `Clase particular ${form.activo ? 'activada' : 'desactivada'} correctamente.`
+          : 'Clase particular modificada correctamente.');
       } else {
         const nueva = await registrarClaseParticular({ ...form, activo: true });
         setClases([nueva, ...clases]);
@@ -201,7 +205,7 @@ export default function ClasesParticularesModule() {
       </div>
 
       {success && !showModal && (
-        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
           {success}
         </div>
       )}

@@ -372,12 +372,15 @@ export default function ProfesoresModule() {
       };
 
       if (editingId) {
-        await updateProfesor(editingId, payload);
         const profActual = profesores.find((p) => p.id === editingId);
-        if (profActual && (profActual.activo !== false) !== formData.activo) {
-          await cambiarEstadoProfesor(editingId, !formData.activo);
+        const cambioEstado = Boolean(profActual && (profActual.activo !== false) !== formData.activo);
+        await updateProfesor(editingId, payload);
+        if (cambioEstado) {
+          await cambiarEstadoProfesor(editingId, formData.activo);
         }
-        setSuccessMsg('Profesor y disponibilidad horaria actualizados correctamente.');
+        setSuccessMsg(cambioEstado
+          ? `Profesor ${formData.activo ? 'activado' : 'desactivado'} correctamente.`
+          : 'Profesor y disponibilidad horaria actualizados correctamente.');
       } else {
         await createProfesor(payload);
         setSuccessMsg('Profesor registrado y disponibilidad guardada correctamente.');
@@ -460,7 +463,7 @@ export default function ProfesoresModule() {
         </div>
       )}
       {successMsg && !isModalOpen && (
-        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
           {successMsg}
         </div>
       )}
