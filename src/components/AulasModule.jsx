@@ -139,10 +139,10 @@ export default function AulasModule() {
       {/* Encabezado */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Nómina de Aulas
           </h1>
-          <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 0 0', fontWeight: 500 }}>
+          <p style={{ color: '#475569', fontSize: '15px', margin: '4px 0 0 0', fontWeight: 500 }}>
             {aulas.length} {aulas.length === 1 ? 'sala registrada' : 'salas registradas'}
           </p>
         </div>
@@ -155,7 +155,7 @@ export default function AulasModule() {
             border: 'none',
             borderRadius: '6px',
             padding: '10px 20px',
-            fontSize: '13px',
+            fontSize: '15px',
             fontWeight: 600,
             cursor: 'pointer',
             display: 'inline-flex',
@@ -167,17 +167,17 @@ export default function AulasModule() {
           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e3a5f'}
           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0b1e33'}
         >
-          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> Registrar Aula
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span> Registrar Aula
         </button>
       </div>
 
       {errorMsg && !isModalOpen && (
-        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
           {errorMsg}
         </div>
       )}
       {successMsg && !isModalOpen && (
-        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
           {successMsg}
         </div>
       )}
@@ -206,21 +206,21 @@ export default function AulasModule() {
             placeholder="Buscar aula por número o descripción..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
+            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '15px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
           />
         </div>
       </div>
 
       {/* Tabla de Aulas */}
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflowX: 'auto', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '20%' }}>NÚMERO</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '38%' }}>NOMBRE / DESCRIPCIÓN</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '18%' }}>CAPACIDAD FÍSICA</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '12%', textAlign: 'center' }}>ESTADO</th>
-              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '12%' }}>ACCIÓN</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '20%' }}>NÚMERO</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '38%' }}>NOMBRE / DESCRIPCIÓN</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '18%' }}>CAPACIDAD FÍSICA</th>
+              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '12%', textAlign: 'center' }}>ESTADO</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '12%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -233,8 +233,8 @@ export default function AulasModule() {
             ) : aulasFiltradas.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ padding: '54px 20px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>No se encontraron aulas registradas</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Utiliza el botón superior &quot;+ Registrar Aula&quot; para crear una nueva.</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px' }}>No se encontraron aulas registradas</div>
+                  <div style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Utiliza el botón superior &quot;+ Registrar Aula&quot; para crear una nueva.</div>
                 </td>
               </tr>
             ) : (
@@ -245,17 +245,17 @@ export default function AulasModule() {
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
                 >
-                  <td style={{ padding: '16px 20px', color: '#0b1e33', fontWeight: 700, fontSize: '14px' }}>
+                  <td style={{ padding: '16px 20px', color: '#0b1e33', fontWeight: 700, fontSize: '16px' }}>
                     Aula {aula.numero}
                   </td>
-                  <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '13px' }}>
+                  <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '15px' }}>
                     {aula.descripcion || `Aula ${aula.numero}`}
                   </td>
                   <td style={{ padding: '16px 20px' }}>
                     <span style={{
                       backgroundColor: '#e0e7ff',
                       color: '#3730a3',
-                      fontSize: '11px',
+                      fontSize: '13px',
                       padding: '3px 8px',
                       borderRadius: '4px',
                       fontWeight: 600,
@@ -273,7 +273,7 @@ export default function AulasModule() {
                       border: '1px solid #bbf7d0',
                       padding: '3px 10px',
                       borderRadius: '4px',
-                      fontSize: '11px',
+                      fontSize: '13px',
                       fontWeight: 700,
                       letterSpacing: '0.04em'
                     }}>
@@ -289,7 +289,7 @@ export default function AulasModule() {
                         color: '#0b1e33',
                         borderRadius: '5px',
                         padding: '6px 14px',
-                        fontSize: '12px',
+                        fontSize: '14px',
                         fontWeight: 700,
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
@@ -337,16 +337,18 @@ export default function AulasModule() {
             borderRadius: '12px',
             width: '100%',
             maxWidth: '460px',
+            maxHeight: 'calc(100dvh - 32px)',
+            overflowY: 'auto',
             padding: '28px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box'
           }}>
-            <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 20px 0', color: '#0f172a' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 20px 0', color: '#0f172a' }}>
               {editingNumero ? `Modificar Aula ${editingNumero}` : 'Registrar Nueva Aula'}
             </h2>
 
             {errorMsg && (
-              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '12px', marginBottom: '16px' }}>
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}>
                 {errorMsg}
               </div>
             )}
@@ -354,7 +356,7 @@ export default function AulasModule() {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: editingNumero ? '#64748b' : '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: editingNumero ? '#64748b' : '#1e293b', marginBottom: '6px' }}>
                     Número de Aula * {editingNumero && '(No modificable)'}
                   </label>
                   <input
@@ -371,7 +373,7 @@ export default function AulasModule() {
                       padding: '10px 12px',
                       borderRadius: '6px',
                       border: '1.5px solid #cbd5e1',
-                      fontSize: '13px',
+                      fontSize: '15px',
                       color: editingNumero ? '#475569' : '#0b1e33',
                       backgroundColor: editingNumero ? '#f1f5f9' : '#ffffff',
                       boxSizing: 'border-box',
@@ -382,7 +384,7 @@ export default function AulasModule() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                     Capacidad Física *
                   </label>
                   <input
@@ -392,13 +394,13 @@ export default function AulasModule() {
                     placeholder="Ej: 25"
                     value={formData.capacidad}
                     onChange={handleNumericChange}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Nombre / Descripción
                 </label>
                 <input
@@ -407,7 +409,7 @@ export default function AulasModule() {
                   placeholder="Ej: Aula 11 - Laboratorio de Computación"
                   value={formData.descripcion}
                   onChange={handleInputChange}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
                 />
               </div>
 
@@ -415,14 +417,14 @@ export default function AulasModule() {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '15px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting}
-                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '13px', fontWeight: 600, color: '#ffffff', cursor: formSubmitting ? 'not-allowed' : 'pointer', opacity: formSubmitting ? 0.7 : 1 }}
+                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '15px', fontWeight: 600, color: '#ffffff', cursor: formSubmitting ? 'not-allowed' : 'pointer', opacity: formSubmitting ? 0.7 : 1 }}
                 >
                   {formSubmitting ? 'Guardando...' : editingNumero ? 'Guardar Cambios' : 'Registrar Aula'}
                 </button>

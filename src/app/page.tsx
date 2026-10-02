@@ -195,7 +195,7 @@ export default function AteneoLayout() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f6f8', fontFamily: 'inherit', color: '#1e293b' }}>
       {/* SIDEBAR PRINCIPAL */}
-      <aside style={{ width: sidebarColapsada ? '76px' : '240px', backgroundColor: '#0b1e33', borderRight: '1px solid #162a42', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px 0 16px 0', flexShrink: 0, transition: 'width 180ms ease' }}>
+      <aside style={{ width: sidebarColapsada ? '76px' : '256px', backgroundColor: '#0b1e33', borderRight: '1px solid #162a42', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px 0 16px 0', flexShrink: 0, transition: 'width 180ms ease' }}>
         <div>
           <div style={{ padding: sidebarColapsada ? '0 8px 16px' : '0 20px 22px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', flexDirection: sidebarColapsada ? 'column' : 'row', alignItems: 'center', justifyContent: sidebarColapsada ? 'center' : 'space-between', gap: sidebarColapsada ? '12px' : '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
@@ -209,8 +209,8 @@ export default function AteneoLayout() {
               </div>
               {!sidebarColapsada && (
                 <div>
-                  <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '14px', textTransform: 'uppercase' }}>Instituto Ateneo</div>
-                  <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '1px' }}>Gestión Académica</div>
+                  <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '16px', textTransform: 'uppercase' }}>Instituto Ateneo</div>
+                  <div style={{ color: '#94a3b8', fontSize: '14px', marginTop: '1px' }}>Gestión Académica</div>
                 </div>
               )}
             </div>
@@ -247,7 +247,7 @@ export default function AteneoLayout() {
                     backgroundColor: isActive ? 'rgba(37, 99, 235, 0.18)' : 'transparent',
                     color: isActive ? '#ffffff' : '#94a3b8',
                     cursor: 'pointer',
-                    fontSize: '15px',
+                    fontSize: '17px',
                     fontWeight: isActive ? 600 : 400,
                     textAlign: 'left'
                   }}
@@ -291,22 +291,22 @@ export default function AteneoLayout() {
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 700,
-              fontSize: '12px',
+              fontSize: '14px',
               flexShrink: 0
             }}>
               {iniciales}
             </div>
             {!sidebarColapsada && (
               <div style={{ overflow: 'hidden' }}>
-                <div style={{ color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Usuario</div>
-                <div style={{ color: '#ffffff', fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ color: '#94a3b8', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Usuario</div>
+                <div style={{ color: '#ffffff', fontSize: '16px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {nombreUsuario}
                 </div>
               </div>
             )}
           </div>
 
-          {!sidebarColapsada && <div style={{ color: '#94a3b8', fontSize: '11px', margin: '0 8px 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {!sidebarColapsada && <div style={{ color: '#94a3b8', fontSize: '13px', margin: '0 8px 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Rol: <strong style={{ color: '#38bdf8' }}>{role ? ETIQUETAS_ROL[role] : 'Sin rol'}</strong>
           </div>}
 
@@ -314,7 +314,7 @@ export default function AteneoLayout() {
             onClick={() => logout()}
             aria-label={sidebarColapsada ? 'Cerrar sesión' : undefined}
             title={sidebarColapsada ? 'Cerrar sesión' : undefined}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarColapsada ? 'center' : 'flex-start', gap: '10px', width: '100%', padding: sidebarColapsada ? '10px 0' : '9px 10px', borderRadius: '6px', border: 'none', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', cursor: 'pointer', fontSize: '14px', fontWeight: 500 }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarColapsada ? 'center' : 'flex-start', gap: '10px', width: '100%', padding: sidebarColapsada ? '10px 0' : '9px 10px', borderRadius: '6px', border: 'none', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', cursor: 'pointer', fontSize: '16px', fontWeight: 500 }}
           >
             <span style={{ display: 'flex' }}><Icons.Logout /></span>
             {!sidebarColapsada && <span>Cerrar Sesión</span>}
@@ -323,7 +323,7 @@ export default function AteneoLayout() {
       </aside>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
+      <main style={{ minWidth: 0, flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
         {role === 'profesor' ? (
           activeTabForRole === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder />
         ) : role === 'alumno' ? (
@@ -332,7 +332,7 @@ export default function AteneoLayout() {
           role === 'gerente' ? (
             <DashboardGerenteModule />
           ) : (
-            <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: '8px', padding: '32px', textAlign: 'center', fontSize: '13px', fontWeight: 600 }}>
+            <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: '8px', padding: '32px', textAlign: 'center', fontSize: '15px', fontWeight: 600 }}>
               Acceso restringido: Esta sección requiere rol de Gerencia.
             </div>
           )

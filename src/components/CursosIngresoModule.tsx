@@ -188,10 +188,10 @@ export default function CursosIngresoModule() {
       {/* Encabezado */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Cursos de Ingreso
           </h1>
-          <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 0 0', fontWeight: 500 }}>
+          <p style={{ color: '#475569', fontSize: '15px', margin: '4px 0 0 0', fontWeight: 500 }}>
             {cursos.length} {cursos.length === 1 ? 'curso registrado' : 'cursos registrados'}
           </p>
         </div>
@@ -204,7 +204,7 @@ export default function CursosIngresoModule() {
             border: 'none',
             borderRadius: '6px',
             padding: '10px 20px',
-            fontSize: '13px',
+            fontSize: '15px',
             fontWeight: 600,
             cursor: 'pointer',
             display: 'inline-flex',
@@ -216,17 +216,17 @@ export default function CursosIngresoModule() {
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1e3a5f')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0b1e33')}
         >
-          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> Registrar Curso
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span> Registrar Curso
         </button>
       </div>
 
       {errorMsg && !showModal && (
-        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
           {errorMsg}
         </div>
       )}
       {successMsg && !showModal && (
-        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
           {successMsg}
         </div>
       )}
@@ -255,14 +255,14 @@ export default function CursosIngresoModule() {
             placeholder="Buscar por nombre de curso o materia asociada..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
+            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '15px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
           />
         </div>
         <select
           aria-label="Filtrar cursos por estado"
           value={filterEstado}
           onChange={(e) => setFilterEstado(e.target.value)}
-          style={{ padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', cursor: 'pointer' }}
+          style={{ padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', cursor: 'pointer' }}
         >
           <option value="TODOS">Todos los estados</option>
           <option value="ACTIVO">Activos</option>
@@ -271,14 +271,14 @@ export default function CursosIngresoModule() {
       </div>
 
       {/* Tabla institucional */}
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflowX: 'auto', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 24px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '32%' }}>CURSO DE INGRESO</th>
-              <th style={{ padding: '14px 24px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '38%' }}>MATERIAS UNIVERSITARIAS ASOCIADAS</th>
-              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ESTADO</th>
-              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ACCIÓN</th>
+              <th style={{ padding: '14px 24px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '32%' }}>CURSO DE INGRESO</th>
+              <th style={{ padding: '14px 24px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '38%' }}>MATERIAS UNIVERSITARIAS ASOCIADAS</th>
+              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ESTADO</th>
+              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -291,8 +291,8 @@ export default function CursosIngresoModule() {
             ) : filteredCursos.length === 0 ? (
               <tr>
                 <td colSpan={4} style={{ padding: '54px 20px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>No se encontraron cursos de ingreso registrados</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Utiliza el botón superior &quot;+ Registrar Curso&quot; para dar de alta una oferta.</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px' }}>No se encontraron cursos de ingreso registrados</div>
+                  <div style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Utiliza el botón superior &quot;+ Registrar Curso&quot; para dar de alta una oferta.</div>
                 </td>
               </tr>
             ) : (
@@ -308,11 +308,11 @@ export default function CursosIngresoModule() {
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
                   >
-                    <td style={{ padding: '16px 24px', color: '#0f172a', fontWeight: 600, fontSize: '13px' }}>
+                    <td style={{ padding: '16px 24px', color: '#0f172a', fontWeight: 600, fontSize: '15px' }}>
                       <div style={{ fontWeight: 700, color: '#0b1e33', textTransform: 'uppercase' }}>{c.nombre}</div>
-                      <div style={{ marginTop: '5px', fontSize: '12px', color: '#475569' }}>{c.fecha_inicio && c.fecha_fin ? c.fecha_inicio + ' al ' + c.fecha_fin : 'Período pendiente de configurar'} · {duracionCurso(c.fecha_inicio, c.fecha_fin)}</div>
+                      <div style={{ marginTop: '5px', fontSize: '14px', color: '#475569' }}>{c.fecha_inicio && c.fecha_fin ? c.fecha_inicio + ' al ' + c.fecha_fin : 'Período pendiente de configurar'} · {duracionCurso(c.fecha_inicio, c.fecha_fin)}</div>
                       {c.descripcion && (
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', fontWeight: 400 }}>
+                        <div style={{ fontSize: '14px', color: '#64748b', marginTop: '3px', fontWeight: 400 }}>
                           {c.descripcion}
                         </div>
                       )}
@@ -329,7 +329,7 @@ export default function CursosIngresoModule() {
                                 border: '1px solid #c7d2fe',
                                 borderRadius: '4px',
                                 padding: '3px 8px',
-                                fontSize: '11px',
+                                fontSize: '13px',
                                 fontWeight: 600,
                               }}
                             >
@@ -337,7 +337,7 @@ export default function CursosIngresoModule() {
                             </span>
                           ))
                         ) : (
-                          <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Sin materias</span>
+                          <span style={{ fontSize: '14px', color: '#94a3b8', fontStyle: 'italic' }}>Sin materias</span>
                         )}
                       </div>
                     </td>
@@ -350,7 +350,7 @@ export default function CursosIngresoModule() {
                           border: `1px solid ${c.activo === false ? '#fca5a5' : '#bbf7d0'}`,
                           padding: '4px 10px',
                           borderRadius: '4px',
-                          fontSize: '11px',
+                          fontSize: '13px',
                           fontWeight: 700,
                           letterSpacing: '0.04em',
                           userSelect: 'none',
@@ -369,7 +369,7 @@ export default function CursosIngresoModule() {
                           color: '#0b1e33',
                           borderRadius: '5px',
                           padding: '6px 14px',
-                          fontSize: '12px',
+                          fontSize: '14px',
                           fontWeight: 700,
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
@@ -425,19 +425,19 @@ export default function CursosIngresoModule() {
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box',
           }}>
-            <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 16px 0', color: '#0f172a' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 16px 0', color: '#0f172a' }}>
               {editingId ? 'Modificar Curso de Ingreso' : 'Registrar Curso de Ingreso'}
             </h2>
 
             {errorMsg && (
-              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '12px', marginBottom: '16px' }}>
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}>
                 {errorMsg}
               </div>
             )}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Nombre del Curso (Solo texto, sin números) <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
@@ -446,12 +446,12 @@ export default function CursosIngresoModule() {
                   placeholder="Ej: Ingreso a Ingeniería"
                   value={formData.nombre}
                   onChange={handleNombreChange}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Descripción (Permite números, ej: Cohorte 2027)
                 </label>
                 <textarea
@@ -459,12 +459,12 @@ export default function CursosIngresoModule() {
                   placeholder="Ej: Curso intensivo preuniversitario de materias exactas 2027"
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500, resize: 'vertical', fontFamily: 'inherit' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500, resize: 'vertical', fontFamily: 'inherit' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Materias Universitarias (Seleccione al menos una) <span style={{ color: '#dc2626' }}>*</span>
                 </label>
 
@@ -480,7 +480,7 @@ export default function CursosIngresoModule() {
                   gap: '8px',
                 }}>
                   {materias.length === 0 ? (
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                    <span style={{ fontSize: '14px', color: '#64748b' }}>
                       No hay materias universitarias registradas en el sistema.
                     </span>
                   ) : (
@@ -493,7 +493,7 @@ export default function CursosIngresoModule() {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            fontSize: '13px',
+                            fontSize: '15px',
                             color: '#1e293b',
                             cursor: 'pointer',
                             fontWeight: checked ? 600 : 400,
@@ -506,7 +506,7 @@ export default function CursosIngresoModule() {
                             style={{ accentColor: '#0b1e33', cursor: 'pointer', width: '15px', height: '15px' }}
                           />
                           <span>{mat.nombre}</span>
-                          <span style={{ color: '#64748b', fontSize: '10px' }}>({mat.nivel})</span>
+                          <span style={{ color: '#64748b', fontSize: '12px' }}>({mat.nivel})</span>
                         </label>
                       );
                     })
@@ -515,29 +515,29 @@ export default function CursosIngresoModule() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <label htmlFor="curso-fecha-inicio" style={{ fontSize: '12px', fontWeight: 700 }}>Fecha de inicio *
+                <label htmlFor="curso-fecha-inicio" style={{ fontSize: '14px', fontWeight: 700 }}>Fecha de inicio *
                   <input id="curso-fecha-inicio" type="date" required value={formData.fechaInicio}
                     onChange={e => setFormData({ ...formData, fechaInicio: e.target.value })}
                     style={{ display: 'block', width: '100%', padding: '10px', marginTop: '6px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
                 </label>
-                <label htmlFor="curso-fecha-fin" style={{ fontSize: '12px', fontWeight: 700 }}>Fecha de finalización *
+                <label htmlFor="curso-fecha-fin" style={{ fontSize: '14px', fontWeight: 700 }}>Fecha de finalización *
                   <input id="curso-fecha-fin" type="date" required min={formData.fechaInicio || undefined} value={formData.fechaFin}
                     onChange={e => setFormData({ ...formData, fechaFin: e.target.value })}
                     style={{ display: 'block', width: '100%', padding: '10px', marginTop: '6px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
                 </label>
               </div>
-              <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Duración: {duracionCurso(formData.fechaInicio, formData.fechaFin)}. El período es el mismo para todos los alumnos.</p>
+              <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>Duración: {duracionCurso(formData.fechaInicio, formData.fechaFin)}. El período es el mismo para todos los alumnos.</p>
 
               {/* ESTADO REUBICADO AL FINAL DEL FORMULARIO */}
               {editingId && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                     Estado *
                   </label>
                   <select
                     value={formData.activo ? 'true' : 'false'}
                     onChange={(e) => setFormData({ ...formData, activo: e.target.value === 'true' })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
                   >
                     <option value="true">Activo</option>
                     <option value="false">Inactivo</option>
@@ -549,14 +549,14 @@ export default function CursosIngresoModule() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '15px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '13px', fontWeight: 600, color: '#ffffff', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}
+                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '15px', fontWeight: 600, color: '#ffffff', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}
                 >
                   {submitting ? 'Guardando...' : 'Guardar Curso'}
                 </button>

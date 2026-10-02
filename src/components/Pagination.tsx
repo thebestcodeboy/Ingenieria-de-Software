@@ -54,13 +54,13 @@ export function Pagination({
     border: '1.5px solid #cbd5e1',
     backgroundColor: deshabilitado ? '#f1f5f9' : '#ffffff',
     color: '#0f172a',
-    fontSize: '12px',
+    fontSize: '14px',
     fontWeight: 700,
     cursor: deshabilitado ? 'not-allowed' : 'pointer',
   });
 
   return (
-    <nav aria-label="Paginación" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', marginTop: '20px', paddingBottom: '20px' }}>
+    <nav aria-label="Paginación" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginTop: '20px', paddingBottom: '20px' }}>
       <button
         type="button"
         onClick={() => onCambiarPagina(paginaActual - 1)}
@@ -69,7 +69,7 @@ export function Pagination({
       >
         Anterior
       </button>
-      <span aria-live="polite" style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+      <span aria-live="polite" style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>
         Página {paginaActual} de {totalPaginas}
       </span>
       <button

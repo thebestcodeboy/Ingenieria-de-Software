@@ -167,10 +167,10 @@ export default function MateriasModule() {
       {/* Encabezado sin leyenda HU */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Catálogo de Materias
           </h1>
-          <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 0 0', fontWeight: 500 }}>
+          <p style={{ color: '#475569', fontSize: '15px', margin: '4px 0 0 0', fontWeight: 500 }}>
             {materias.length} {materias.length === 1 ? 'asignatura registrada' : 'asignaturas registradas'} compartidas entre carreras
           </p>
         </div>
@@ -182,7 +182,7 @@ export default function MateriasModule() {
             border: 'none',
             borderRadius: '6px',
             padding: '10px 20px',
-            fontSize: '13px',
+            fontSize: '15px',
             fontWeight: 600,
             cursor: 'pointer',
             display: 'inline-flex',
@@ -194,17 +194,17 @@ export default function MateriasModule() {
           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e3a5f'}
           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0b1e33'}
         >
-          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> Registrar Materia
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span> Registrar Materia
         </button>
       </div>
 
       {errorMsg && (
-        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
           {errorMsg}
         </div>
       )}
       {successMsg && (
-        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
           {successMsg}
         </div>
       )}
@@ -233,7 +233,7 @@ export default function MateriasModule() {
             placeholder="Buscar por nombre de materia..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
+            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '15px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
           />
         </div>
         <div style={{ width: '220px' }}>
@@ -245,7 +245,7 @@ export default function MateriasModule() {
               padding: '10px 14px',
               border: '1.5px solid #cbd5e1',
               borderRadius: '6px',
-              fontSize: '13px',
+              fontSize: '15px',
               backgroundColor: '#ffffff',
               color: '#0f172a',
               fontWeight: 500,
@@ -263,7 +263,7 @@ export default function MateriasModule() {
             aria-label="Filtrar materias por estado"
             value={filterEstado}
             onChange={(e) => setFilterEstado(e.target.value)}
-            style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', cursor: 'pointer' }}
+            style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', cursor: 'pointer' }}
           >
             <option value="TODOS">Todos los estados</option>
             <option value="ACTIVO">Activas</option>
@@ -273,15 +273,15 @@ export default function MateriasModule() {
       </div>
 
       {/* Tabla institucional */}
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflowX: 'auto', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '30%' }}>NOMBRE ASIGNATURA</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '18%' }}>NIVEL EDUCATIVO</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '28%' }}>CARRERAS ASOCIADAS</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
-              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%' }}>ACCIÓN</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '30%' }}>NOMBRE ASIGNATURA</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '18%' }}>NIVEL EDUCATIVO</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '28%' }}>CARRERAS ASOCIADAS</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -294,8 +294,8 @@ export default function MateriasModule() {
             ) : materiasFiltradas.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ padding: '54px 20px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>No se encontraron materias registradas</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Utiliza el botón superior &quot;+ Registrar Materia&quot; para dar de alta una asignatura.</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px' }}>No se encontraron materias registradas</div>
+                  <div style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Utiliza el botón superior &quot;+ Registrar Materia&quot; para dar de alta una asignatura.</div>
                 </td>
               </tr>
             ) : (
@@ -305,14 +305,14 @@ export default function MateriasModule() {
 
                 return (
                   <tr key={materia.id} style={{ borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.15s ease' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}>
-                    <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase' }}>
+                    <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '15px', textTransform: 'uppercase' }}>
                       {materia.nombre}
                     </td>
                     <td style={{ padding: '16px 20px' }}>
                       <span style={{
                         backgroundColor: esUniversitario ? '#e0e7ff' : '#fef3c7',
                         color: esUniversitario ? '#3730a3' : '#92400e',
-                        fontSize: '11px',
+                        fontSize: '13px',
                         padding: '4px 10px',
                         borderRadius: '4px',
                         fontWeight: 600,
@@ -321,21 +321,21 @@ export default function MateriasModule() {
                         {esUniversitario ? 'Universitario' : 'Secundario'}
                       </span>
                     </td>
-                    <td style={{ padding: '16px 20px', color: '#475569', fontSize: '12.5px', fontWeight: 500 }}>
+                    <td style={{ padding: '16px 20px', color: '#475569', fontSize: '14.5px', fontWeight: 500 }}>
                       {esUniversitario ? (
                         materia.carreras && materia.carreras.length > 0 ? (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                             {materia.carreras.map((c, idx) => (
-                              <span key={idx} style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, color: '#0b1e33' }}>
+                              <span key={idx} style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', fontSize: '13px', fontWeight: 600, color: '#0b1e33' }}>
                                 {c.nombre}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>Sin carreras asociadas</span>
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>Sin carreras asociadas</span>
                         )
                       ) : (
-                        <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>No aplica</span>
+                        <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>No aplica</span>
                       )}
                     </td>
                     {/* Badge de estado informativo no interactivo */}
@@ -347,7 +347,7 @@ export default function MateriasModule() {
                           border: `1px solid ${materia.activo === false ? '#fca5a5' : '#bbf7d0'}`,
                           padding: '4px 10px',
                           borderRadius: '4px',
-                          fontSize: '11px',
+                          fontSize: '13px',
                           fontWeight: 700,
                           letterSpacing: '0.04em',
                           userSelect: 'none',
@@ -366,7 +366,7 @@ export default function MateriasModule() {
                           color: '#0b1e33',
                           borderRadius: '5px',
                           padding: '6px 14px',
-                          fontSize: '12px',
+                          fontSize: '14px',
                           fontWeight: 700,
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
@@ -422,19 +422,19 @@ export default function MateriasModule() {
             maxHeight: '90vh',
             overflowY: 'auto'
           }}>
-            <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 20px 0', color: '#0f172a' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 20px 0', color: '#0f172a' }}>
               {editingId ? 'Modificar Materia' : 'Registrar Nueva Materia'}
             </h2>
 
             {formError && (
-              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '12px', marginBottom: '16px' }}>
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}>
                 {formError}
               </div>
             )}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Nombre de la Materia *
                 </label>
                 <input
@@ -443,18 +443,18 @@ export default function MateriasModule() {
                   placeholder="Ej: Análisis Matemático I"
                   value={formNombre}
                   onChange={handleNombreChange}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', textTransform: 'uppercase', fontWeight: 500 }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box', textTransform: 'uppercase', fontWeight: 500 }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Nivel Educativo *
                 </label>
                 <select
                   value={formNivel}
                   onChange={(e) => setFormNivel(e.target.value as 'Secundario' | 'Universitario')}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
                 >
                   <option value="Universitario">Nivel Universitario</option>
                   <option value="Secundario">Nivel Secundario</option>
@@ -464,13 +464,13 @@ export default function MateriasModule() {
               {/* Selector de Estado en el modal */}
               {editingId && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                     Estado *
                   </label>
                   <select
                     value={formActivo ? 'true' : 'false'}
                     onChange={(e) => setFormActivo(e.target.value === 'true')}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
                   >
                     <option value="true">Activo</option>
                     <option value="false">Inactivo</option>
@@ -480,7 +480,7 @@ export default function MateriasModule() {
 
               {formNivel === 'Universitario' && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                     Carreras Universitarias Asociadas * ({formCarrerasIds.length} seleccionadas)
                   </label>
                   <div style={{
@@ -495,7 +495,7 @@ export default function MateriasModule() {
                     gap: '4px'
                   }}>
                     {carrerasDisponibles.length === 0 ? (
-                      <span style={{ fontSize: '12px', color: '#94a3b8', padding: '6px' }}>No hay carreras registradas en la base de datos.</span>
+                      <span style={{ fontSize: '14px', color: '#94a3b8', padding: '6px' }}>No hay carreras registradas en la base de datos.</span>
                     ) : (
                       carrerasDisponibles.map((carrera) => (
                         <label
@@ -508,7 +508,7 @@ export default function MateriasModule() {
                             borderRadius: '4px',
                             backgroundColor: formCarrerasIds.includes(carrera.id) ? '#ffffff' : 'transparent',
                             cursor: 'pointer',
-                            fontSize: '12px',
+                            fontSize: '14px',
                             color: '#0f172a',
                             fontWeight: 600
                           }}
@@ -524,7 +524,7 @@ export default function MateriasModule() {
                       ))
                     )}
                   </div>
-                  <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                  <span style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', display: 'block' }}>
                     Una misma asignatura puede pertenecer a múltiples carreras simultáneamente.
                   </span>
                 </div>
@@ -534,14 +534,14 @@ export default function MateriasModule() {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '15px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting}
-                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '13px', fontWeight: 600, color: '#ffffff', cursor: formSubmitting ? 'not-allowed' : 'pointer', opacity: formSubmitting ? 0.7 : 1 }}
+                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '15px', fontWeight: 600, color: '#ffffff', cursor: formSubmitting ? 'not-allowed' : 'pointer', opacity: formSubmitting ? 0.7 : 1 }}
                 >
                   {formSubmitting ? 'Guardando...' : 'Guardar Materia'}
                 </button>

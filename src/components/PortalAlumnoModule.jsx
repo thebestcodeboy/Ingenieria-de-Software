@@ -418,7 +418,7 @@ export default function PortalAlumnoModule({ activeTab }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontWeight: 600, fontSize: '14px' }}>
+      <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontWeight: 600, fontSize: '16px' }}>
         Cargando portal académico...
       </div>
     );
@@ -431,20 +431,20 @@ export default function PortalAlumnoModule({ activeTab }) {
         <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '32px', width: '100%', boxSizing: 'border-box', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           <button
             onClick={() => setItemSeleccionado(null)}
-            style={{ backgroundColor: 'transparent', border: 'none', color: '#2563eb', fontWeight: 700, fontSize: '13px', cursor: 'pointer', marginBottom: '20px', padding: 0 }}
+            style={{ backgroundColor: 'transparent', border: 'none', color: '#2563eb', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginBottom: '20px', padding: 0 }}
           >
             ← Volver al catálogo de cursos
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '20px' }}>
-            <div style={{ width: '50px', height: '50px', borderRadius: '8px', background: 'linear-gradient(135deg, #0b1e33 0%, #2563eb 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: 700, fontSize: '16px', flexShrink: 0 }}>
+            <div style={{ width: '50px', height: '50px', borderRadius: '8px', background: 'linear-gradient(135deg, #0b1e33 0%, #2563eb 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: 700, fontSize: '18px', flexShrink: 0 }}>
               {itemSeleccionado.nombre.slice(0, 2).toUpperCase()}
             </div>
             <div>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#3730a3', backgroundColor: '#e0e7ff', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#3730a3', backgroundColor: '#e0e7ff', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
                 {tipoItem === 'materia' ? itemSeleccionado.nivel || 'Universitario' : 'Curso de Ingreso'}
               </span>
-              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '6px 0 2px 0', textTransform: 'uppercase' }}>
+              <h2 style={{ fontSize: '21px', fontWeight: 700, color: '#0f172a', margin: '6px 0 2px 0', textTransform: 'uppercase' }}>
                 {itemSeleccionado.nombre}
               </h2>
             </div>
@@ -453,14 +453,14 @@ export default function PortalAlumnoModule({ activeTab }) {
           <div style={{ maxWidth: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
               <div style={{ width: '350px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px', textTransform: 'uppercase' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px', textTransform: 'uppercase' }}>
                   Seleccione Docente Titular *
                 </label>
                 <select
                   value={profeSeleccionado}
                   onChange={(e) => handleCambiarProfesor(e.target.value)}
                   required
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', outline: 'none' }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', outline: 'none' }}
                 >
                   <option value="">Seleccione un profesor habilitado</option>
                   {profesoresDisponiblesMateria.length === 0 ? (
@@ -492,7 +492,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                           border: 'none',
                           backgroundColor: vistaCalendario === v.id ? '#0b1e33' : 'transparent',
                           color: vistaCalendario === v.id ? '#ffffff' : '#475569',
-                          fontSize: '12px',
+                          fontSize: '14px',
                           fontWeight: 700,
                           cursor: 'pointer',
                         }}
@@ -502,7 +502,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                     ))}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', fontSize: '11px', fontWeight: 600, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '12px', fontSize: '13px', fontWeight: 600, alignItems: 'center' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ width: '10px', height: '10px', backgroundColor: '#10b981', borderRadius: '50%', display: 'inline-block' }}></span> Disponible
                     </span>
@@ -518,12 +518,12 @@ export default function PortalAlumnoModule({ activeTab }) {
             </div>
 
             {successMsg && (
-              <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '12px 16px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', fontWeight: 600 }}>
+              <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '12px 16px', borderRadius: '8px', fontSize: '15px', marginBottom: '16px', fontWeight: 600 }}>
                 {successMsg}
               </div>
             )}
             {error && (
-              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px 16px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', fontWeight: 600 }}>
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px 16px', borderRadius: '8px', fontSize: '15px', marginBottom: '16px', fontWeight: 600 }}>
                 {error}
               </div>
             )}
@@ -535,27 +535,27 @@ export default function PortalAlumnoModule({ activeTab }) {
                     <button
                       onClick={() => cambiarMes('ant')}
                       title="Mes anterior"
-                      style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       ‹
                     </button>
-                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0b1e33', minWidth: '180px' }}>
+                    <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 700, color: '#0b1e33', minWidth: '180px' }}>
                       {nombresMeses[mesActual]} de {anioActual}
                     </h3>
                     <button
                       onClick={() => cambiarMes('sig')}
                       title="Mes siguiente"
-                      style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       ›
                     </button>
                   </div>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>
                     Docente: {profesoresDisponiblesMateria.find((p) => p.id === profeSeleccionado)?.nombre}
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#1e293b', color: '#ffffff', textAlign: 'center', fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#1e293b', color: '#ffffff', textAlign: 'center', fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em' }}>
                   {['DOM.', 'LUN.', 'MAR.', 'MIÉ.', 'JUE.', 'VIE.', 'SÁB.'].map((col) => (
                     <div key={col} style={{ padding: '8px 4px', borderRight: '1px solid #334155' }}>
                       {col}
@@ -593,7 +593,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                           justifyContent: 'space-between',
                         }}
                       >
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: esPasado ? '#991b1b' : '#334155', textAlign: 'left', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: esPasado ? '#991b1b' : '#334155', textAlign: 'left', marginBottom: '4px' }}>
                           {!esVacio && celda.numero}
                         </div>
 
@@ -642,7 +642,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                                   borderRadius: '4px',
                                   padding: '5px 6px',
                                   cursor: cursorEstilo,
-                                  fontSize: '11px',
+                                  fontSize: '13px',
                                   lineHeight: 1.25,
                                   boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                                   opacity: esCancelado ? 0.85 : 1,
@@ -651,8 +651,8 @@ export default function PortalAlumnoModule({ activeTab }) {
                                 <div style={{ fontWeight: 700, textDecoration: esCancelado ? 'line-through' : 'none' }}>
                                   {nombreCurso}
                                 </div>
-                                {nombreMateria && <div style={{ fontSize: '9px', marginTop: '1px', color: '#dbeafe' }}>Materia: {nombreMateria}</div>}
-                                <div style={{ fontSize: '10px', marginTop: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                {nombreMateria && <div style={{ fontSize: '11px', marginTop: '1px', color: '#dbeafe' }}>Materia: {nombreMateria}</div>}
+                                <div style={{ fontSize: '12px', marginTop: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span>
                                     {`${t.hora_inicio.slice(0, 5)} - ${t.hora_fin.slice(0, 5)} · `}{turnoVencido ? 'PASADO' : t.cupo_maximo == null ? 'SIN CUPO' : `${yaInscripto ? (misInscripciones.find(ins => ins.turno_id === t.id)?.estado === 'en_espera' ? 'EN ESPERA · ' : 'REGISTRADO · ') : ''}Cupo ${totalConfirmados}/${t.cupo_maximo} · Libres: ${cuposLibres}`}
                                   </span>
@@ -669,7 +669,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                   })}
                 </div>
 
-                <div style={{ padding: '8px 12px', backgroundColor: '#f8fafc', borderTop: '1px solid #cbd5e1', fontSize: '11px', color: '#64748b' }}>
+                <div style={{ padding: '8px 12px', backgroundColor: '#f8fafc', borderTop: '1px solid #cbd5e1', fontSize: '13px', color: '#64748b' }}>
                   <span style={{ fontWeight: 700, textTransform: 'uppercase', marginRight: '6px' }}>NOTAS:</span>
                   En gris se indican turnos donde ya estás inscripto, en verde disponibles, y en rojo aquellos cancelados, vencidos o completos.
                 </div>
@@ -681,7 +681,7 @@ export default function PortalAlumnoModule({ activeTab }) {
         /* 2. CATÁLOGO DE CURSOS DISPONIBLES */
         <div>
           <div style={{ marginBottom: '24px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
               Catálogo de Cursos Disponibles
             </h1>
           </div>
@@ -702,7 +702,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                   border: filtroNivel === f.id ? '1.5px solid #0b1e33' : '1.5px solid #cbd5e1',
                   backgroundColor: filtroNivel === f.id ? '#0b1e33' : '#ffffff',
                   color: filtroNivel === f.id ? '#ffffff' : '#475569',
-                  fontSize: '12px',
+                  fontSize: '14px',
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
@@ -714,7 +714,7 @@ export default function PortalAlumnoModule({ activeTab }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
             {itemsPaginados.length === 0 ? (
-              <div style={{ gridColumn: '1 / -1', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+              <div style={{ gridColumn: '1 / -1', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '15px' }}>
                 No se encontraron registros activos para este filtro.
               </div>
             ) : (
@@ -742,19 +742,19 @@ export default function PortalAlumnoModule({ activeTab }) {
                     }}
                   >
                     <div style={{ height: '80px', background: gradients[idx % gradients.length], display: 'flex', alignItems: 'flex-end', padding: '12px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.35)', padding: '3px 7px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.35)', padding: '3px 7px', borderRadius: '4px', textTransform: 'uppercase' }}>
                         {item.nivel || 'Curso de Ingreso'}
                       </span>
                     </div>
                     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
                       <div>
-                        <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', textTransform: 'uppercase', lineHeight: 1.35 }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', textTransform: 'uppercase', lineHeight: 1.35 }}>
                           {item.nombre}
                         </h3>
                       </div>
                       <button
                         onClick={() => handleSeleccionarItem(item, esCurso ? 'curso' : 'materia')}
-                        style={{ marginTop: '16px', backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', color: '#0b1e33', borderRadius: '6px', padding: '8px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
+                        style={{ marginTop: '16px', backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', color: '#0b1e33', borderRadius: '6px', padding: '8px 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
                       >
                         Abrir Calendario y Anotarse
                       </button>
@@ -770,17 +770,17 @@ export default function PortalAlumnoModule({ activeTab }) {
               <button
                 onClick={() => setPaginaActual((p) => Math.max(p - 1, 1))}
                 disabled={paginaActual === 1}
-                style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === 1 ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '12px', fontWeight: 700, cursor: paginaActual === 1 ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === 1 ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '14px', fontWeight: 700, cursor: paginaActual === 1 ? 'not-allowed' : 'pointer' }}
               >
                 Anterior
               </button>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>
+              <span style={{ fontSize: '15px', fontWeight: 600, color: '#475569' }}>
                 Página {paginaActual} de {totalPaginas}
               </span>
               <button
                 onClick={() => setPaginaActual((p) => Math.min(p + 1, totalPaginas))}
                 disabled={paginaActual === totalPaginas}
-                style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === totalPaginas ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '12px', fontWeight: 700, cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === totalPaginas ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '14px', fontWeight: 700, cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer' }}
               >
                 Siguiente
               </button>
@@ -794,19 +794,19 @@ export default function PortalAlumnoModule({ activeTab }) {
             <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               <button
                 onClick={() => setCursoDetalleActivo(null)}
-                style={{ backgroundColor: 'transparent', border: 'none', color: '#2563eb', fontWeight: 700, fontSize: '13px', cursor: 'pointer', marginBottom: '20px', padding: 0 }}
+                style={{ backgroundColor: 'transparent', border: 'none', color: '#2563eb', fontWeight: 700, fontSize: '15px', cursor: 'pointer', marginBottom: '20px', padding: 0 }}
               >
                 ← Volver a mis cursos
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '20px' }}>
-                <div style={{ width: '56px', height: '56px', borderRadius: '8px', background: 'linear-gradient(135deg, #0b1e33 0%, #2563eb 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: 700, fontSize: '18px' }}>
+                <div style={{ width: '56px', height: '56px', borderRadius: '8px', background: 'linear-gradient(135deg, #0b1e33 0%, #2563eb 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: 700, fontSize: '19px' }}>
                   {(cursoDetalleActivo.turnos_clase?.materias?.nombre || cursoDetalleActivo.turnos_clase?.cursos_ingreso?.nombre || 'CU').slice(0, 2).toUpperCase()}
                 </div>
                 <div>
                   <span
                     style={{
-                      fontSize: '11px',
+                      fontSize: '13px',
                       fontWeight: 700,
                       color: cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? '#991b1b' : '#15803d',
                       backgroundColor: cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? '#fee2e2' : '#f0fdf4',
@@ -819,7 +819,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                   </span>
                   <h2
                     style={{
-                      fontSize: '22px',
+                      fontSize: '23px',
                       fontWeight: 700,
                       color: '#0f172a',
                       margin: '6px 0 2px 0',
@@ -829,7 +829,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                   >
                     {cursoDetalleActivo.turnos_clase?.materias?.nombre || cursoDetalleActivo.turnos_clase?.cursos_ingreso?.nombre}
                   </h2>
-                  <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
+                  <p style={{ color: '#64748b', fontSize: '15px', margin: 0 }}>
                     Nivel: {cursoDetalleActivo.turnos_clase?.materias?.nivel || 'Institucional'} | Aula: {cursoDetalleActivo.turnos_clase?.aula_numero || 'Presencial'}
                   </p>
                 </div>
@@ -837,20 +837,20 @@ export default function PortalAlumnoModule({ activeTab }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '24px' }}>
                 <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px' }}>
-                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0b1e33', margin: '0 0 16px 0', textTransform: 'uppercase' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0b1e33', margin: '0 0 16px 0', textTransform: 'uppercase' }}>
                     Docente Titular
                   </h3>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
                     {cursoDetalleActivo.turnos_clase?.profesores?.apellido ? `${cursoDetalleActivo.turnos_clase.profesores.apellido}, ${cursoDetalleActivo.turnos_clase.profesores.nombre}` : cursoDetalleActivo.turnos_clase?.profesores?.nombre}
                   </div>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '15px', color: '#64748b', marginBottom: '16px' }}>
                     Email: {cursoDetalleActivo.turnos_clase?.profesores?.email || 'instituto@ateneo.edu.ar'}
                   </div>
                   <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
                       Horario de Cursada:
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? '#dc2626' : '#2563eb', marginTop: '2px' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 600, color: cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? '#dc2626' : '#2563eb', marginTop: '2px' }}>
                       {cursoDetalleActivo.turnos_clase?.fecha} | {cursoDetalleActivo.turnos_clase?.hora_inicio} - {cursoDetalleActivo.turnos_clase?.hora_fin}
                       {cursoDetalleActivo.turnos_clase?.estado === 'cancelado' && ' (SUSPENDIDA)'}
                     </div>
@@ -858,17 +858,17 @@ export default function PortalAlumnoModule({ activeTab }) {
                 </div>
 
                 <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px' }}>
-                  <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0b1e33', margin: '0 0 14px 0', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0b1e33', margin: '0 0 14px 0', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Alumnos de la Comisión</span>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>
                       {companerosComision.length} Inscriptos
                     </span>
                   </h3>
 
                   {loadingCompaneros ? (
-                    <div style={{ color: '#64748b', fontSize: '13px', padding: '16px 0' }}>Cargando alumnos de la comisión...</div>
+                    <div style={{ color: '#64748b', fontSize: '15px', padding: '16px 0' }}>Cargando alumnos de la comisión...</div>
                   ) : companerosComision.length === 0 ? (
-                    <div style={{ color: '#64748b', fontSize: '13px', padding: '16px 0' }}>No hay otros alumnos inscriptos por el momento.</div>
+                    <div style={{ color: '#64748b', fontSize: '15px', padding: '16px 0' }}>No hay otros alumnos inscriptos por el momento.</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {companerosComision.map((comp) => {
@@ -888,15 +888,15 @@ export default function PortalAlumnoModule({ activeTab }) {
                             }}
                           >
                             <div>
-                              <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
+                              <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
                                 {comp.apellido ? `${comp.apellido}, ${comp.nombre}` : comp.nombre}
                               </span>
                               {esElUsuarioActual && (
-                                <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 700, color: '#2563eb', backgroundColor: '#dbeafe', padding: '2px 6px', borderRadius: '4px' }}>
+                                <span style={{ marginLeft: '8px', fontSize: '13px', fontWeight: 700, color: '#2563eb', backgroundColor: '#dbeafe', padding: '2px 6px', borderRadius: '4px' }}>
                                   Tú
                                 </span>
                               )}
-                              <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '2px' }}>
+                              <span style={{ fontSize: '13px', color: '#64748b', display: 'block', marginTop: '2px' }}>
                                 {comp.email}
                               </span>
                             </div>
@@ -911,13 +911,13 @@ export default function PortalAlumnoModule({ activeTab }) {
           ) : (
             <div>
               <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+                <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
                   Mis Cursos y Clases Anotadas
                 </h1>
               </div>
 
               {misInscripcionesVisibles.length === 0 ? (
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '15px' }}>
                   Aún no se encuentra inscripto en ningún curso o clase particular. Diríjase a la pestaña Cursos para registrarse.
                 </div>
               ) : (
@@ -956,30 +956,30 @@ export default function PortalAlumnoModule({ activeTab }) {
                         }}
                       >
                         <div style={{ height: '80px', background: gradients[idx % gradients.length], display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '12px' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.35)', padding: '3px 7px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.35)', padding: '3px 7px', borderRadius: '4px', textTransform: 'uppercase' }}>
                             {nivel}
                           </span>
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#ffffff', backgroundColor: '#16a34a', padding: '3px 7px', borderRadius: '4px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', backgroundColor: '#16a34a', padding: '3px 7px', borderRadius: '4px' }}>
                             INSCRIPTO
                           </span>
                         </div>
                         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
                           <div>
-                            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', textTransform: 'uppercase', lineHeight: 1.35 }}>
+                            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', textTransform: 'uppercase', lineHeight: 1.35 }}>
                               {nombre}
                             </h3>
-                            {materia && <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px' }}>Materia: {materia}</p>}
-                            <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 8px 0' }}>
+                            {materia && <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 6px' }}>Materia: {materia}</p>}
+                            <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 8px 0' }}>
                               Titular: {turno?.profesores?.apellido ? `${turno.profesores.apellido}, ${turno.profesores.nombre}` : turno?.profesores?.nombre}
                             </p>
-                            <div style={{ fontSize: '11px', fontWeight: 600, color: '#334155' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
                               {proximaFecha ? `Próxima clase: ${proximaFecha.fecha} (${proximaFecha.hora_inicio?.slice(0, 5)} hs)` : 'Sin fechas próximas'}
                             </div>
-                            <div style={{ marginTop: '5px', fontSize: '11px', color: '#64748b' }}>{grupo.inscripciones.length} fechas anotadas</div>
+                            <div style={{ marginTop: '5px', fontSize: '13px', color: '#64748b' }}>{grupo.inscripciones.length} fechas anotadas</div>
                           </div>
                           <button
                             onClick={() => handleVerDetalleCursoAnotado(ins)}
-                            style={{ marginTop: '16px', backgroundColor: '#0b1e33', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '9px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
+                            style={{ marginTop: '16px', backgroundColor: '#0b1e33', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '9px 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
                           >
                             Ver Comisión y Alumnos
                           </button>
@@ -996,7 +996,7 @@ export default function PortalAlumnoModule({ activeTab }) {
         /* 4. CALENDARIO PERSONAL DEL ALUMNO */
         <div>
           <div style={{ marginBottom: '24px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: '0', letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: '0', letterSpacing: '-0.02em' }}>
               Mi Agenda de Clases
             </h1>
           </div>
@@ -1007,27 +1007,27 @@ export default function PortalAlumnoModule({ activeTab }) {
                 <button
                   onClick={() => cambiarMes('ant')}
                   title="Mes anterior"
-                  style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   ‹
                 </button>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0b1e33', minWidth: '180px' }}>
+                <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 700, color: '#0b1e33', minWidth: '180px' }}>
                   {nombresMeses[mesActual]} de {anioActual}
                 </h3>
                 <button
                   onClick={() => cambiarMes('sig')}
                   title="Mes siguiente"
-                  style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   ›
                 </button>
               </div>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563eb' }}>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: '#2563eb' }}>
                 {misInscripcionesVisibles.length} {misInscripcionesVisibles.length === 1 ? 'Clase Programada' : 'Clases Programadas'}
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#1e293b', color: '#ffffff', textAlign: 'center', fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#1e293b', color: '#ffffff', textAlign: 'center', fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em' }}>
               {['DOM.', 'LUN.', 'MAR.', 'MIÉ.', 'JUE.', 'VIE.', 'SÁB.'].map((col) => (
                 <div key={col} style={{ padding: '8px 4px', borderRight: '1px solid #334155' }}>
                   {col}
@@ -1057,7 +1057,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                       justifyContent: 'space-between',
                     }}
                   >
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#334155', textAlign: 'left', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#334155', textAlign: 'left', marginBottom: '4px' }}>
                       {!esVacio && celda.numero}
                     </div>
 
@@ -1077,7 +1077,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                               color: '#ffffff',
                               borderRadius: '4px',
                               padding: '5px 6px',
-                              fontSize: '11px',
+                              fontSize: '13px',
                               lineHeight: 1.25,
                               boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                             }}
@@ -1085,18 +1085,18 @@ export default function PortalAlumnoModule({ activeTab }) {
                             <div style={{ fontWeight: 700, textTransform: 'uppercase' }}>
                               {nombreCurso}
                             </div>
-                            {nombreMateria && <div style={{ fontSize: '9px', marginTop: '1px', color: '#dbeafe' }}>Materia: {nombreMateria}</div>}
-                            <div style={{ fontSize: '10px', marginTop: '2px', color: '#dbeafe' }}>
+                            {nombreMateria && <div style={{ fontSize: '11px', marginTop: '1px', color: '#dbeafe' }}>Materia: {nombreMateria}</div>}
+                            <div style={{ fontSize: '12px', marginTop: '2px', color: '#dbeafe' }}>
                               Horario: {t?.hora_inicio?.slice(0, 5)} - {t?.hora_fin?.slice(0, 5)}
                             </div>
-                            <div style={{ fontSize: '9px', color: '#e0e7ff', marginTop: '1px' }}>
+                            <div style={{ fontSize: '11px', color: '#e0e7ff', marginTop: '1px' }}>
                               Prof. {profNombre}
                             </div>
                             {esFutura && (
                               <button
                                 type="button"
                                 onClick={() => setInscripcionCancelar(ins)}
-                                style={{ marginTop: '5px', padding: '3px 6px', border: '1px solid rgba(255,255,255,0.75)', borderRadius: '4px', backgroundColor: '#fff', color: '#b91c1c', fontSize: '9px', fontWeight: 700, cursor: 'pointer' }}
+                                style={{ marginTop: '5px', padding: '3px 6px', border: '1px solid rgba(255,255,255,0.75)', borderRadius: '4px', backgroundColor: '#fff', color: '#b91c1c', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
                               >
                                 Cancelar esta fecha
                               </button>
@@ -1110,7 +1110,7 @@ export default function PortalAlumnoModule({ activeTab }) {
               })}
             </div>
 
-            <div style={{ padding: '8px 12px', backgroundColor: '#f8fafc', borderTop: '1px solid #cbd5e1', fontSize: '11px', color: '#64748b' }}>
+            <div style={{ padding: '8px 12px', backgroundColor: '#f8fafc', borderTop: '1px solid #cbd5e1', fontSize: '13px', color: '#64748b' }}>
               <span style={{ fontWeight: 700, textTransform: 'uppercase', marginRight: '6px' }}>NOTAS:</span>
               En este calendario se reflejan de forma exclusiva las clases confirmadas en las que usted está registrado como alumno.
             </div>
@@ -1131,11 +1131,11 @@ export default function PortalAlumnoModule({ activeTab }) {
             onMouseDown={(event) => event.stopPropagation()}
             style={{ width: '100%', maxWidth: '420px', padding: '24px', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 20px 40px rgba(15, 23, 42, 0.2)' }}
           >
-            <h2 id="titulo-baja-inscripcion" style={{ margin: '0 0 10px', color: '#0f172a', fontSize: '18px' }}>¿Cancelar solo esta clase?</h2>
-            <p style={{ margin: '0 0 18px', color: '#475569', fontSize: '13px', lineHeight: 1.5 }}>
+            <h2 id="titulo-baja-inscripcion" style={{ margin: '0 0 10px', color: '#0f172a', fontSize: '19px' }}>¿Cancelar solo esta clase?</h2>
+            <p style={{ margin: '0 0 18px', color: '#475569', fontSize: '15px', lineHeight: 1.5 }}>
               Te vas a dar de baja de la sesión del {inscripcionCancelar.turnos_clase?.fecha}. Las otras fechas del curso no cambian.
             </p>
-            {error && <div role="alert" style={{ marginBottom: '14px', padding: '10px', borderRadius: '5px', backgroundColor: '#fef2f2', color: '#b91c1c', fontSize: '12px' }}>{error}</div>}
+            {error && <div role="alert" style={{ marginBottom: '14px', padding: '10px', borderRadius: '5px', backgroundColor: '#fef2f2', color: '#b91c1c', fontSize: '14px' }}>{error}</div>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button type="button" disabled={cancelandoInscripcion} onClick={() => setInscripcionCancelar(null)} style={{ padding: '9px 13px', border: '1px solid #cbd5e1', borderRadius: '5px', backgroundColor: '#fff', color: '#334155', cursor: 'pointer' }}>Volver</button>
               <button type="button" disabled={cancelandoInscripcion} onClick={() => void handleCancelarInscripcion(inscripcionCancelar)} style={{ padding: '9px 13px', border: '0', borderRadius: '5px', backgroundColor: '#b91c1c', color: '#fff', fontWeight: 700, cursor: cancelandoInscripcion ? 'wait' : 'pointer' }}>{cancelandoInscripcion ? 'Cancelando...' : 'Confirmar baja'}</button>
@@ -1149,12 +1149,12 @@ export default function PortalAlumnoModule({ activeTab }) {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(3px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '480px', padding: '28px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0b1e33' }}>
+              <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 700, color: '#0b1e33' }}>
                 Perfil Institucional del Alumno
               </h3>
               <button
                 onClick={() => setMostrarModalPerfil(false)}
-                style={{ background: 'none', border: 'none', fontSize: '18px', color: '#64748b', cursor: 'pointer', fontWeight: 700 }}
+                style={{ background: 'none', border: 'none', fontSize: '19px', color: '#64748b', cursor: 'pointer', fontWeight: 700 }}
               >
                 ✕
               </button>
@@ -1162,43 +1162,43 @@ export default function PortalAlumnoModule({ activeTab }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Usuario Institucional</label>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>{alumnoActual?.username_institucional || (user?.email ? user.email.split('@')[0].toUpperCase() : 'USUARIO')}</div>
+                <label style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Usuario Institucional</label>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>{alumnoActual?.username_institucional || (user?.email ? user.email.split('@')[0].toUpperCase() : 'USUARIO')}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Nombre</label>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.nombre || 'No registrado'}</div>
+                  <label style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Nombre</label>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.nombre || 'No registrado'}</div>
                 </div>
                 <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Apellido</label>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.apellido || 'No registrado'}</div>
+                  <label style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Apellido</label>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.apellido || 'No registrado'}</div>
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>DNI</label>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.dni || 'No registrado'}</div>
+                  <label style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>DNI</label>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.dni || 'No registrado'}</div>
                 </div>
                 <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Teléfono</label>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.telefono || 'No registrado'}</div>
+                  <label style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Teléfono</label>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.telefono || 'No registrado'}</div>
                 </div>
               </div>
               <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Correo Electrónico</label>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.email || user?.email || 'No registrado'}</div>
+                <label style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Correo Electrónico</label>
+                <div style={{ fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.email || user?.email || 'No registrado'}</div>
               </div>
               <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Dirección</label>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.direccion || 'No registrada'}</div>
+                <label style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block' }}>Dirección</label>
+                <div style={{ fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>{alumnoActual?.direccion || 'No registrada'}</div>
               </div>
             </div>
 
             <div style={{ marginTop: '24px', textAlign: 'right' }}>
               <button
                 onClick={() => setMostrarModalPerfil(false)}
-                style={{ backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '9px 18px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                style={{ backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '9px 18px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
               >
                 Cerrar
               </button>

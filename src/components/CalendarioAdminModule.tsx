@@ -171,7 +171,7 @@ export default function CalendarioAdminModule() {
         <div>
           <h1
             style={{
-              fontSize: '24px',
+              fontSize: '25px',
               fontWeight: 700,
               color: '#0f172a',
               margin: 0,
@@ -180,7 +180,7 @@ export default function CalendarioAdminModule() {
           >
             Agenda Institucional y Turnos
           </h1>
-          <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 0 0', fontWeight: 500 }}>
+          <p style={{ color: '#475569', fontSize: '15px', margin: '4px 0 0 0', fontWeight: 500 }}>
             Mesa de Entrada &bull; Control centralizado de clases, aulas y ocupación
           </p>
         </div>
@@ -200,7 +200,7 @@ export default function CalendarioAdminModule() {
               border: 'none',
               padding: '8px 16px',
               borderRadius: '6px',
-              fontSize: '12.5px',
+              fontSize: '14.5px',
               fontWeight: 700,
               cursor: 'pointer',
               backgroundColor: vista === 'dia' ? '#0b1e33' : 'transparent',
@@ -216,7 +216,7 @@ export default function CalendarioAdminModule() {
               border: 'none',
               padding: '8px 16px',
               borderRadius: '6px',
-              fontSize: '12.5px',
+              fontSize: '14.5px',
               fontWeight: 700,
               cursor: 'pointer',
               backgroundColor: vista === 'semana' ? '#0b1e33' : 'transparent',
@@ -252,7 +252,7 @@ export default function CalendarioAdminModule() {
               border: '1px solid #cbd5e1',
               borderRadius: '6px',
               padding: '7px 12px',
-              fontSize: '12.5px',
+              fontSize: '14.5px',
               fontWeight: 600,
               cursor: 'pointer',
               color: '#0b1e33',
@@ -267,7 +267,7 @@ export default function CalendarioAdminModule() {
               border: '1px solid #cbd5e1',
               borderRadius: '6px',
               padding: '7px 14px',
-              fontSize: '12.5px',
+              fontSize: '14.5px',
               fontWeight: 700,
               cursor: 'pointer',
               color: '#0b1e33',
@@ -282,7 +282,7 @@ export default function CalendarioAdminModule() {
               border: '1px solid #cbd5e1',
               borderRadius: '6px',
               padding: '7px 12px',
-              fontSize: '12.5px',
+              fontSize: '14.5px',
               fontWeight: 600,
               cursor: 'pointer',
               color: '#0b1e33',
@@ -292,7 +292,7 @@ export default function CalendarioAdminModule() {
           </button>
         </div>
 
-        <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', textTransform: 'capitalize' }}>
+        <div style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', textTransform: 'capitalize' }}>
           {vista === 'dia'
             ? fechaReferencia.toLocaleDateString('es-AR', {
                 weekday: 'long',
@@ -316,7 +316,7 @@ export default function CalendarioAdminModule() {
             onChange={(e) => setFiltroEstado(e.target.value)}
             style={{
               padding: '7px 10px',
-              fontSize: '12px',
+              fontSize: '14px',
               borderRadius: '6px',
               border: '1.5px solid #cbd5e1',
               color: '#334155',
@@ -334,7 +334,7 @@ export default function CalendarioAdminModule() {
             onChange={(e) => setFiltroMateria(e.target.value)}
             style={{
               padding: '7px 10px',
-              fontSize: '12px',
+              fontSize: '14px',
               borderRadius: '6px',
               border: '1.5px solid #cbd5e1',
               width: '120px',
@@ -347,7 +347,7 @@ export default function CalendarioAdminModule() {
             onChange={(e) => setFiltroProfesor(e.target.value)}
             style={{
               padding: '7px 10px',
-              fontSize: '12px',
+              fontSize: '14px',
               borderRadius: '6px',
               border: '1.5px solid #cbd5e1',
               width: '120px',
@@ -360,7 +360,7 @@ export default function CalendarioAdminModule() {
             onChange={(e) => setFiltroAula(e.target.value)}
             style={{
               padding: '7px 10px',
-              fontSize: '12px',
+              fontSize: '14px',
               borderRadius: '6px',
               border: '1.5px solid #cbd5e1',
               width: '60px',
@@ -377,7 +377,7 @@ export default function CalendarioAdminModule() {
             color: '#991b1b',
             padding: '10px 14px',
             borderRadius: '6px',
-            fontSize: '13px',
+            fontSize: '15px',
             marginBottom: '16px',
           }}
         >
@@ -432,7 +432,7 @@ export default function CalendarioAdminModule() {
                 >
                   <div
                     style={{
-                      fontSize: '11px',
+                      fontSize: '13px',
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       letterSpacing: '0.04em',
@@ -440,7 +440,7 @@ export default function CalendarioAdminModule() {
                   >
                     {dia.toLocaleDateString('es-AR', { weekday: 'short' })}
                   </div>
-                  <div style={{ fontSize: '15px', fontWeight: 800 }}>{dia.getDate()}</div>
+                  <div style={{ fontSize: '17px', fontWeight: 800 }}>{dia.getDate()}</div>
                 </div>
 
                 <div
@@ -456,7 +456,7 @@ export default function CalendarioAdminModule() {
                   {turnosDelDia.length === 0 ? (
                     <span
                       style={{
-                        fontSize: '11px',
+                        fontSize: '13px',
                         color: '#94a3b8',
                         fontStyle: 'italic',
                         textAlign: 'center',
@@ -511,7 +511,7 @@ export default function CalendarioAdminModule() {
                           >
                             <span
                               style={{
-                                fontSize: '11px',
+                                fontSize: '13px',
                                 fontWeight: 700,
                                 color: esCancelado ? '#991b1b' : '#1e3a8a',
                               }}
@@ -521,7 +521,7 @@ export default function CalendarioAdminModule() {
                             {esCancelado ? (
                               <span
                                 style={{
-                                  fontSize: '9px',
+                                  fontSize: '11px',
                                   fontWeight: 800,
                                   backgroundColor: '#fee2e2',
                                   color: '#991b1b',
@@ -536,7 +536,7 @@ export default function CalendarioAdminModule() {
                             ) : esPeriodico ? (
                               <span
                                 style={{
-                                  fontSize: '9px',
+                                  fontSize: '11px',
                                   fontWeight: 700,
                                   backgroundColor: '#fef3c7',
                                   color: '#92400e',
@@ -551,7 +551,7 @@ export default function CalendarioAdminModule() {
 
                           <div
                             style={{
-                              fontSize: '12px',
+                              fontSize: '14px',
                               fontWeight: 700,
                               color: esCancelado ? '#64748b' : '#0f172a',
                               textDecoration: esCancelado ? 'line-through' : 'none',
@@ -564,13 +564,13 @@ export default function CalendarioAdminModule() {
                             {ev.materia_nombre || ev.actividad_nombre || 'Clase'}
                           </div>
 
-                          <div style={{ fontSize: '11px', color: '#475569' }}>
+                          <div style={{ fontSize: '13px', color: '#475569' }}>
                             Aula: <strong>{ev.aula_numero || 'S/A'}</strong>
                           </div>
 
                           <div
                             style={{
-                              fontSize: '10.5px',
+                              fontSize: '12.5px',
                               color: '#64748b',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
@@ -591,7 +591,7 @@ export default function CalendarioAdminModule() {
                             {esCancelado ? (
                               <span
                                 style={{
-                                  fontSize: '10px',
+                                  fontSize: '12px',
                                   fontStyle: 'italic',
                                   color: '#991b1b',
                                   fontWeight: 600,
@@ -602,7 +602,7 @@ export default function CalendarioAdminModule() {
                             ) : (
                               <span
                                 style={{
-                                  fontSize: '10px',
+                                  fontSize: '12px',
                                   fontWeight: 700,
                                   padding: '1px 5px',
                                   borderRadius: '3px',
@@ -635,10 +635,10 @@ export default function CalendarioAdminModule() {
         >
           {eventosFiltrados.length === 0 ? (
             <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
-              <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>
+              <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px' }}>
                 No hay turnos registrados para esta fecha
               </div>
-              <div style={{ fontSize: '12px', marginTop: '4px' }}>
+              <div style={{ fontSize: '14px', marginTop: '4px' }}>
                 Comprobá los filtros activos o navegá a otro día.
               </div>
             </div>
@@ -648,7 +648,7 @@ export default function CalendarioAdminModule() {
                 width: '100%',
                 borderCollapse: 'collapse',
                 textAlign: 'left',
-                fontSize: '13px',
+                fontSize: '15px',
               }}
             >
               <thead>
@@ -694,7 +694,7 @@ export default function CalendarioAdminModule() {
                       >
                         {ev.hora_inicio?.slice(0, 5)} - {ev.hora_fin?.slice(0, 5)} hs
                         {esPeriodico && (
-                          <span style={{ display: 'block', fontSize: '10px', color: '#92400e', fontWeight: 600 }}>
+                          <span style={{ display: 'block', fontSize: '12px', color: '#92400e', fontWeight: 600 }}>
                             (Periódica)
                           </span>
                         )}
@@ -721,7 +721,7 @@ export default function CalendarioAdminModule() {
                             style={{
                               padding: '3px 8px',
                               borderRadius: '4px',
-                              fontSize: '11px',
+                              fontSize: '13px',
                               fontWeight: 800,
                               backgroundColor: '#fee2e2',
                               color: '#991b1b',
@@ -735,7 +735,7 @@ export default function CalendarioAdminModule() {
                             style={{
                               padding: '3px 8px',
                               borderRadius: '4px',
-                              fontSize: '11px',
+                              fontSize: '13px',
                               fontWeight: 700,
                               backgroundColor: lleno ? '#fee2e2' : '#f0fdf4',
                               color: lleno ? '#991b1b' : '#15803d',
@@ -755,7 +755,7 @@ export default function CalendarioAdminModule() {
                             color: '#0b1e33',
                             borderRadius: '5px',
                             padding: '6px 12px',
-                            fontSize: '12px',
+                            fontSize: '14px',
                             fontWeight: 700,
                             cursor: 'pointer',
                           }}
@@ -812,7 +812,7 @@ export default function CalendarioAdminModule() {
               <div>
                 <span
                   style={{
-                    fontSize: '11px',
+                    fontSize: '13px',
                     fontWeight: 700,
                     color: turnoSeleccionado.estado === 'cancelado' ? '#dc2626' : '#2563eb',
                     textTransform: 'uppercase',
@@ -824,7 +824,7 @@ export default function CalendarioAdminModule() {
                 </span>
                 <h2
                   style={{
-                    fontSize: '19px',
+                    fontSize: '20px',
                     fontWeight: 700,
                     margin: '2px 0 0 0',
                     color: '#0f172a',
@@ -840,7 +840,7 @@ export default function CalendarioAdminModule() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  fontSize: '20px',
+                  fontSize: '21px',
                   cursor: 'pointer',
                   color: '#64748b',
                 }}
@@ -861,11 +861,11 @@ export default function CalendarioAdminModule() {
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
                 gap: '10px',
-                fontSize: '12.5px',
+                fontSize: '14.5px',
               }}
             >
               <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '11px', fontWeight: 600 }}>
+                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
                   FECHA Y HORA
                 </span>
                 <strong style={{ color: '#0f172a' }}>
@@ -874,7 +874,7 @@ export default function CalendarioAdminModule() {
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '11px', fontWeight: 600 }}>
+                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
                   AULA
                 </span>
                 <strong style={{ color: '#0f172a' }}>
@@ -882,7 +882,7 @@ export default function CalendarioAdminModule() {
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '11px', fontWeight: 600 }}>
+                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
                   PROFESOR
                 </span>
                 <strong style={{ color: '#0f172a' }}>
@@ -890,7 +890,7 @@ export default function CalendarioAdminModule() {
                 </strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '11px', fontWeight: 600 }}>
+                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
                   ESTADO
                 </span>
                 <strong
@@ -904,12 +904,12 @@ export default function CalendarioAdminModule() {
               </div>
             </div>
 
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', margin: '0 0 10px 0' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 10px 0' }}>
               Alumnos Inscriptos ({inscriptos.length})
             </h3>
 
             {loadingInscriptos ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '12.5px' }}>
+              <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '14.5px' }}>
                 Cargando alumnos inscriptos...
               </div>
             ) : inscriptos.length === 0 ? (
@@ -918,7 +918,7 @@ export default function CalendarioAdminModule() {
                   padding: '20px',
                   textAlign: 'center',
                   color: '#94a3b8',
-                  fontSize: '12.5px',
+                  fontSize: '14.5px',
                   backgroundColor: '#f8fafc',
                   borderRadius: '6px',
                   border: '1px dashed #cbd5e1',
@@ -939,7 +939,7 @@ export default function CalendarioAdminModule() {
                   style={{
                     width: '100%',
                     borderCollapse: 'collapse',
-                    fontSize: '12px',
+                    fontSize: '14px',
                     textAlign: 'left',
                   }}
                 >
@@ -977,7 +977,7 @@ export default function CalendarioAdminModule() {
                   border: 'none',
                   borderRadius: '6px',
                   padding: '9px 18px',
-                  fontSize: '13px',
+                  fontSize: '15px',
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
