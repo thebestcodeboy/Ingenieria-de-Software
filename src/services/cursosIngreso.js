@@ -1,3 +1,4 @@
+import { validarPeriodoCurso } from '../domain/periodoCurso';
 import { supabase } from '../lib/supabaseClient';
 
 const PALABRAS_PROHIBIDAS = [
@@ -124,78 +125,32 @@ export const cambiarEstadoCursoIngreso = async (id, activo) => {
   return data;
 };
 
-// Registro de curso de ingreso
-export const createCursoIngreso = async ({ nombre, descripcion, materiasIds }) => {
-  try {
-    const valNombre = normalizarYValidarNombreCurso(nombre);
-    if (!valNombre.valido) throw new Error(valNombre.error);
-
-    const valDesc = normalizarDescripcion(descripcion);
-
-    if (!materiasIds || !Array.isArray(materiasIds)) {
-      throw new Error('Debe proporcionar una lista válida de materias.');
-    }
-
-    const materiasUnicas = [...new Set(materiasIds.filter(Boolean))];
-
-    if (materiasUnicas.length === 0) {
-      throw new Error('El curso de ingreso debe tener al menos una materia asociada.');
-    }
-
-    const { data: materiasActivas, error: materiasError } = await supabase
-      .from('materias')
-      .select('id')
-      .in('id', materiasUnicas)
-      .eq('activo', true);
-
-    if (materiasError) throw new Error(materiasError.message);
-    if ((materiasActivas || []).length !== materiasUnicas.length) {
-      throw new Error('Solo se pueden asociar materias activas a un curso nuevo.');
-    }
-
-    // Validar duplicados por nombre
-    const { data: cursoExistente } = await supabase
-      .from('cursos_ingreso')
-      .select('id')
-      .ilike('nombre', valNombre.textoLimpio)
-      .maybeSingle();
-
-    if (cursoExistente) {
-      throw new Error(`Ya existe un curso registrado con el nombre "${valNombre.textoLimpio}".`);
-    }
-
-    // Insertar curso
-    const { data: nuevoCurso, error: errorCurso } = await supabase
-      .from('cursos_ingreso')
-      .insert([
-        {
-          nombre: valNombre.textoLimpio,
-          descripcion: valDesc.textoLimpio,
-        },
-      ])
-      .select()
-      .single();
-
-    if (errorCurso) throw new Error(errorCurso.message);
-
-    // Insertar relaciones
-    const relaciones = materiasUnicas.map((materiaId) => ({
-      curso_id: nuevoCurso.id,
-      materia_id: materiaId,
-    }));
-
-    const { error: errorRelaciones } = await supabase
-      .from('curso_ingreso_materias')
-      .insert(relaciones);
-
-    if (errorRelaciones) {
-      await supabase.from('cursos_ingreso').delete().eq('id', nuevoCurso.id);
-      throw new Error(`Error al vincular las materias: ${errorRelaciones.message}`);
-    }
-
-    return nuevoCurso;
-  } catch (err) {
-    console.error('Fallo en createCursoIngreso:', err);
-    throw err;
+// El curso y sus materias se guardan en una única transacción de Supabase.
+async function guardarCursoIngreso({ nombre, descripcion, materiasIds, fechaInicio, fechaFin, activo = true }, cursoId = null) {
+  const errorPeriodo = validarPeriodoCurso(fechaInicio, fechaFin);
+  if (errorPeriodo) throw new Error(errorPeriodo);
+  const valNombre = normalizarYValidarNombreCurso(nombre);
+  if (!valNombre.valido) throw new Error(valNombre.error);
+  if (!Array.isArray(materiasIds) || !materiasIds.filter(Boolean).length) {
+    throw new Error('Seleccioná al menos una materia universitaria.');
   }
-};
+  const { data, error } = await supabase.rpc('guardar_curso_ingreso', {
+    p_nombre: valNombre.textoLimpio,
+    p_descripcion: normalizarDescripcion(descripcion).textoLimpio,
+    p_fecha_inicio: fechaInicio, p_fecha_fin: fechaFin,
+    p_materias: [...new Set(materiasIds.filter(Boolean))],
+    p_activo: activo, p_curso_id: cursoId,
+  });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Falta instalar la actualización de guardado de cursos en Supabase.');
+    throw new Error(error.message || 'No se pudo guardar el curso.');
+  }
+  const curso = Array.isArray(data) ? data[0] : data;
+  if (!curso || (cursoId !== null && String(curso.id) !== String(cursoId))
+      || curso.fecha_inicio !== fechaInicio || curso.fecha_fin !== fechaFin || curso.activo !== activo) {
+    throw new Error('Supabase no confirmó todos los cambios del curso. Actualizá el listado antes de reintentar.');
+  }
+  return curso;
+}
+export const createCursoIngreso = (datos) => guardarCursoIngreso(datos);
+export const updateCursoIngreso = (id, datos) => guardarCursoIngreso(datos, id);

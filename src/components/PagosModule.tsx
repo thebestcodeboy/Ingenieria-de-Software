@@ -2,9 +2,15 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { listarPagos, generarNumeroComprobante } from '../services/pagos';
+import { listarPagos, generarNumeroComprobante, listarInscripcionesCobro } from '../services/pagos';
+
+import { agruparActividadesCobro, construirVinculoPago, type InscripcionCobro, type VinculoPago } from '../domain/pagoAcademico';
 
 export interface PagoConDetalle {
+  inscripcion_id?: string | null;
+  periodo_desde?: string | null;
+  periodo_hasta?: string | null;
+  detalle_academico?: VinculoPago['detalle_academico'] | null;
   id: string;
   comprobante: string;
   alumno_id: string;
@@ -25,6 +31,10 @@ export interface PagoConDetalle {
     dni: string;
     email: string;
   };
+}
+
+function escaparTextoRecibo(texto: string): string {
+  return texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 export default function PagosModule() {
@@ -54,10 +64,33 @@ export default function PagosModule() {
   const [mostrarDropdownAlumnos, setMostrarDropdownAlumnos] = useState(false);
 
   // Modalidad antes que Concepto
-  const [modalidad, setModalidad] = useState<'Mes' | 'Semana' | 'Clase'>('Mes');
-  const [concepto, setConcepto] = useState('Cuota Mensual Regular');
-  const [cantidad, setCantidad] = useState<number>(1);
-  const [precioUnitario, setPrecioUnitario] = useState<number>(20000);
+  const cantidad = 1;
+  const [precioUnitario, setPrecioUnitario] = useState<number>(0);
+  const [actividadInscripcionId, setActividadInscripcionId] = useState('');
+  const [sesionId, setSesionId] = useState('');
+  const [periodoAbonado, setPeriodoAbonado] = useState('');
+  const [inscripcionesCobro, setInscripcionesCobro] = useState<{ alumnoId: string; filas: InscripcionCobro[]; error: string }>({ alumnoId: '', filas: [], error: '' });
+  const alumnoCobroId = alumnoSeleccionado?.id ? String(alumnoSeleccionado.id) : '';
+  const cargandoActividades = Boolean(alumnoCobroId && inscripcionesCobro.alumnoId !== alumnoCobroId);
+  useEffect(() => {
+    if (!alumnoCobroId) return;
+    let vigente = true;
+    listarInscripcionesCobro(alumnoCobroId).then(filas => {
+      if (vigente) setInscripcionesCobro({ alumnoId: alumnoCobroId, filas, error: '' });
+    }).catch((error: unknown) => {
+      if (vigente) setInscripcionesCobro({ alumnoId: alumnoCobroId, filas: [], error: error instanceof Error ? error.message : 'No se pudieron cargar las inscripciones.' });
+    });
+    return () => { vigente = false; };
+  }, [alumnoCobroId]);
+  const actividades = useMemo(() => agruparActividadesCobro(inscripcionesCobro.alumnoId === alumnoCobroId ? inscripcionesCobro.filas : []), [inscripcionesCobro, alumnoCobroId]);
+  const actividadElegida = actividades.find(a => a.sesiones.some(s => s.id === actividadInscripcionId));
+  const modalidad = actividadElegida?.clave.startsWith('particular:') ? 'Clase' : 'Mes';
+  const datosCobro = useMemo(() => {
+    try { return { vinculo: construirVinculoPago(actividadElegida, modalidad, periodoAbonado, cantidad, sesionId), error: '' }; }
+    catch (error: unknown) { return { vinculo: null, error: error instanceof Error ? error.message : 'Revisá el detalle del cobro.' }; }
+  }, [actividadElegida, modalidad, periodoAbonado, cantidad, sesionId]);
+  const concepto = datosCobro.vinculo?.concepto ?? '';
+
 
   const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito'>('Efectivo');
   const [fechaCobro, setFechaCobro] = useState(fechaHoy);
@@ -91,13 +124,6 @@ export default function PagosModule() {
   useEffect(() => {
     cargarDatos();
   }, []);
-
-  const handleCambiarModalidad = (nueva: 'Mes' | 'Semana' | 'Clase') => {
-    setModalidad(nueva);
-    if (nueva === 'Mes') setConcepto('Cuota Mensual Regular');
-    if (nueva === 'Semana') setConcepto('Abono Semanal de Cursada');
-    if (nueva === 'Clase') setConcepto('Clase Particular Individual');
-  };
 
   const totalACobrar = useMemo(() => {
     const unit = Math.max(0, precioUnitario || 0);
@@ -153,6 +179,7 @@ export default function PagosModule() {
 
   const handleSeleccionarAlumno = (al: any) => {
     setAlumnoSeleccionado(al);
+    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setErrorMsg('');
     setTextoBusquedaAlumno(`${al.apellido}, ${al.nombre} (${al.legajo || 'Sin Legajo'}) - DNI: ${al.dni}`);
     setMostrarDropdownAlumnos(false);
   };
@@ -161,10 +188,8 @@ export default function PagosModule() {
     setPagoBorradorId(null);
     setAlumnoSeleccionado(null);
     setTextoBusquedaAlumno('');
-    setModalidad('Mes');
-    setConcepto('Cuota Mensual Regular');
-    setCantidad(1);
-    setPrecioUnitario(20000);
+    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado('');
+    setPrecioUnitario(0);
     setMontoRecibido(0);
     setNroReferencia('');
     setFechaCobro(fechaHoy);
@@ -176,11 +201,14 @@ export default function PagosModule() {
       setAlumnoSeleccionado(p.alumnos);
       setTextoBusquedaAlumno(`${p.alumnos.apellido}, ${p.alumnos.nombre} (${p.alumnos.legajo || 'Sin Legajo'}) - DNI: ${p.alumnos.dni}`);
     }
-    setModalidad((p.modalidad as any) || 'Mes');
-    setConcepto(p.concepto);
-    setCantidad(p.cantidad || 1);
-    setPrecioUnitario((p.importe / (p.cantidad || 1)) || 20000);
+    setActividadInscripcionId(p.inscripcion_id || '');
+    setSesionId(p.modalidad === 'Clase' ? p.inscripcion_id || '' : '');
+    const requiereRevision = (p.cantidad || 1) !== 1 || p.modalidad === 'Semana';
+    setPeriodoAbonado(!requiereRevision && p.modalidad === 'Mes' ? p.periodo_desde?.slice(0,7) || '' : '');
+    setErrorMsg(requiereRevision ? 'Este borrador cubría varias unidades o semanas. Seleccioná un mes o una clase e indicá su precio antes de confirmar.' : '');
+    setPrecioUnitario(requiereRevision ? 0 : p.importe || 0);
     setMedioPago(p.medio_pago);
+    setNroReferencia((p.observaciones || '').replace(/^(?:N°\s*)?Ref:\s*/i, ''));
     setFechaCobro(p.fecha >= fechaHoy ? p.fecha : fechaHoy);
     setVistaActual('terminal');
   };
@@ -207,6 +235,7 @@ export default function PagosModule() {
       setErrorMsg('Debe vincular un alumno antes de suspender en borrador.');
       return;
     }
+    if (!datosCobro.vinculo) { setErrorMsg(datosCobro.error); return; }
     if (precioUnitario <= 0) {
       setErrorMsg('El precio unitario debe ser mayor a cero.');
       return;
@@ -214,13 +243,14 @@ export default function PagosModule() {
 
     try {
       setGuardando(true);
-      const conceptoCompleto = `${concepto.trim()} (${cantidad} ${modalidad}${cantidad > 1 ? (modalidad === 'Mes' ? 'es' : 's') : ''})`;
+      const conceptoCompleto = datosCobro.vinculo.concepto;
 
       if (pagoBorradorId) {
         const { error } = await supabase
           .from('pagos')
           .update({
             alumno_id: alumnoSeleccionado.id,
+            ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
             cantidad,
@@ -240,6 +270,7 @@ export default function PagosModule() {
           .insert([{
             comprobante: nuevoComp,
             alumno_id: alumnoSeleccionado.id,
+            ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
             cantidad,
@@ -273,6 +304,7 @@ export default function PagosModule() {
       setErrorMsg('Debe seleccionar un alumno para procesar el cobro.');
       return;
     }
+    if (!datosCobro.vinculo) { setErrorMsg(datosCobro.error); return; }
     if (precioUnitario <= 0 || totalACobrar <= 0) {
       setErrorMsg('El importe debe ser un valor positivo y mayor a cero.');
       return;
@@ -292,7 +324,7 @@ export default function PagosModule() {
 
     try {
       setGuardando(true);
-      const conceptoCompleto = `${concepto.trim()} (${cantidad} ${modalidad}${cantidad > 1 ? (modalidad === 'Mes' ? 'es' : 's') : ''})`;
+      const conceptoCompleto = datosCobro.vinculo.concepto;
 
       let pagoConfirmadoResult: PagoConDetalle;
 
@@ -301,6 +333,7 @@ export default function PagosModule() {
           .from('pagos')
           .update({
             alumno_id: alumnoSeleccionado.id,
+            ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
             cantidad,
@@ -323,6 +356,7 @@ export default function PagosModule() {
           .insert([{
             comprobante: nuevoComp,
             alumno_id: alumnoSeleccionado.id,
+            ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
             cantidad,
@@ -609,10 +643,10 @@ export default function PagosModule() {
               <tbody>
                 <tr>
                   <td>
-                    <strong style="color: #0f172a; font-size: 12px;">${pago.concepto}</strong>
+                    <strong style="color: #0f172a; font-size: 12px;">${escaparTextoRecibo(pago.concepto)}</strong>
                     ${pago.observaciones ? `<div style="font-size:10px; color:#64748b; margin-top:4px;">${pago.observaciones}</div>` : ''}
                   </td>
-                  <td style="text-align: center; color: #475569;">${pago.fecha.slice(0, 7)}</td>
+                  <td style="text-align: center; color: #475569;">${pago.periodo_desde ? pago.periodo_desde + ' al ' + pago.periodo_hasta : pago.fecha.slice(0, 7)}</td>
                   <td style="text-align: center; color: #475569;">${cantVal}</td>
                   <td style="text-align: right; font-weight: 700; color: #0f172a;">$ ${totalFormateado}</td>
                 </tr>
@@ -654,7 +688,7 @@ export default function PagosModule() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <button
               onClick={() => { limpiarFormulario(); setVistaActual('historial'); }}
-              style={{ backgroundColor: 'transparent', border: 'none', color: '#2563eb', fontWeight: 700, fontSize: '13px', cursor: 'pointer', padding: 0 }}
+              style={{ backgroundColor: 'transparent', border: 'none', color: '#2563eb', fontWeight: 700, fontSize: '15px', cursor: 'pointer', padding: 0 }}
             >
               ← Volver al historial de cobros
             </button>
@@ -673,7 +707,7 @@ export default function PagosModule() {
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '6px',
-                  fontSize: '13px',
+                  fontSize: '15px',
                   fontWeight: 700,
                   cursor: (!alumnoSeleccionado || guardando) ? 'not-allowed' : 'pointer',
                   boxShadow: '0 2px 4px rgba(37,99,235,0.2)'
@@ -695,7 +729,7 @@ export default function PagosModule() {
                   limpiarFormulario();
                   setVistaActual('historial');
                 }}
-                style={{ padding: '9px 16px', backgroundColor: '#ffffff', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                style={{ padding: '9px 16px', backgroundColor: '#ffffff', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
               >
                 Cancelar Operación
               </button>
@@ -703,16 +737,16 @@ export default function PagosModule() {
           </div>
 
           <div style={{ marginBottom: '22px' }}>
-            <h1 style={{ margin: 0, color: '#0f172a', fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em' }}>
+            <h1 style={{ margin: 0, color: '#0f172a', fontSize: '25px', fontWeight: 700, letterSpacing: '-0.025em' }}>
               Terminal de Facturación y Cobro
             </h1>
-            <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '13px' }}>
+            <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '15px' }}>
               Mesa de Entrada · Registro formal de ingresos académicos.
             </p>
           </div>
 
           {errorMsg && (
-            <div style={{ padding: '12px 16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', marginBottom: '20px', fontSize: '13px', fontWeight: 600 }}>
+            <div style={{ padding: '12px 16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', marginBottom: '20px', fontSize: '15px', fontWeight: 600 }}>
               {errorMsg}
             </div>
           )}
@@ -722,12 +756,12 @@ export default function PagosModule() {
             {/* PANEL IZQUIERDO */}
             <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '28px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               
-              <h2 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 1. Selección del Estudiante
               </h2>
 
               <div style={{ position: 'relative', marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                   Buscar por Apellido, Nombre, Legajo o DNI *
                 </label>
                 <input
@@ -738,9 +772,10 @@ export default function PagosModule() {
                   onChange={(e) => {
                     setTextoBusquedaAlumno(e.target.value);
                     setAlumnoSeleccionado(null);
+                    setActividadInscripcionId(''); setSesionId('');
                     setMostrarDropdownAlumnos(true);
                   }}
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box', outline: 'none' }}
                 />
 
                 {mostrarDropdownAlumnos && alumnosSugeridos.length > 0 && (
@@ -766,10 +801,10 @@ export default function PagosModule() {
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
                           {al.apellido}, {al.nombre}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        <div style={{ fontSize: '13px', color: '#64748b' }}>
                           DNI: {al.dni} | Legajo: <strong>{al.legajo || 'Sin Legajo'}</strong>
                         </div>
                       </div>
@@ -780,87 +815,67 @@ export default function PagosModule() {
 
               {alumnoSeleccionado && (
                 <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '14px', marginBottom: '22px' }}>
-                  <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Alumno Vinculado
                   </span>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: '4px 0 2px 0' }}>
+                  <div style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: '4px 0 2px 0' }}>
                     {alumnoSeleccionado.apellido}, {alumnoSeleccionado.nombre}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#334155' }}>
+                  <div style={{ fontSize: '14px', color: '#334155' }}>
                     DNI: {alumnoSeleccionado.dni} | Legajo: {alumnoSeleccionado.legajo || 'S/L'} | Email: {alumnoSeleccionado.email || '—'}
                   </div>
                 </div>
               )}
 
-              <h2 style={{ margin: '24px 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                2. Detalle y Modalidad del Cobro
+              <h2 style={{ margin: '24px 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                2. Detalle del Cobro
               </h2>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    1. Modalidad *
-                  </label>
-                  <select
-                    value={modalidad}
-                    onChange={(e: any) => handleCambiarModalidad(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', boxSizing: 'border-box', fontWeight: 600 }}
-                  >
-                    <option value="Mes">Por Mes</option>
-                    <option value="Semana">Por Semana</option>
-                    <option value="Clase">Por Clase</option>
+              <div style={{ display: 'grid', gap: '12px', marginBottom: '18px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
+                  Actividad que abona *
+                  <select value={actividadElegida?.sesiones[0].id || ''} disabled={!alumnoSeleccionado || cargandoActividades}
+                    onChange={(e) => { setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setPrecioUnitario(0); }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}>
+                    <option value="">{cargandoActividades ? 'Cargando inscripciones...' : 'Seleccioná un curso o una clase particular'}</option>
+                    {actividades.map(a => <option key={a.clave} value={a.sesiones[0].id}>{a.nombre} · {a.materias.join(', ')} · {a.docente}</option>)}
                   </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    2. Cantidad de {modalidad === 'Clase' ? 'Clases' : modalidad === 'Semana' ? 'Semanas' : 'Meses'} *
+                </label>
+                {inscripcionesCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{inscripcionesCobro.error}</p>}
+                {alumnoSeleccionado && !cargandoActividades && !actividades.length && !inscripcionesCobro.error && <p style={{ color: '#64748b', margin: 0 }}>Este alumno no tiene inscripciones confirmadas disponibles para cobrar.</p>}
+                {actividadElegida && (modalidad === 'Clase' ? (
+                  <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Clase que abona *
+                    <select value={sesionId} onChange={e => setSesionId(e.target.value)} disabled={!actividadElegida}
+                      style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                      <option value="">Seleccioná una sesión</option>
+                      {actividadElegida?.sesiones.map(s => <option key={s.id} value={s.id}>{s.turnos_clase?.fecha} · {s.turnos_clase?.hora_inicio.slice(0,5)} a {s.turnos_clase?.hora_fin.slice(0,5)} · {s.turnos_clase?.materias?.nombre}</option>)}
+                    </select>
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={cantidad}
-                    onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                    onChange={(e) => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', fontWeight: 700 }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    3. Precio Unitario ($) *
+                ) : (
+                  <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Mes abonado *
+                    <input type="month" value={periodoAbonado}
+                      onChange={e => setPeriodoAbonado(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    value={precioUnitario || ''}
-                    onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                    onChange={(e) => setPrecioUnitario(Math.max(0, parseFloat(e.target.value) || 0))}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', fontWeight: 700 }}
-                  />
-                </div>
+                ))}
+                {actividadElegida && (periodoAbonado || sesionId) && datosCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{datosCobro.error}</p>}
+                {datosCobro.vinculo && <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '8px', color: '#1e3a8a', fontSize: '15px' }}>{datosCobro.vinculo.concepto}</div>}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    Concepto / Detalle de Inscripción *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: Cuota Regular, Curso de Ingreso, Particular..."
-                    value={concepto}
-                    onChange={(e) => setConcepto(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
-                  />
-                </div>
+              {datosCobro.vinculo && <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  {modalidad === 'Mes' ? 'Precio del mes ($)' : 'Precio de la clase ($)'} *
+                </label>
+                <input type="number" min="0.01" step="0.01" required value={precioUnitario || ''}
+                  onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                  onChange={e => setPrecioUnitario(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder={modalidad === 'Mes' ? 'Ingresá el importe del mes seleccionado' : 'Ingresá el importe de esta clase'}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '16px', boxSizing: 'border-box' }} />
+              </div>}
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Fecha de Operación *
                   </label>
                   <input
@@ -869,7 +884,7 @@ export default function PagosModule() {
                     min={fechaHoy}
                     value={fechaCobro}
                     onChange={(e) => setFechaCobro(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
@@ -878,19 +893,19 @@ export default function PagosModule() {
 
             {/* PANEL DERECHO */}
             <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '28px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-              <h2 style={{ margin: '0 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 3. Forma de Cobro
               </h2>
 
               <form onSubmit={handleConfirmarCobro} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Medio de Pago *
                   </label>
                   <select
                     value={medioPago}
                     onChange={(e: any) => setMedioPago(e.target.value)}
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', fontWeight: 600, color: '#0f172a' }}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', fontWeight: 600, color: '#0f172a' }}
                   >
                     <option value="Efectivo">Efectivo</option>
                     <option value="Transferencia">Transferencia bancaria</option>
@@ -901,7 +916,7 @@ export default function PagosModule() {
 
                 {medioPago === 'Efectivo' ? (
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                       Monto Recibido en Mano ($) *
                     </label>
                     <input
@@ -912,19 +927,19 @@ export default function PagosModule() {
                       value={montoRecibido || ''}
                       onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
                       onChange={(e) => setMontoRecibido(Math.max(0, parseFloat(e.target.value) || 0))}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', fontWeight: 700, boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '18px', fontWeight: 700, boxSizing: 'border-box' }}
                     />
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>Vuelto a entregar:</span>
-                      <span style={{ fontSize: '18px', fontWeight: 800, color: vuelto > 0 ? '#15803d' : '#64748b' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 700, color: '#475569' }}>Vuelto a entregar:</span>
+                      <span style={{ fontSize: '19px', fontWeight: 800, color: vuelto > 0 ? '#15803d' : '#64748b' }}>
                         ${vuelto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>
                 ) : (
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                       Nº de Referencia / Comprobante de Operación *
                     </label>
                     <input
@@ -933,21 +948,21 @@ export default function PagosModule() {
                       placeholder="Ej: Op. #981240 / Lote 412"
                       value={nroReferencia}
                       onChange={(e) => setNroReferencia(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box' }}
                     />
                   </div>
                 )}
 
                 <div style={{ padding: '14px 0', borderTop: '2px dashed #e2e8f0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>
-                    <span>Subtotal ({cantidad} × ${precioUnitario.toLocaleString('es-AR')}):</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#64748b', marginBottom: '6px' }}>
+                    <span>{modalidad === 'Mes' ? 'Importe del mes:' : 'Importe de la clase:'}</span>
                     <span>${totalACobrar.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase' }}>
                       Total Operación:
                     </span>
-                    <span style={{ fontSize: '24px', fontWeight: 800, color: '#15803d' }}>
+                    <span style={{ fontSize: '25px', fontWeight: 800, color: '#15803d' }}>
                       ${totalACobrar.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -955,7 +970,7 @@ export default function PagosModule() {
 
                 <button
                   type="submit"
-                  disabled={guardando || !alumnoSeleccionado || totalACobrar <= 0}
+                  disabled={guardando || !alumnoSeleccionado || totalACobrar <= 0 || !datosCobro.vinculo}
                   style={{
                     width: '100%',
                     padding: '13px',
@@ -963,7 +978,7 @@ export default function PagosModule() {
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '8px',
-                    fontSize: '14px',
+                    fontSize: '16px',
                     fontWeight: 700,
                     cursor: (!alumnoSeleccionado || totalACobrar <= 0 || guardando) ? 'not-allowed' : 'pointer',
                     boxShadow: '0 4px 6px -1px rgba(11,30,51,0.2)'
@@ -980,21 +995,21 @@ export default function PagosModule() {
         <div>
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <div>
-              <h1 style={{ margin: 0, color: '#0f172a', fontSize: '24px', fontWeight: 800, letterSpacing: '-0.025em' }}>
+              <h1 style={{ margin: 0, color: '#0f172a', fontSize: '25px', fontWeight: 800, letterSpacing: '-0.025em' }}>
                 Gestión Inicial de Pagos y Cobros
               </h1>
             </div>
 
             <button
               onClick={() => { limpiarFormulario(); setVistaActual('terminal'); }}
-              style={{ padding: '10px 18px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+              style={{ padding: '10px 18px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
             >
               + Registrar Nuevo Cobro
             </button>
           </header>
 
           {mensajeExito && (
-            <div style={{ padding: '12px 16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '7px', marginBottom: '16px', fontSize: '13px', fontWeight: 600 }}>
+            <div style={{ padding: '12px 16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '7px', marginBottom: '16px', fontSize: '15px', fontWeight: 600 }}>
               {mensajeExito}
             </div>
           )}
@@ -1006,13 +1021,13 @@ export default function PagosModule() {
               placeholder="Buscar por comprobante, concepto, alumno o legajo..."
               value={busqueda}
               onChange={(e) => { setBusqueda(e.target.value); setPaginaActual(1); }}
-              style={{ flex: 1, minWidth: '280px', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none' }}
+              style={{ flex: 1, minWidth: '280px', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '15px', outline: 'none' }}
             />
 
             <select
               value={filtroEstado}
               onChange={(e) => { setFiltroEstado(e.target.value); setPaginaActual(1); }}
-              style={{ padding: '0 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '13px', color: '#0f172a', fontWeight: 600 }}
+              style={{ padding: '0 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '15px', color: '#0f172a', fontWeight: 600 }}
             >
               <option value="todos">Todos los Estados</option>
               <option value="CONFIRMADO">Confirmados</option>
@@ -1023,7 +1038,7 @@ export default function PagosModule() {
             <select
               value={filtroMedio}
               onChange={(e) => { setFiltroMedio(e.target.value); setPaginaActual(1); }}
-              style={{ padding: '0 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '13px', color: '#0f172a', fontWeight: 600 }}
+              style={{ padding: '0 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '15px', color: '#0f172a', fontWeight: 600 }}
             >
               <option value="todos">Todos los medios de pago</option>
               <option value="Efectivo">Efectivo</option>
@@ -1034,9 +1049,9 @@ export default function PagosModule() {
           </div>
 
           <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
               <thead>
-                <tr style={{ borderBottom: '1.5px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <tr style={{ borderBottom: '1.5px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <th style={{ padding: '14px 16px' }}>Comprobante</th>
                   <th style={{ padding: '14px 16px' }}>Fecha</th>
                   <th style={{ padding: '14px 16px' }}>Alumno / Legajo</th>
@@ -1067,18 +1082,18 @@ export default function PagosModule() {
                         <td style={{ padding: '12px 16px', color: '#475569' }}>{p.fecha}</td>
                         <td style={{ padding: '12px 16px' }}>
                           <strong style={{ color: '#0f172a', display: 'block' }}>{p.alumnos?.apellido}, {p.alumnos?.nombre}</strong>
-                          <span style={{ fontSize: '11px', color: '#64748b' }}>DNI: {p.alumnos?.dni || '—'} | Leg: {p.alumnos?.legajo || 'S/L'}</span>
+                          <span style={{ fontSize: '13px', color: '#64748b' }}>DNI: {p.alumnos?.dni || '—'} | Leg: {p.alumnos?.legajo || 'S/L'}</span>
                         </td>
                         <td style={{ padding: '12px 16px', color: '#334155' }}>{p.concepto}</td>
                         <td style={{ padding: '12px 16px', color: '#475569' }}>{p.medio_pago}</td>
-                        <td style={{ padding: '12px 16px', fontWeight: 700, color: esBorrador ? '#b45309' : esCancelado ? '#991b1b' : '#15803d', fontSize: '14px' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 700, color: esBorrador ? '#b45309' : esCancelado ? '#991b1b' : '#15803d', fontSize: '16px' }}>
                           ${Number(p.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                         </td>
                         <td style={{ padding: '12px 16px' }}>
                           <span style={{
                             padding: '3px 8px',
                             borderRadius: '4px',
-                            fontSize: '10.5px',
+                            fontSize: '12.5px',
                             fontWeight: 700,
                             backgroundColor: esBorrador ? '#fef3c7' : esCancelado ? '#fee2e2' : '#f0fdf4',
                             color: esBorrador ? '#92400e' : esCancelado ? '#991b1b' : '#166534',
@@ -1093,25 +1108,25 @@ export default function PagosModule() {
                               <>
                                 <button
                                   onClick={() => handleReanudarBorrador(p)}
-                                  style={{ padding: '6px 10px', backgroundColor: '#2563eb', border: 'none', borderRadius: '5px', fontSize: '11px', fontWeight: 700, color: '#ffffff', cursor: 'pointer' }}
+                                  style={{ padding: '6px 10px', backgroundColor: '#2563eb', border: 'none', borderRadius: '5px', fontSize: '13px', fontWeight: 700, color: '#ffffff', cursor: 'pointer' }}
                                 >
                                   Reanudar Cobro
                                 </button>
                                 <button
                                   onClick={() => handleMarcarCancelado(p.id)}
-                                  style={{ padding: '6px 10px', backgroundColor: '#fff', border: '1px solid #fca5a5', borderRadius: '5px', fontSize: '11px', fontWeight: 700, color: '#dc2626', cursor: 'pointer' }}
+                                  style={{ padding: '6px 10px', backgroundColor: '#fff', border: '1px solid #fca5a5', borderRadius: '5px', fontSize: '13px', fontWeight: 700, color: '#dc2626', cursor: 'pointer' }}
                                 >
                                   Cancelar
                                 </button>
                               </>
                             ) : esCancelado ? (
-                              <span title="Operación anulada e inmutable" style={{ fontSize: '13px', color: '#dc2626', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 8px' }}>
+                              <span title="Operación anulada e inmutable" style={{ fontSize: '15px', color: '#dc2626', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 8px' }}>
                                 ⊘ Cancelado
                               </span>
                             ) : (
                               <button
                                 onClick={() => setComprobanteSeleccionado(p)}
-                                style={{ padding: '6px 12px', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '5px', fontSize: '11px', fontWeight: 700, color: '#0b1e33', cursor: 'pointer' }}
+                                style={{ padding: '6px 12px', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '5px', fontSize: '13px', fontWeight: 700, color: '#0b1e33', cursor: 'pointer' }}
                               >
                                 Ver Recibo Oficial
                               </button>
@@ -1132,17 +1147,17 @@ export default function PagosModule() {
               <button
                 onClick={() => setPaginaActual(p => Math.max(p - 1, 1))}
                 disabled={paginaActual === 1}
-                style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === 1 ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '12px', fontWeight: 700, cursor: paginaActual === 1 ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === 1 ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '14px', fontWeight: 700, cursor: paginaActual === 1 ? 'not-allowed' : 'pointer' }}
               >
                 Anterior
               </button>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+              <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>
                 Página {paginaActual} de {totalPaginas}
               </span>
               <button
                 onClick={() => setPaginaActual(p => Math.min(p + 1, totalPaginas))}
                 disabled={paginaActual === totalPaginas}
-                style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === totalPaginas ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '12px', fontWeight: 700, cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === totalPaginas ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '14px', fontWeight: 700, cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer' }}
               >
                 Siguiente
               </button>
@@ -1154,21 +1169,21 @@ export default function PagosModule() {
       {/* MODAL COBRO REGISTRADO CON ÉXITO */}
       {pagoRecienCreado && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 120, backgroundColor: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', width: '100%', maxWidth: '460px', padding: '36px 32px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)', border: '1px solid #e2e8f0' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', width: '100%', maxWidth: '460px', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', padding: '36px 32px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)', border: '1px solid #e2e8f0' }}>
             <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', border: '2px solid #bbf7d0' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
             
-            <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: '0 0 6px 0' }}>
+            <h2 style={{ fontSize: '21px', fontWeight: 800, color: '#0f172a', margin: '0 0 6px 0' }}>
               ¡Cobro Registrado con Éxito!
             </h2>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px 0' }}>
+            <p style={{ fontSize: '15px', color: '#64748b', margin: '0 0 20px 0' }}>
               Comprobante <strong>{pagoRecienCreado.comprobante}</strong> generado en el sistema.
             </p>
 
-            <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', marginBottom: '24px', textAlign: 'left', fontSize: '12.5px' }}>
+            <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', marginBottom: '24px', textAlign: 'left', fontSize: '14.5px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                 <span style={{ color: '#64748b' }}>DNI:</span>
                 <strong>{pagoRecienCreado.alumnos?.dni || '—'}</strong>
@@ -1183,14 +1198,14 @@ export default function PagosModule() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '4px' }}>
                 <span style={{ color: '#0f172a', fontWeight: 700 }}>Total Abonado:</span>
-                <strong style={{ color: '#15803d', fontSize: '14px' }}>${Number(pagoRecienCreado.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong>
+                <strong style={{ color: '#15803d', fontSize: '16px' }}>${Number(pagoRecienCreado.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button
                 onClick={() => handleDescargarPDF(pagoRecienCreado)}
-                style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(37,99,235,0.2)' }}
+                style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(37,99,235,0.2)' }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1202,7 +1217,7 @@ export default function PagosModule() {
 
               <button
                 onClick={() => setPagoRecienCreado(null)}
-                style={{ width: '100%', padding: '11px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                style={{ width: '100%', padding: '11px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
               >
                 Volver al Menú Principal
               </button>
@@ -1214,7 +1229,7 @@ export default function PagosModule() {
       {/* MODAL DETALLE DE RECIBO OFICIAL (DESDE EL HISTORIAL) */}
       {comprobanteSeleccionado && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 110, backgroundColor: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', width: '100%', maxWidth: '620px', padding: '36px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', border: '2px solid #0b1e33' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', width: '100%', maxWidth: '620px', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', padding: '36px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', border: '2px solid #0b1e33' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0b1e33', paddingBottom: '16px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1225,22 +1240,22 @@ export default function PagosModule() {
                   onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }} 
                 />
                 <div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#0b1e33', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  <div style={{ fontSize: '19px', fontWeight: 800, color: '#0b1e33', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                     INSTITUTO ATENEO
                   </div>
-                  <div style={{ fontSize: '11px', color: '#2563eb', fontWeight: 700 }}>CONOCIMIENTO SIN LÍMITES</div>
+                  <div style={{ fontSize: '13px', color: '#2563eb', fontWeight: 700 }}>CONOCIMIENTO SIN LÍMITES</div>
                 </div>
               </div>
 
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase' }}>RECIBO OFICIAL DE COBRO</div>
-                <div style={{ fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>{comprobanteSeleccionado.comprobante}</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>Fecha: {comprobanteSeleccionado.fecha}</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase' }}>RECIBO OFICIAL DE COBRO</div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>{comprobanteSeleccionado.comprobante}</div>
+                <div style={{ fontSize: '13px', color: '#64748b' }}>Fecha: {comprobanteSeleccionado.fecha}</div>
               </div>
             </div>
 
             <div style={{ backgroundColor: '#f8fafc', border: '1.5px solid #0b1e33', borderRadius: '8px', padding: '14px 18px', marginBottom: '18px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px', fontSize: '12.5px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px', fontSize: '14.5px' }}>
                 <div><span style={{ color: '#64748b' }}>Comprobante:</span> <strong>{comprobanteSeleccionado.comprobante}</strong></div>
                 <div><span style={{ color: '#64748b' }}>Fecha:</span> <strong>{comprobanteSeleccionado.fecha}</strong></div>
                 <div><span style={{ color: '#64748b' }}>DNI:</span> <strong>{comprobanteSeleccionado.alumnos?.dni || '—'}</strong></div>
@@ -1252,7 +1267,7 @@ export default function PagosModule() {
 
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginBottom: '20px', border: '1.5px solid #0b1e33' }}>
               <thead>
-                <tr style={{ backgroundColor: '#0b1e33', color: '#ffffff', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>
+                <tr style={{ backgroundColor: '#0b1e33', color: '#ffffff', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase' }}>
                   <th style={{ padding: '8px 12px' }}>CONCEPTO / DESCRIPCIÓN</th>
                   <th style={{ padding: '8px 12px', textAlign: 'center' }}>CANTIDAD</th>
                   <th style={{ padding: '8px 12px', textAlign: 'right' }}>PRECIO UNITARIO</th>
@@ -1260,10 +1275,10 @@ export default function PagosModule() {
                 </tr>
               </thead>
               <tbody>
-                <tr style={{ borderBottom: '1px solid #e2e8f0', fontSize: '12.5px' }}>
+                <tr style={{ borderBottom: '1px solid #e2e8f0', fontSize: '14.5px' }}>
                   <td style={{ padding: '12px' }}>
                     <strong>{comprobanteSeleccionado.concepto}</strong>
-                    {comprobanteSeleccionado.observaciones && <div style={{ fontSize: '11px', color: '#64748b' }}>{comprobanteSeleccionado.observaciones}</div>}
+                    {comprobanteSeleccionado.observaciones && <div style={{ fontSize: '13px', color: '#64748b' }}>{comprobanteSeleccionado.observaciones}</div>}
                   </td>
                   <td style={{ padding: '12px', textAlign: 'center' }}>{comprobanteSeleccionado.cantidad || 1}</td>
                   <td style={{ padding: '12px', textAlign: 'right' }}>
@@ -1277,24 +1292,24 @@ export default function PagosModule() {
             </table>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', backgroundColor: '#f8fafc', padding: '14px 18px', borderRadius: '8px', border: '1.5px solid #0b1e33' }}>
-              <span style={{ fontSize: '14px', fontWeight: 800, color: '#0b1e33', textTransform: 'uppercase' }}>TOTAL COBRADO:</span>
-              <span style={{ fontSize: '22px', fontWeight: 800, color: '#15803d' }}>
+              <span style={{ fontSize: '16px', fontWeight: 800, color: '#0b1e33', textTransform: 'uppercase' }}>TOTAL COBRADO:</span>
+              <span style={{ fontSize: '23px', fontWeight: 800, color: '#15803d' }}>
                 ${Number(comprobanteSeleccionado.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
               </span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Operación procesada en Mesa de Entrada</span>
+              <span style={{ fontSize: '13px', color: '#94a3b8' }}>Operación procesada en Mesa de Entrada</span>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   onClick={() => handleDescargarPDF(comprobanteSeleccionado)}
-                  style={{ padding: '9px 16px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                  style={{ padding: '9px 16px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
                 >
                   Descargar PDF
                 </button>
                 <button
                   onClick={() => setComprobanteSeleccionado(null)}
-                  style={{ padding: '9px 16px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                  style={{ padding: '9px 16px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
                 >
                   Cerrar
                 </button>

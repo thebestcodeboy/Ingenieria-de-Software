@@ -185,10 +185,10 @@ export default function ClasesParticularesModule() {
       {/* Encabezado */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Clases Particulares
           </h1>
-          <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 0 0', fontWeight: 500 }}>
+          <p style={{ color: '#475569', fontSize: '15px', margin: '4px 0 0 0', fontWeight: 500 }}>
             {clases.length} {clases.length === 1 ? 'propuesta registrada' : 'propuestas registradas'} de apoyo académico
           </p>
         </div>
@@ -201,7 +201,7 @@ export default function ClasesParticularesModule() {
             border: 'none',
             borderRadius: '6px',
             padding: '10px 20px',
-            fontSize: '13px',
+            fontSize: '15px',
             fontWeight: 600,
             cursor: 'pointer',
             display: 'inline-flex',
@@ -213,17 +213,17 @@ export default function ClasesParticularesModule() {
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1e3a5f')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0b1e33')}
         >
-          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span> Registrar Clase Particular
+          <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span> Registrar Clase Particular
         </button>
       </div>
 
       {success && !showModal && (
-        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
           {success}
         </div>
       )}
       {error && !showModal && (
-        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
           {error}
         </div>
       )}
@@ -252,7 +252,7 @@ export default function ClasesParticularesModule() {
             placeholder="Buscar por nombre de actividad o materia..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
+            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '15px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
           />
         </div>
 
@@ -265,7 +265,7 @@ export default function ClasesParticularesModule() {
               padding: '10px 14px',
               border: '1.5px solid #cbd5e1',
               borderRadius: '6px',
-              fontSize: '13px',
+              fontSize: '15px',
               backgroundColor: '#ffffff',
               color: '#0f172a',
               fontWeight: 500,
@@ -288,7 +288,7 @@ export default function ClasesParticularesModule() {
               padding: '10px 14px',
               border: '1.5px solid #cbd5e1',
               borderRadius: '6px',
-              fontSize: '13px',
+              fontSize: '15px',
               backgroundColor: '#ffffff',
               color: '#0f172a',
               fontWeight: 500,
@@ -304,15 +304,15 @@ export default function ClasesParticularesModule() {
       </div>
 
       {/* Tabla Institucional */}
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflowX: 'auto', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '32%' }}>NOMBRE DE LA ACTIVIDAD</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '26%' }}>MATERIA ASOCIADA</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>NIVEL</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
-              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ACCIÓN</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '32%' }}>NOMBRE DE LA ACTIVIDAD</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '26%' }}>MATERIA ASOCIADA</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>NIVEL</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -325,8 +325,8 @@ export default function ClasesParticularesModule() {
             ) : clasesFiltradas.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ padding: '54px 20px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>No hay clases particulares que coincidan con los filtros</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Intenta ajustando los filtros de búsqueda superior.</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px' }}>No hay clases particulares que coincidan con los filtros</div>
+                  <div style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Intenta ajustando los filtros de búsqueda superior.</div>
                 </td>
               </tr>
             ) : (
@@ -336,7 +336,7 @@ export default function ClasesParticularesModule() {
 
                 return (
                   <tr key={c.id} style={{ borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.15s ease' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}>
-                    <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase' }}>
+                    <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '15px', textTransform: 'uppercase' }}>
                       {c.nombre}
                     </td>
                     <td style={{ padding: '16px 20px', color: '#475569', fontWeight: 500 }}>
@@ -346,7 +346,7 @@ export default function ClasesParticularesModule() {
                       <span style={{
                         backgroundColor: esUniv ? '#e0e7ff' : '#fef3c7',
                         color: esUniv ? '#3730a3' : '#92400e',
-                        fontSize: '11px',
+                        fontSize: '13px',
                         padding: '4px 10px',
                         borderRadius: '4px',
                         fontWeight: 600,
@@ -364,7 +364,7 @@ export default function ClasesParticularesModule() {
                           border: `1px solid ${estaActivo ? '#bbf7d0' : '#fca5a5'}`,
                           padding: '4px 10px',
                           borderRadius: '4px',
-                          fontSize: '11px',
+                          fontSize: '13px',
                           fontWeight: 700,
                           letterSpacing: '0.04em',
                           userSelect: 'none',
@@ -383,7 +383,7 @@ export default function ClasesParticularesModule() {
                           color: '#0b1e33',
                           borderRadius: '5px',
                           padding: '6px 14px',
-                          fontSize: '12px',
+                          fontSize: '14px',
                           fontWeight: 700,
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
@@ -433,19 +433,21 @@ export default function ClasesParticularesModule() {
             borderRadius: '12px',
             width: '100%',
             maxWidth: '480px',
+            maxHeight: 'calc(100dvh - 32px)',
+            overflowY: 'auto',
             padding: '28px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box'
           }}>
-            <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 6px 0', color: '#0f172a' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 6px 0', color: '#0f172a' }}>
               {editingId ? 'Modificar Clase Particular' : 'Registrar Clase Particular'}
             </h2>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 20px 0' }}>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 20px 0' }}>
               La fecha, el aula y el profesor se asignan al programar el turno.
             </p>
 
             {error && (
-              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '12px', marginBottom: '16px' }}>
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}>
                 {error}
               </div>
             )}
@@ -453,7 +455,7 @@ export default function ClasesParticularesModule() {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Nombre de la actividad (Solo texto) *
                 </label>
                 <input
@@ -464,12 +466,12 @@ export default function ClasesParticularesModule() {
                   placeholder="Ej. Apoyo de Matemática"
                   maxLength={120}
                   required
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Nivel *
                 </label>
                 <select
@@ -478,7 +480,7 @@ export default function ClasesParticularesModule() {
                   value={form.nivel}
                   onChange={handleChange}
                   required
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
                 >
                   <option value="universitario">Nivel Universitario</option>
                   <option value="secundario">Nivel Secundario</option>
@@ -486,7 +488,7 @@ export default function ClasesParticularesModule() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Materia *
                 </label>
                 <select
@@ -495,7 +497,7 @@ export default function ClasesParticularesModule() {
                   value={form.materiaId}
                   onChange={handleChange}
                   required
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
                 >
                   <option value="">Seleccioná una materia</option>
                   {materiasFiltradasModal.map((materia) => (
@@ -508,7 +510,7 @@ export default function ClasesParticularesModule() {
 
               {editingId && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                     Estado *
                   </label>
                   <select
@@ -517,7 +519,7 @@ export default function ClasesParticularesModule() {
                     value={form.activo ? 'true' : 'false'}
                     onChange={handleChange}
                     required
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
                   >
                     <option value="true">Activo</option>
                     <option value="false">Inactivo</option>
@@ -529,14 +531,14 @@ export default function ClasesParticularesModule() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '15px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '13px', fontWeight: 600, color: '#ffffff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '15px', fontWeight: 600, color: '#ffffff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
                 >
                   {saving ? 'Guardando...' : editingId ? 'Guardar Cambios' : 'Registrar clase particular'}
                 </button>

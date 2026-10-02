@@ -253,10 +253,10 @@ export default function LoginView() {
               </svg>
             </div>
             <div>
-              <div style={{ color: '#ffffff', fontWeight: 800, fontSize: '15px', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
+              <div style={{ color: '#ffffff', fontWeight: 800, fontSize: '17px', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
                 Instituto Ateneo
               </div>
-              <div style={{ color: '#94a3b8', fontSize: '11px', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+              <div style={{ color: '#94a3b8', fontSize: '13px', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
                 Plataforma de Gestión Integral
               </div>
             </div>
@@ -266,12 +266,12 @@ export default function LoginView() {
             <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#f8fafc', lineHeight: 1.3, margin: '0 0 14px 0' }}>
               Control y gestión académica centralizada.
             </h2>
-            <p style={{ color: '#94a3b8', fontSize: '13.5px', lineHeight: 1.6, margin: 0 }}>
+            <p style={{ color: '#94a3b8', fontSize: '15.5px', lineHeight: 1.6, margin: 0 }}>
               Accedé a los legajos de alumnos, cronograma de turnos, cursos preparatorios y nómina docente con seguridad de accesos por rol.
             </p>
           </div>
 
-          <div style={{ color: '#64748b', fontSize: '11.5px', zIndex: 1 }}>
+          <div style={{ color: '#64748b', fontSize: '13.5px', zIndex: 1 }}>
             &copy; {new Date().getFullYear()} Instituto Ateneo. Acceso institucional.
           </div>
         </div>
@@ -311,7 +311,7 @@ export default function LoginView() {
                 alignItems: 'center',
                 gap: '8px',
                 cursor: 'pointer',
-                fontSize: '11.5px',
+                fontSize: '13.5px',
                 fontWeight: 600,
                 transition: 'all 0.2s ease',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
@@ -359,7 +359,7 @@ export default function LoginView() {
                     style={{
                       flex: 1,
                       padding: '9px 4px',
-                      fontSize: '12.5px',
+                      fontSize: '14.5px',
                       fontWeight: portal === 'alumno' ? 700 : 600,
                       border: 'none',
                       borderRadius: '6px',
@@ -377,7 +377,7 @@ export default function LoginView() {
                     style={{
                       flex: 1,
                       padding: '9px 4px',
-                      fontSize: '12.5px',
+                      fontSize: '14.5px',
                       fontWeight: portal === 'profesor' ? 700 : 600,
                       border: 'none',
                       borderRadius: '6px',
@@ -402,7 +402,7 @@ export default function LoginView() {
                   border: '1px solid #bae6fd',
                   padding: '5px 12px',
                   borderRadius: '20px',
-                  fontSize: '11px',
+                  fontSize: '13px',
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em'
@@ -414,10 +414,10 @@ export default function LoginView() {
 
               {/* Título de la sección */}
               <div style={{ marginBottom: '22px' }}>
-                <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
+                <h1 style={{ fontSize: '23px', fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
                   {esStaff ? 'Acceso de Personal' : portal === 'alumno' ? 'Portal del Estudiante' : 'Portal Docente'}
                 </h1>
-                <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
+                <p style={{ color: '#64748b', fontSize: '15px', margin: 0 }}>
                   {esStaff
                     ? 'Ingresá con tu correo institucional (Mesa de Entrada o Gerencia).'
                     : 'Ingresá con tu usuario y contraseña asignada.'}
@@ -435,7 +435,7 @@ export default function LoginView() {
                   color: '#991b1b',
                   padding: '11px 13px',
                   borderRadius: '6px',
-                  fontSize: '12.5px',
+                  fontSize: '14.5px',
                   lineHeight: 1.4,
                   marginBottom: '18px'
                 }}>
@@ -450,7 +450,7 @@ export default function LoginView() {
 
               <form onSubmit={handleLoginSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#1e293b', marginBottom: '6px' }}>
                     {getLabelIdentifier()}
                   </label>
                   <div style={{ position: 'relative' }}>
@@ -470,7 +470,7 @@ export default function LoginView() {
                         borderRadius: '6px',
                         border: `1.5px solid ${fieldErrors.identifier ? '#ef4444' : '#cbd5e1'}`,
                         backgroundColor: fieldErrors.identifier ? '#fff5f5' : '#ffffff',
-                        fontSize: '13px',
+                        fontSize: '15px',
                         outline: 'none',
                         color: '#0f172a',
                         boxSizing: 'border-box'
@@ -491,14 +491,14 @@ export default function LoginView() {
                     </span>
                   </div>
                   {fieldErrors.identifier && (
-                    <p style={{ color: '#dc2626', fontSize: '11.5px', margin: '4px 0 0 2px' }}>
+                    <p style={{ color: '#dc2626', fontSize: '13.5px', margin: '4px 0 0 2px' }}>
                       &bull; {fieldErrors.identifier}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#1e293b', marginBottom: '6px' }}>
                     Contraseña
                   </label>
                   <div style={{ position: 'relative' }}>
@@ -516,7 +516,7 @@ export default function LoginView() {
                         borderRadius: '6px',
                         border: `1.5px solid ${fieldErrors.password ? '#ef4444' : '#cbd5e1'}`,
                         backgroundColor: fieldErrors.password ? '#fff5f5' : '#ffffff',
-                        fontSize: '13px',
+                        fontSize: '15px',
                         outline: 'none',
                         color: '#0f172a',
                         boxSizing: 'border-box'
@@ -568,7 +568,7 @@ export default function LoginView() {
                     </button>
                   </div>
                   {fieldErrors.password && (
-                    <p style={{ color: '#dc2626', fontSize: '11.5px', margin: '4px 0 0 2px' }}>
+                    <p style={{ color: '#dc2626', fontSize: '13.5px', margin: '4px 0 0 2px' }}>
                       &bull; {fieldErrors.password}
                     </p>
                   )}
@@ -585,7 +585,7 @@ export default function LoginView() {
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '6px',
-                    fontSize: '13px',
+                    fontSize: '15px',
                     fontWeight: 600,
                     cursor: loading ? 'not-allowed' : 'pointer',
                     opacity: loading ? 0.8 : 1,
@@ -623,10 +623,10 @@ export default function LoginView() {
                     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                 </div>
-                <h2 style={{ fontSize: '19px', fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
                   Configurá tu Contraseña
                 </h2>
-                <p style={{ color: '#64748b', fontSize: '12.5px', margin: 0 }}>
+                <p style={{ color: '#64748b', fontSize: '14.5px', margin: 0 }}>
                   Por seguridad institucional, reemplazá tu contraseña provisoria por una definitiva.
                 </p>
               </div>
@@ -638,7 +638,7 @@ export default function LoginView() {
                   color: '#15803d',
                   padding: '9px 12px',
                   borderRadius: '6px',
-                  fontSize: '12px',
+                  fontSize: '14px',
                   marginBottom: '14px'
                 }}>
                   {generalSuccess}
@@ -652,7 +652,7 @@ export default function LoginView() {
                   color: '#991b1b',
                   padding: '9px 12px',
                   borderRadius: '6px',
-                  fontSize: '12px',
+                  fontSize: '14px',
                   marginBottom: '14px'
                 }}>
                   {generalError}
@@ -661,7 +661,7 @@ export default function LoginView() {
 
               <form onSubmit={handlePasswordUpdateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#1e293b', marginBottom: '5px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#1e293b', marginBottom: '5px' }}>
                     Nueva Contraseña
                   </label>
                   <input
@@ -678,20 +678,20 @@ export default function LoginView() {
                       padding: '10px 12px',
                       borderRadius: '6px',
                       border: `1.5px solid ${fieldErrors.newPassword ? '#ef4444' : '#cbd5e1'}`,
-                      fontSize: '13px',
+                      fontSize: '15px',
                       color: '#0f172a',
                       boxSizing: 'border-box'
                     }}
                   />
                   {fieldErrors.newPassword && (
-                    <p style={{ color: '#dc2626', fontSize: '11.5px', margin: '4px 0 0 2px' }}>
+                    <p style={{ color: '#dc2626', fontSize: '13.5px', margin: '4px 0 0 2px' }}>
                       &bull; {fieldErrors.newPassword}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#1e293b', marginBottom: '5px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#1e293b', marginBottom: '5px' }}>
                     Confirmar Nueva Contraseña
                   </label>
                   <input
@@ -708,13 +708,13 @@ export default function LoginView() {
                       padding: '10px 12px',
                       borderRadius: '6px',
                       border: `1.5px solid ${fieldErrors.confirmPassword ? '#ef4444' : '#cbd5e1'}`,
-                      fontSize: '13px',
+                      fontSize: '15px',
                       color: '#0f172a',
                       boxSizing: 'border-box'
                     }}
                   />
                   {fieldErrors.confirmPassword && (
-                    <p style={{ color: '#dc2626', fontSize: '11.5px', margin: '4px 0 0 2px' }}>
+                    <p style={{ color: '#dc2626', fontSize: '13.5px', margin: '4px 0 0 2px' }}>
                       &bull; {fieldErrors.confirmPassword}
                     </p>
                   )}
@@ -730,7 +730,7 @@ export default function LoginView() {
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '6px',
-                    fontSize: '13px',
+                    fontSize: '15px',
                     fontWeight: 600,
                     cursor: updatingPass ? 'not-allowed' : 'pointer',
                     opacity: updatingPass ? 0.8 : 1

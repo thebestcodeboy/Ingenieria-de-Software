@@ -34,7 +34,7 @@ export async function getActiveSession() {
 export function getRoleFromUser(user) {
   if (!user) return null;
 
-  const rawRole = (user.user_metadata?.rol || user.user_metadata?.role || '').toLowerCase().trim();
+  const rawRole = (user.app_metadata?.rol || user.app_metadata?.role || user.user_metadata?.rol || user.user_metadata?.role || '').toLowerCase().trim();
 
   if (rawRole === 'gerente' || rawRole === 'gerencia') {
     return 'gerente';

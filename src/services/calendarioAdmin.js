@@ -1,24 +1,21 @@
 import { supabase } from '../lib/supabaseClient';
+import { normalizarEventoCalendario } from '../domain/calendario';
 
 /**
- * Obtiene todos los turnos del instituto dentro de un rango de fechas
- * consumiendo directamente vista_calendario (incluyendo estado).
+ * Lee los turnos guardados, incluso los que no tienen inscripciones.
  */
 export async function getCalendarioAdmin(desde, hasta) {
   const { data, error } = await supabase
-    .from('vista_calendario')
-    .select('*')
-    .gte('fecha', desde)
-    .lte('fecha', hasta)
+    .from('turnos_clase')
+    .select('*, materias(nombre), profesores(nombre, apellido), cursos_ingreso(nombre), clases_particulares(nombre), inscripciones(estado)')
+    .or(`and(fecha.gte.${desde},fecha.lte.${hasta}),fecha.is.null`)
     .order('fecha', { ascending: true })
     .order('hora_inicio', { ascending: true });
-
   if (error) {
     console.error('Error al obtener calendario institucional:', error);
-    throw new Error('No se pudo cargar la agenda institucional.');
+    throw new Error('No se pudo cargar la agenda institucional: ' + error.message);
   }
-
-  return data || [];
+  return (data || []).map(normalizarEventoCalendario);
 }
 
 /**

@@ -823,7 +823,7 @@ export default function TurnosModule() {
                     </td>
                     <td style={{ ...styles.td, textAlign: 'right' }}>
                       {esCancelado ? (
-                        <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                        <span style={{ fontSize: '14px', color: '#94a3b8', fontStyle: 'italic' }}>
                           Historial (Sin acciones)
                         </span>
                       ) : (
@@ -914,7 +914,7 @@ export default function TurnosModule() {
               </select>
 
               <label style={styles.labelModal} htmlFor="actividadId">
-                Actividad
+                Nombre de Actividad
               </label>
               <select
                 id="actividadId"
@@ -968,7 +968,7 @@ export default function TurnosModule() {
               </select>
 
               <label style={styles.labelModal} htmlFor="profesorId">
-                Profesor asignado (HU16)
+                Profesor asignado
               </label>
               <select
                 id="profesorId"
@@ -1009,7 +1009,7 @@ export default function TurnosModule() {
                     backgroundColor: '#f0fdf4',
                     border: '1px solid #bbf7d0',
                     borderRadius: '6px',
-                    fontSize: '11.5px',
+                    fontSize: '13.5px',
                     color: '#166534',
                   }}
                 >
@@ -1075,7 +1075,7 @@ export default function TurnosModule() {
                     placeholder="Cantidad máxima de alumnos"
                     style={styles.inputModal}
                   />
-                  <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '11px' }}>
+                  <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '13px' }}>
                     Se cargó por defecto la capacidad del aula. Podés reducir el cupo si no deseás llenar todos los bancos.
                   </p>
                 </div>
@@ -1130,7 +1130,7 @@ export default function TurnosModule() {
                 </div>
               </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '14px', fontWeight: 600, color: '#334155' }}>
                 <input
                   type="checkbox"
                   checked={repetirSemanal}
@@ -1151,7 +1151,7 @@ export default function TurnosModule() {
                       onChange={(e) => setMesesRepeticion(e.target.value)}
                       style={{ ...styles.inputModal, width: '100px', margin: 0 }}
                     />
-                    <span style={{ fontSize: '12px', color: '#475569' }}>meses, desde la fecha indicada</span>
+                    <span style={{ fontSize: '14px', color: '#475569' }}>meses, desde la fecha indicada</span>
                   </div>
                 </div>
               )}
@@ -1211,7 +1211,7 @@ export default function TurnosModule() {
             <div style={styles.modalEncabezado}>
               <div>
                 <h2 style={styles.modalTitulo}>Reprogramar turno de clase</h2>
-                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '13px' }}>
+                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '15px' }}>
                   Materia:{' '}
                   <strong style={{ color: '#0f172a' }}>
                     {formatearNombre(formReprogramar.materiaNombre)}
@@ -1285,7 +1285,7 @@ export default function TurnosModule() {
                 </div>
               </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '14px', fontWeight: 600, color: '#334155' }}>
                 <input
                   type="checkbox"
                   checked={formReprogramar.repetirSemanal}
@@ -1306,7 +1306,7 @@ export default function TurnosModule() {
                       onChange={(e) => setFormReprogramar({ ...formReprogramar, mesesRepeticion: e.target.value })}
                       style={{ ...styles.inputModal, width: '100px', margin: 0 }}
                     />
-                    <span style={{ fontSize: '12px', color: '#475569' }}>meses, desde la nueva fecha</span>
+                    <span style={{ fontSize: '14px', color: '#475569' }}>meses, desde la nueva fecha</span>
                   </div>
                 </div>
               )}
@@ -1369,7 +1369,7 @@ export default function TurnosModule() {
                     backgroundColor: '#f0fdf4',
                     border: '1px solid #bbf7d0',
                     borderRadius: '6px',
-                    fontSize: '11.5px',
+                    fontSize: '13.5px',
                     color: '#166534',
                   }}
                 >
@@ -1461,7 +1461,7 @@ export default function TurnosModule() {
             onMouseDown={(e) => e.stopPropagation()}
           >
             <h2 style={{ ...styles.modalTitulo, color: '#991b1b' }}>¿Cancelar este turno de clase?</h2>
-            <p style={{ margin: '12px 0', fontSize: '13px', color: '#475569', lineHeight: 1.5 }}>
+            <p style={{ margin: '12px 0', fontSize: '15px', color: '#475569', lineHeight: 1.5 }}>
               Estás a punto de cancelar la clase de{' '}
               <strong>{formatearNombre(turnoParaCancelar.materia_nombre)}</strong> programada para el día{' '}
               <strong>{mostrarFecha(turnoParaCancelar.fecha)}</strong> de{' '}
@@ -1475,7 +1475,7 @@ export default function TurnosModule() {
                 backgroundColor: '#fff7ed',
                 border: '1px solid #fed7aa',
                 borderRadius: '6px',
-                fontSize: '12px',
+                fontSize: '14px',
                 color: '#9a3412',
                 marginBottom: '16px',
               }}
@@ -1620,45 +1620,45 @@ export default function TurnosModule() {
 
 const styles: Record<string, React.CSSProperties> = {
   encabezado: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', marginBottom: '24px' },
-  titulo: { margin: 0, color: '#0f172a', fontSize: '24px', fontWeight: 700, letterSpacing: '-0.025em' },
-  subtitulo: { margin: '5px 0 0', color: '#64748b', fontSize: '13px' },
-  resumen: { display: 'flex', alignItems: 'baseline', gap: '6px', padding: '8px 12px', border: '1px solid #dbe4ee', borderRadius: '7px', backgroundColor: '#fff', color: '#475569', fontSize: '12px' },
-  botonCrear: { padding: '9px 15px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer', transition: 'background-color 0.15s ease' },
-  mensajeExito: { marginBottom: '16px', padding: '11px 14px', border: '1px solid #bbf7d0', borderRadius: '7px', backgroundColor: '#f0fdf4', color: '#166534', fontSize: '13px', fontWeight: 600 },
-  mensajeError: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '16px', padding: '11px 14px', border: '1px solid #fecaca', borderRadius: '7px', backgroundColor: '#fef2f2', color: '#991b1b', fontSize: '13px' },
+  titulo: { margin: 0, color: '#0f172a', fontSize: '25px', fontWeight: 700, letterSpacing: '-0.025em' },
+  subtitulo: { margin: '5px 0 0', color: '#64748b', fontSize: '15px' },
+  resumen: { display: 'flex', alignItems: 'baseline', gap: '6px', padding: '8px 12px', border: '1px solid #dbe4ee', borderRadius: '7px', backgroundColor: '#fff', color: '#475569', fontSize: '14px' },
+  botonCrear: { padding: '9px 15px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '14.5px', fontWeight: 700, cursor: 'pointer', transition: 'background-color 0.15s ease' },
+  mensajeExito: { marginBottom: '16px', padding: '11px 14px', border: '1px solid #bbf7d0', borderRadius: '7px', backgroundColor: '#f0fdf4', color: '#166534', fontSize: '15px', fontWeight: 600 },
+  mensajeError: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '16px', padding: '11px 14px', border: '1px solid #fecaca', borderRadius: '7px', backgroundColor: '#fef2f2', color: '#991b1b', fontSize: '15px' },
   botonReintentar: { border: 0, background: 'transparent', color: '#991b1b', cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' },
   filtros: { display: 'flex', gap: '12px', marginBottom: '18px' },
   buscador: { flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#64748b' },
-  inputBusqueda: { width: '100%', border: 0, outline: 0, backgroundColor: 'transparent', color: '#1e293b', fontFamily: 'inherit', fontSize: '13px' },
-  select: { height: '100%', minHeight: '39px', padding: '0 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#334155', fontFamily: 'inherit', fontSize: '13px', fontWeight: 500 },
+  inputBusqueda: { width: '100%', border: 0, outline: 0, backgroundColor: 'transparent', color: '#1e293b', fontFamily: 'inherit', fontSize: '15px' },
+  select: { height: '100%', minHeight: '39px', padding: '0 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#334155', fontFamily: 'inherit', fontSize: '15px', fontWeight: 500 },
   soloLectores: { position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 },
   tablaContenedor: { overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)' },
-  tabla: { width: '100%', minWidth: '920px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' },
+  tabla: { width: '100%', minWidth: '920px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' },
   filaEncabezado: { borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' },
-  th: { padding: '12px 18px', color: '#64748b', fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' },
+  th: { padding: '12px 18px', color: '#64748b', fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' },
   fila: { borderBottom: '1px solid #f1f5f9' },
   td: { padding: '14px 18px', color: '#334155', verticalAlign: 'middle' },
   valorPrincipal: { display: 'block', color: '#0f172a', fontWeight: 600 },
-  valorSecundario: { display: 'block', marginTop: '3px', color: '#64748b', fontSize: '11px' },
-  estado: { display: 'inline-block', padding: '3px 7px', border: '1px solid', borderRadius: '4px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.03em' },
-  ocupacion: { display: 'block', marginTop: '5px', color: '#475569', fontSize: '11px' },
-  botonAccionSecundario: { padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '5px', backgroundColor: '#fff', color: '#334155', cursor: 'pointer', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600 },
-  botonAccionPrincipal: { padding: '6px 10px', border: '1px solid #0284c7', borderRadius: '5px', backgroundColor: '#f0f9ff', color: '#0369a1', cursor: 'pointer', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600 },
-  botonAccionPeligro: { padding: '6px 10px', border: '1px solid #fca5a5', borderRadius: '5px', backgroundColor: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontFamily: 'inherit', fontSize: '12px', fontWeight: 600 },
+  valorSecundario: { display: 'block', marginTop: '3px', color: '#64748b', fontSize: '13px' },
+  estado: { display: 'inline-block', padding: '3px 7px', border: '1px solid', borderRadius: '4px', fontSize: '12px', fontWeight: 700, letterSpacing: '0.03em' },
+  ocupacion: { display: 'block', marginTop: '5px', color: '#475569', fontSize: '13px' },
+  botonAccionSecundario: { padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '5px', backgroundColor: '#fff', color: '#334155', cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px', fontWeight: 600 },
+  botonAccionPrincipal: { padding: '6px 10px', border: '1px solid #0284c7', borderRadius: '5px', backgroundColor: '#f0f9ff', color: '#0369a1', cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px', fontWeight: 600 },
+  botonAccionPeligro: { padding: '6px 10px', border: '1px solid #fca5a5', borderRadius: '5px', backgroundColor: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px', fontWeight: 600 },
   estadoVacio: { padding: '60px 20px', color: '#64748b', textAlign: 'center' },
-  estadoVacioTitulo: { display: 'block', marginBottom: '5px', color: '#1e293b', fontSize: '14px' },
+  estadoVacioTitulo: { display: 'block', marginBottom: '5px', color: '#1e293b', fontSize: '16px' },
   modalFondo: { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backgroundColor: 'rgba(15, 23, 42, 0.55)' },
   modal: { width: '100%', maxWidth: '460px', padding: '24px', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 24px 60px rgba(15, 23, 42, 0.25)' },
   modalEncabezado: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' },
-  modalTitulo: { margin: 0, color: '#0f172a', fontSize: '20px', fontWeight: 700 },
+  modalTitulo: { margin: 0, color: '#0f172a', fontSize: '21px', fontWeight: 700 },
   botonCerrar: { border: 0, background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: '25px', lineHeight: 1 },
-  detalleTurno: { display: 'flex', flexDirection: 'column', gap: '3px', margin: '20px 0', padding: '13px 14px', border: '1px solid #e2e8f0', borderRadius: '7px', backgroundColor: '#f8fafc', color: '#475569', fontSize: '12px' },
-  label: { display: 'block', marginBottom: '7px', color: '#334155', fontSize: '13px', fontWeight: 700 },
-  labelModal: { display: 'block', margin: '12px 0 4px', color: '#334155', fontSize: '12px', fontWeight: 700 },
-  inputModal: { width: '100%', padding: '9px 11px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#0f172a', fontSize: '13px', boxSizing: 'border-box' },
-  inputCupo: { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid', borderRadius: '6px', outline: 0, color: '#0f172a', fontFamily: 'inherit', fontSize: '15px' },
-  ayuda: { margin: '7px 0 0', color: '#64748b', fontSize: '11px', lineHeight: 1.45 },
-  errorFormulario: { minHeight: '18px', margin: '6px 0 0', color: '#b91c1c', fontSize: '12px', fontWeight: 600 },
+  detalleTurno: { display: 'flex', flexDirection: 'column', gap: '3px', margin: '20px 0', padding: '13px 14px', border: '1px solid #e2e8f0', borderRadius: '7px', backgroundColor: '#f8fafc', color: '#475569', fontSize: '14px' },
+  label: { display: 'block', marginBottom: '7px', color: '#334155', fontSize: '15px', fontWeight: 700 },
+  labelModal: { display: 'block', margin: '12px 0 4px', color: '#334155', fontSize: '14px', fontWeight: 700 },
+  inputModal: { width: '100%', padding: '9px 11px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#0f172a', fontSize: '15px', boxSizing: 'border-box' },
+  inputCupo: { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid', borderRadius: '6px', outline: 0, color: '#0f172a', fontFamily: 'inherit', fontSize: '17px' },
+  ayuda: { margin: '7px 0 0', color: '#64748b', fontSize: '13px', lineHeight: 1.45 },
+  errorFormulario: { minHeight: '18px', margin: '6px 0 0', color: '#b91c1c', fontSize: '14px', fontWeight: 600 },
   modalAcciones: { display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' },
   botonCancelar: { padding: '9px 15px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', color: '#475569', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 },
   botonGuardar: { padding: '9px 16px', border: '1px solid #0b1e33', borderRadius: '6px', backgroundColor: '#0b1e33', color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 },
