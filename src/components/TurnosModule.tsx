@@ -1333,7 +1333,7 @@ export default function TurnosModule() {
               </select>
 
               <label style={styles.labelModal} htmlFor="reprog-profesorId">
-                Profesor asignado (HU14 / HU16)
+                Profesor asignado
               </label>
               <select
                 id="reprog-profesorId"
@@ -1390,7 +1390,7 @@ export default function TurnosModule() {
               )}
 
               <label style={styles.labelModal} htmlFor="reprog-aulaNumero">
-                Aula (HU14)
+                Aula
               </label>
               <select
                 id="reprog-aulaNumero"
