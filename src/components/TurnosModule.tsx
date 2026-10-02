@@ -13,6 +13,7 @@ import {
   cancelarTurno,
   type TurnoConCupo,
 } from '../services/turnos';
+import { Pagination, usePagination } from './Pagination';
 
 type FiltroCupo = 'todos' | 'activos' | 'cancelados' | 'sin_cupo' | 'con_lugar' | 'completos';
 
@@ -580,6 +581,12 @@ export default function TurnosModule() {
       return true;
     });
   }, [busqueda, filtro, turnos]);
+  const {
+    elementosPaginados: turnosPaginados,
+    paginaActual,
+    totalPaginas,
+    cambiarPagina,
+  } = usePagination(turnosFiltrados, JSON.stringify([busqueda, filtro]));
 
   function abrirEdicion(turno: TurnoConCupo) {
     setTurnoSeleccionado(turno);
@@ -754,7 +761,7 @@ export default function TurnosModule() {
                 </td>
               </tr>
             ) : (
-              turnosFiltrados.map((turno) => {
+              turnosPaginados.map((turno) => {
                 const estado = estadoDelTurno(turno);
                 const esCancelado = turno.estado === 'cancelado';
 
@@ -858,6 +865,7 @@ export default function TurnosModule() {
           </tbody>
         </table>
       </div>
+      <Pagination paginaActual={paginaActual} totalPaginas={totalPaginas} onCambiarPagina={cambiarPagina} />
 
       {/* MODAL: PROGRAMAR NUEVO TURNO */}
       {modalCrearAbierto && (

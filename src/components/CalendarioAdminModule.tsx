@@ -7,6 +7,7 @@ interface TurnoEvento {
   id?: string | number;
   turno_id?: string | number;
   fecha: string;
+  dia_semana?: string | null;
   hora_inicio: string;
   hora_fin: string;
   aula_numero?: string | number;
@@ -18,7 +19,7 @@ interface TurnoEvento {
   cupo_maximo?: number;
   inscriptos_actuales?: number;
   lugares_disponibles?: number;
-  estado?: string | null; // HU14: 'activo' | 'cancelado'
+  estado?: string | null;
 }
 
 interface InscriptoDetalle {
@@ -31,9 +32,12 @@ interface InscriptoDetalle {
   legajo?: string;
 }
 
+const NOMBRES_DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
 export default function CalendarioAdminModule() {
   const [vista, setVista] = useState<'dia' | 'semana'>('semana');
-  const [fechaReferencia, setFechaReferencia] = useState<Date>(new Date());
+  // Se inicializa en el día actual del sistema
+  const [fechaReferencia, setFechaReferencia] = useState<Date>(() => new Date());
 
   const [eventos, setEventos] = useState<TurnoEvento[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -43,7 +47,7 @@ export default function CalendarioAdminModule() {
   const [filtroMateria, setFiltroMateria] = useState<string>('');
   const [filtroProfesor, setFiltroProfesor] = useState<string>('');
   const [filtroAula, setFiltroAula] = useState<string>('');
-  const [filtroEstado, setFiltroEstado] = useState<string>('todos'); // 'todos' | 'activos' | 'cancelados'
+  const [filtroEstado, setFiltroEstado] = useState<string>('todos');
 
   // Modal
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<TurnoEvento | null>(null);
@@ -150,7 +154,8 @@ export default function CalendarioAdminModule() {
 
   return (
     <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a' }}>
-      {/* Encabezado */}
+      
+      {/* Encabezado sin leyenda HU */}
       <div
         style={{
           display: 'flex',
@@ -285,7 +290,7 @@ export default function CalendarioAdminModule() {
           </button>
         </div>
 
-        <div style={{ fontSize: '15px', fontWeight: 700, color: '#0b1e33', textTransform: 'capitalize' }}>
+        <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', textTransform: 'capitalize' }}>
           {vista === 'dia'
             ? fechaReferencia.toLocaleDateString('es-AR', {
                 weekday: 'long',
@@ -378,7 +383,7 @@ export default function CalendarioAdminModule() {
         </div>
       )}
 
-      {/* Contenido Principal */}
+      {/* Calendario */}
       {loading ? (
         <div
           style={{
@@ -399,7 +404,14 @@ export default function CalendarioAdminModule() {
           {diasSemana.map((dia, idx) => {
             const diaISO = formatISO(dia);
             const esHoy = formatISO(new Date()) === diaISO;
-            const turnosDelDia = eventosFiltrados.filter((ev) => ev.fecha === diaISO);
+            const nombreDiaSemana = NOMBRES_DIAS[dia.getDay()];
+
+            // Coincidencia por fecha puntual O coincidencia periódica por día de semana
+            const turnosDelDia = eventosFiltrados.filter((ev) => {
+              const matchFechaPuntual = ev.fecha === diaISO;
+              const matchPeriodica = !ev.fecha && ev.dia_semana && ev.dia_semana.toLowerCase().includes(nombreDiaSemana);
+              return matchFechaPuntual || matchPeriodica;
+            });
 
             return (
               <div
@@ -464,6 +476,7 @@ export default function CalendarioAdminModule() {
                       const inscriptos = Number(ev.inscriptos_actuales || 0);
                       const cupo = Number(ev.cupo_maximo || 0);
                       const lleno = !esCancelado && cupo > 0 && inscriptos >= cupo;
+                      const esPeriodico = !ev.fecha && !!ev.dia_semana;
 
                       return (
                         <div
@@ -510,7 +523,7 @@ export default function CalendarioAdminModule() {
                             >
                               {ev.hora_inicio?.slice(0, 5)} - {ev.hora_fin?.slice(0, 5)}
                             </span>
-                            {esCancelado && (
+                            {esCancelado ? (
                               <span
                                 style={{
                                   fontSize: '9px',
@@ -525,7 +538,20 @@ export default function CalendarioAdminModule() {
                               >
                                 CANCELADO
                               </span>
-                            )}
+                            ) : esPeriodico ? (
+                              <span
+                                style={{
+                                  fontSize: '9px',
+                                  fontWeight: 700,
+                                  backgroundColor: '#fef3c7',
+                                  color: '#92400e',
+                                  borderRadius: '3px',
+                                  padding: '1px 4px',
+                                }}
+                              >
+                                PERIÓDICA
+                              </span>
+                            ) : null}
                           </div>
 
                           <div
@@ -632,18 +658,18 @@ export default function CalendarioAdminModule() {
             >
               <thead>
                 <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
-                  <th style={{ padding: '12px 18px', fontWeight: 700, width: '14%' }}>HORARIO</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 700, width: '26%' }}>
+                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '14%' }}>HORARIO</th>
+                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '26%' }}>
                     MATERIA / ACTIVIDAD
                   </th>
-                  <th style={{ padding: '12px 18px', fontWeight: 700, width: '20%' }}>DOCENTE</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 700, width: '8%', textAlign: 'center' }}>
+                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '20%' }}>DOCENTE</th>
+                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '8%', textAlign: 'center' }}>
                     AULA
                   </th>
-                  <th style={{ padding: '12px 18px', fontWeight: 700, width: '14%', textAlign: 'center' }}>
+                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '14%', textAlign: 'center' }}>
                     ESTADO / CUPO
                   </th>
-                  <th style={{ padding: '12px 18px', fontWeight: 700, width: '12%', textAlign: 'center' }}>
+                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '12%', textAlign: 'center' }}>
                     ACCIÓN
                   </th>
                 </tr>
@@ -654,6 +680,7 @@ export default function CalendarioAdminModule() {
                   const inscriptos = Number(ev.inscriptos_actuales || 0);
                   const cupo = Number(ev.cupo_maximo || 0);
                   const lleno = !esCancelado && cupo > 0 && inscriptos >= cupo;
+                  const esPeriodico = !ev.fecha && !!ev.dia_semana;
 
                   return (
                     <tr
@@ -671,6 +698,11 @@ export default function CalendarioAdminModule() {
                         }}
                       >
                         {ev.hora_inicio?.slice(0, 5)} - {ev.hora_fin?.slice(0, 5)} hs
+                        {esPeriodico && (
+                          <span style={{ display: 'block', fontSize: '10px', color: '#92400e', fontWeight: 600 }}>
+                            (Periódica)
+                          </span>
+                        )}
                       </td>
                       <td
                         style={{
@@ -842,7 +874,7 @@ export default function CalendarioAdminModule() {
                   FECHA Y HORA
                 </span>
                 <strong style={{ color: '#0f172a' }}>
-                  {turnoSeleccionado.fecha} ({turnoSeleccionado.hora_inicio?.slice(0, 5)} a{' '}
+                  {turnoSeleccionado.fecha || `Recurrente (${turnoSeleccionado.dia_semana || 'Semanal'})`} ({turnoSeleccionado.hora_inicio?.slice(0, 5)} a{' '}
                   {turnoSeleccionado.hora_fin?.slice(0, 5)} hs)
                 </strong>
               </div>

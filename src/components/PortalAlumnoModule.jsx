@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { cancelarInscripcion, inscribirAlumno, inscribirAlumnoCurso, inscribirAlumnoSerie } from '../services/turnos';
+import { validarAlumnoActivoParaInscripcion } from '../utils/alumnoInscripcion';
 
 export default function PortalAlumnoModule({ activeTab }) {
   const { user } = useAuth();
@@ -266,8 +267,9 @@ export default function PortalAlumnoModule({ activeTab }) {
   // HU14: Verificación estricta de que el turno no esté cancelado antes de guardar
   const handleInscribirseTurno = async (turnoId) => {
     try {
-      if (alumnoActual?.activo === false) {
-        setError('Tu cuenta está inactiva y no puede realizar nuevas inscripciones. Contactá a Mesa de Entrada.');
+      const validacion = validarAlumnoActivoParaInscripcion(alumnoActual);
+      if (!validacion.valido) {
+        setError(validacion.motivo);
         return;
       }
 

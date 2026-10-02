@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getMaterias, getCarreras, createMateria, updateMateria, cambiarEstadoMateria } from '../services/materias';
+import { Pagination, usePagination } from './Pagination';
 
 interface Carrera {
   id: string | number;
@@ -36,6 +37,7 @@ export default function MateriasModule() {
   const [formNombre, setFormNombre] = useState<string>('');
   const [formNivel, setFormNivel] = useState<'Secundario' | 'Universitario'>('Universitario');
   const [formCarrerasIds, setFormCarrerasIds] = useState<(string | number)[]>([]);
+  const [formActivo, setFormActivo] = useState<boolean>(true);
   const [formSubmitting, setFormSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -62,6 +64,7 @@ export default function MateriasModule() {
     setFormNombre('');
     setFormNivel('Universitario');
     setFormCarrerasIds([]);
+    setFormActivo(true);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -72,8 +75,8 @@ export default function MateriasModule() {
     const nivelUpper = (materia.nivel || '').toLowerCase();
     const esUniv = nivelUpper.includes('univ');
     setFormNivel(esUniv ? 'Universitario' : 'Secundario');
-    
     setFormCarrerasIds(materia.carreras_ids || []);
+    setFormActivo(materia.activo !== false);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -91,7 +94,6 @@ export default function MateriasModule() {
     );
   };
 
-  // Validación de escritura en tiempo real (bloquea números por completo)
   const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormError(null);
     const val = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\-]/g, '');
@@ -112,13 +114,21 @@ export default function MateriasModule() {
       const payload = {
         nombre: formNombre,
         nivel: formNivel,
-        area: null, // <-- Propiedad añadida para satisfacer el tipado
-        carrerasIds: formNivel === 'Universitario' ? formCarrerasIds : []
+        area: null,
+        carrerasIds: formNivel === 'Universitario' ? formCarrerasIds : [],
+        activo: formActivo,
       };
 
       if (editingId) {
+        const materiaActual = materias.find((m) => m.id === editingId);
+        const cambioEstado = Boolean(materiaActual && (materiaActual.activo !== false) !== formActivo);
         await updateMateria(editingId, payload);
-        setSuccessMsg(`Materia "${formNombre.trim().toUpperCase()}" modificada con éxito.`);
+        if (cambioEstado) {
+          await cambiarEstadoMateria(editingId, formActivo);
+        }
+        setSuccessMsg(cambioEstado
+          ? `Materia ${formActivo ? 'activada' : 'desactivada'} correctamente.`
+          : `Materia "${formNombre.trim().toUpperCase()}" modificada con éxito.`);
       } else {
         await createMateria(payload);
         setSuccessMsg(`Materia "${formNombre.trim().toUpperCase()}" registrada con éxito.`);
@@ -132,20 +142,8 @@ export default function MateriasModule() {
     } finally {
       setFormSubmitting(false);
     }
-  }
-
-  const handleCambiarEstado = async (materia: Materia) => {
-    try {
-      await cambiarEstadoMateria(materia.id, materia.activo === false);
-      setSuccessMsg(`Materia ${materia.activo === false ? 'activada' : 'desactivada'} correctamente.`);
-      setTimeout(() => setSuccessMsg(null), 4000);
-      await fetchData();
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'No se pudo cambiar el estado de la materia.');
-    }
   };
 
-  // Filtrado reactivo
   const materiasFiltradas = materias.filter((m) => {
     const matchNombre = m.nombre?.toLowerCase().includes(searchTerm.toLowerCase());
     const nivelNorm = m.nivel?.toLowerCase() || '';
@@ -156,15 +154,21 @@ export default function MateriasModule() {
     const matchEstado = filterEstado === 'TODOS' || (m.activo !== false) === (filterEstado === 'ACTIVO');
     return matchNombre && matchNivel && matchEstado;
   });
+  const {
+    elementosPaginados: materiasPaginadas,
+    paginaActual,
+    totalPaginas,
+    cambiarPagina,
+  } = usePagination(materiasFiltradas, JSON.stringify([searchTerm, filterNivel, filterEstado]));
 
   return (
     <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a' }}>
       
-      {/* Encabezado */}
+      {/* Encabezado sin leyenda HU */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
-            Catálogo de Materias (HU17)
+            Catálogo de Materias
           </h1>
           <p style={{ color: '#475569', fontSize: '13px', margin: '4px 0 0 0', fontWeight: 500 }}>
             {materias.length} {materias.length === 1 ? 'asignatura registrada' : 'asignaturas registradas'} compartidas entre carreras
@@ -194,14 +198,13 @@ export default function MateriasModule() {
         </button>
       </div>
 
-      {/* Alertas Globales */}
       {errorMsg && (
         <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
           {errorMsg}
         </div>
       )}
       {successMsg && (
-        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
           {successMsg}
         </div>
       )}
@@ -269,16 +272,16 @@ export default function MateriasModule() {
         </div>
       </div>
 
-      {/* Tabla */}
+      {/* Tabla institucional */}
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '30%' }}>NOMBRE ASIGNATURA</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '18%' }}>NIVEL EDUCATIVO</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '28%' }}>CARRERAS ASOCIADAS</th>
-              <th style={{ padding: '14px 20px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
-              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%' }}>ACCIÓN</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '30%' }}>NOMBRE ASIGNATURA</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '18%' }}>NIVEL EDUCATIVO</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '28%' }}>CARRERAS ASOCIADAS</th>
+              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -296,7 +299,7 @@ export default function MateriasModule() {
                 </td>
               </tr>
             ) : (
-              materiasFiltradas.map((materia) => {
+              materiasPaginadas.map((materia) => {
                 const nivelTexto = materia.nivel || 'Secundario';
                 const esUniversitario = nivelTexto.toLowerCase().includes('univ');
 
@@ -335,16 +338,24 @@ export default function MateriasModule() {
                         <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>No aplica</span>
                       )}
                     </td>
+                    {/* Badge de estado informativo no interactivo */}
                     <td style={{ padding: '16px 20px' }}>
-                      <button
-                        type="button"
-                        title="Haz clic para cambiar estado"
-                        aria-label={`Cambiar estado de ${materia.nombre}`}
-                        onClick={() => handleCambiarEstado(materia)}
-                        style={{ backgroundColor: materia.activo === false ? '#fef2f2' : '#f0fdf4', color: materia.activo === false ? '#991b1b' : '#15803d', border: `1px solid ${materia.activo === false ? '#fca5a5' : '#bbf7d0'}`, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                      <span
+                        style={{
+                          backgroundColor: materia.activo === false ? '#fef2f2' : '#f0fdf4',
+                          color: materia.activo === false ? '#991b1b' : '#15803d',
+                          border: `1px solid ${materia.activo === false ? '#fca5a5' : '#bbf7d0'}`,
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          userSelect: 'none',
+                          display: 'inline-block'
+                        }}
                       >
                         {materia.activo === false ? 'INACTIVO' : 'ACTIVO'}
-                      </button>
+                      </span>
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <button
@@ -383,8 +394,9 @@ export default function MateriasModule() {
           </tbody>
         </table>
       </div>
+      <Pagination paginaActual={paginaActual} totalPaginas={totalPaginas} onCambiarPagina={cambiarPagina} />
 
-      {/* Modal Registrar / Modificar Materia */}
+      {/* Modal Registrar / Modificar Materia con selector de Estado */}
       {isModalOpen && (
         <div style={{
           position: 'fixed',
@@ -411,7 +423,7 @@ export default function MateriasModule() {
             overflowY: 'auto'
           }}>
             <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 20px 0', color: '#0f172a' }}>
-              {editingId ? 'Modificar Materia (HU17)' : 'Registrar Nueva Materia (HU17)'}
+              {editingId ? 'Modificar Materia' : 'Registrar Nueva Materia'}
             </h2>
 
             {formError && (
@@ -448,6 +460,23 @@ export default function MateriasModule() {
                   <option value="Secundario">Nivel Secundario</option>
                 </select>
               </div>
+
+              {/* Selector de Estado en el modal */}
+              {editingId && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                    Estado *
+                  </label>
+                  <select
+                    value={formActivo ? 'true' : 'false'}
+                    onChange={(e) => setFormActivo(e.target.value === 'true')}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                  >
+                    <option value="true">Activo</option>
+                    <option value="false">Inactivo</option>
+                  </select>
+                </div>
+              )}
 
               {formNivel === 'Universitario' && (
                 <div>

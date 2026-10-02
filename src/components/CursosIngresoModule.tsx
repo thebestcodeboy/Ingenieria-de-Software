@@ -5,8 +5,10 @@ import {
   getCursosIngreso,
   getMateriasDisponibles,
   createCursoIngreso,
-  cambiarEstadoCursoIngreso
+  cambiarEstadoCursoIngreso,
 } from '../services/cursosIngreso';
+import { supabase } from '../lib/supabaseClient';
+import { Pagination, usePagination } from './Pagination';
 
 type CursoIngreso = {
   id: string | number;
@@ -14,7 +16,8 @@ type CursoIngreso = {
   descripcion?: string | null;
   activo?: boolean;
   curso_ingreso_materias?: Array<{
-    materias?: { nombre?: string | null } | null;
+    materia_id?: string | number;
+    materias?: { id?: string | number; nombre?: string | null } | null;
   }>;
 };
 
@@ -25,19 +28,18 @@ export default function CursosIngresoModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('TODOS');
 
-  // Modal - Registrar Curso de Ingreso
+  // Modal Crear / Editar
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
     materiasSeleccionadas: [] as string[],
+    activo: true,
   });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-
-  // Detalle / Ficha del Curso
-  const [selectedCurso, setSelectedCurso] = useState<CursoIngreso | null>(null);
 
   const loadData = async () => {
     try {
@@ -76,19 +78,36 @@ export default function CursosIngresoModule() {
       return matchTerm && matchEstado;
     });
   }, [cursos, searchTerm, filterEstado]);
+  const {
+    elementosPaginados: cursosPaginados,
+    paginaActual,
+    totalPaginas,
+    cambiarPagina,
+  } = usePagination(filteredCursos, JSON.stringify([searchTerm, filterEstado]));
 
-  const handleCambiarEstado = async (curso: CursoIngreso) => {
-    try {
-      setErrorMsg('');
-      await cambiarEstadoCursoIngreso(curso.id, curso.activo === false);
-      setSuccessMsg(`Curso ${curso.activo === false ? 'activado' : 'desactivado'} correctamente.`);
-      await loadData();
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'No se pudo cambiar el estado del curso.');
-    }
+  const handleOpenCreate = () => {
+    setEditingId(null);
+    setFormData({ nombre: '', descripcion: '', materiasSeleccionadas: [], activo: true });
+    setErrorMsg('');
+    setShowModal(true);
   };
 
-  // Bloquea números en tiempo real en el input del nombre del curso
+  const handleOpenEdit = (c: CursoIngreso) => {
+    setEditingId(c.id);
+    const matIds = (c.curso_ingreso_materias || [])
+      .map((rel: any) => String(rel.materia_id || rel.materias?.id || ''))
+      .filter((id: string) => Boolean(id));
+
+    setFormData({
+      nombre: c.nombre || '',
+      descripcion: c.descripcion || '',
+      materiasSeleccionadas: matIds,
+      activo: c.activo !== false,
+    });
+    setErrorMsg('');
+    setShowModal(true);
+  };
+
   const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMsg('');
     const val = e.target.value.replace(/[0-9]/g, '');
@@ -99,17 +118,12 @@ export default function CursosIngresoModule() {
     setErrorMsg('');
     setFormData((prev) => {
       const yaSeleccionada = prev.materiasSeleccionadas.includes(materiaId);
-      if (yaSeleccionada) {
-        return {
-          ...prev,
-          materiasSeleccionadas: prev.materiasSeleccionadas.filter((id) => id !== materiaId),
-        };
-      } else {
-        return {
-          ...prev,
-          materiasSeleccionadas: [...prev.materiasSeleccionadas, materiaId],
-        };
-      }
+      return {
+        ...prev,
+        materiasSeleccionadas: yaSeleccionada
+          ? prev.materiasSeleccionadas.filter((id) => id !== materiaId)
+          : [...prev.materiasSeleccionadas, materiaId],
+      };
     });
   };
 
@@ -124,17 +138,48 @@ export default function CursosIngresoModule() {
 
     try {
       setSubmitting(true);
-      await createCursoIngreso({
-        nombre: formData.nombre,
-        descripcion: formData.descripcion,
-        materiasIds: formData.materiasSeleccionadas,
-      });
 
-      setFormData({ nombre: '', descripcion: '', materiasSeleccionadas: [] });
+      if (editingId) {
+        const cursoActual = cursos.find((curso) => curso.id === editingId);
+        const cambioEstado = Boolean(cursoActual && (cursoActual.activo !== false) !== formData.activo);
+        const { error: updErr } = await supabase
+          .from('cursos_ingreso')
+          .update({
+            nombre: formData.nombre.trim(),
+            descripcion: formData.descripcion?.trim() || null,
+            activo: formData.activo,
+          })
+          .eq('id', editingId);
+
+        if (updErr) throw updErr;
+
+        await supabase.from('curso_ingreso_materias').delete().eq('curso_id', editingId);
+        if (formData.materiasSeleccionadas.length > 0) {
+          const nuevasRelaciones = formData.materiasSeleccionadas.map((mId) => ({
+            curso_id: editingId,
+            materia_id: mId,
+          }));
+          await supabase.from('curso_ingreso_materias').insert(nuevasRelaciones);
+        }
+
+        setSuccessMsg(cambioEstado
+          ? `Curso de ingreso ${formData.activo ? 'activado' : 'desactivado'} correctamente.`
+          : `Curso "${formData.nombre.trim().toUpperCase()}" modificado correctamente.`);
+      } else {
+        await createCursoIngreso({
+          nombre: formData.nombre,
+          descripcion: formData.descripcion,
+          materiasIds: formData.materiasSeleccionadas,
+        });
+        setSuccessMsg(`Curso "${formData.nombre.trim().toUpperCase()}" registrado con éxito.`);
+      }
+
       setShowModal(false);
+      setEditingId(null);
       await loadData();
+      setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Error al registrar el curso de ingreso.');
+      setErrorMsg(err?.message || 'Error al guardar el curso de ingreso.');
     } finally {
       setSubmitting(false);
     }
@@ -155,11 +200,7 @@ export default function CursosIngresoModule() {
         </div>
 
         <button
-          onClick={() => {
-            setErrorMsg('');
-            setFormData({ nombre: '', descripcion: '', materiasSeleccionadas: [] });
-            setShowModal(true);
-          }}
+          onClick={handleOpenCreate}
           style={{
             backgroundColor: '#0b1e33',
             color: '#ffffff',
@@ -188,12 +229,12 @@ export default function CursosIngresoModule() {
         </div>
       )}
       {successMsg && !showModal && (
-        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
           {successMsg}
         </div>
       )}
 
-      {/* Buscador */}
+      {/* Buscador y Filtro */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
         <div style={{
           flex: 1,
@@ -237,10 +278,10 @@ export default function CursosIngresoModule() {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 24px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '30%' }}>CURSO DE INGRESO</th>
-              <th style={{ padding: '14px 24px', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '40%' }}>MATERIAS UNIVERSITARIAS ASOCIADAS</th>
-              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ESTADO</th>
-              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 700, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ACCIÓN</th>
+              <th style={{ padding: '14px 24px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '32%' }}>CURSO DE INGRESO</th>
+              <th style={{ padding: '14px 24px', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '38%' }}>MATERIAS UNIVERSITARIAS ASOCIADAS</th>
+              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ESTADO</th>
+              <th style={{ padding: '14px 24px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '12px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '15%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -258,7 +299,7 @@ export default function CursosIngresoModule() {
                 </td>
               </tr>
             ) : (
-              filteredCursos.map((c, idx) => {
+              cursosPaginados.map((c, idx) => {
                 const listaMaterias = (c.curso_ingreso_materias || [])
                   .map((rel) => rel.materias?.nombre)
                   .filter((nombre): nombre is string => Boolean(nombre));
@@ -266,8 +307,7 @@ export default function CursosIngresoModule() {
                 return (
                   <tr
                     key={c.id || idx}
-                    style={{ borderBottom: '1px solid #e2e8f0', cursor: 'pointer', transition: 'background-color 0.15s ease' }}
-                    onClick={() => setSelectedCurso(c)}
+                    style={{ borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.15s ease' }}
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
                   >
@@ -287,7 +327,7 @@ export default function CursosIngresoModule() {
                               key={i}
                               style={{
                                 backgroundColor: '#e0e7ff',
-                                color: '#3730a3',
+                                color: '#334155',
                                 border: '1px solid #c7d2fe',
                                 borderRadius: '4px',
                                 padding: '3px 8px',
@@ -303,23 +343,28 @@ export default function CursosIngresoModule() {
                         )}
                       </div>
                     </td>
+                    {/* Badge informativo de estado sin click directo */}
                     <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        title="Haz clic para cambiar estado"
-                        aria-label={`Cambiar estado del curso ${c.nombre}`}
-                        onClick={(e) => { e.stopPropagation(); handleCambiarEstado(c); }}
-                        style={{ backgroundColor: c.activo === false ? '#fef2f2' : '#f0fdf4', color: c.activo === false ? '#991b1b' : '#15803d', border: `1px solid ${c.activo === false ? '#fca5a5' : '#bbf7d0'}`, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                      <span
+                        style={{
+                          backgroundColor: c.activo === false ? '#fef2f2' : '#f0fdf4',
+                          color: c.activo === false ? '#991b1b' : '#15803d',
+                          border: `1px solid ${c.activo === false ? '#fca5a5' : '#bbf7d0'}`,
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          userSelect: 'none',
+                          display: 'inline-block'
+                        }}
                       >
                         {c.activo === false ? 'INACTIVO' : 'ACTIVO'}
-                      </button>
+                      </span>
                     </td>
                     <td style={{ padding: '16px 24px', textAlign: 'center' }}>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedCurso(c);
-                        }}
+                        onClick={() => handleOpenEdit(c)}
                         style={{
                           backgroundColor: '#ffffff',
                           border: '1px solid #94a3b8',
@@ -344,7 +389,7 @@ export default function CursosIngresoModule() {
                           e.currentTarget.style.borderColor = '#94a3b8';
                         }}
                       >
-                        Ver Detalle
+                        Editar
                       </button>
                     </td>
                   </tr>
@@ -354,92 +399,9 @@ export default function CursosIngresoModule() {
           </tbody>
         </table>
       </div>
+      <Pagination paginaActual={paginaActual} totalPaginas={totalPaginas} onCambiarPagina={cambiarPagina} />
 
-      {/* Modal Detalle del Curso */}
-      {selectedCurso && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.65)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 110,
-          backdropFilter: 'blur(2px)',
-        }}>
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            width: '100%',
-            maxWidth: '540px',
-            padding: '32px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            boxSizing: 'border-box',
-          }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: '#0f172a', textTransform: 'uppercase' }}>
-              {selectedCurso.nombre}
-            </h2>
-            <p style={{ fontSize: '13px', color: '#64748b', marginTop: '6px', marginBottom: '20px' }}>
-              {selectedCurso.descripcion || 'Sin descripción registrada.'}
-            </p>
-
-            <div style={{
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '10px',
-              padding: '18px 20px',
-              marginBottom: '24px',
-            }}>
-              <span style={{ display: 'block', fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-                Materias Universitarias Asociadas
-              </span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {(selectedCurso.curso_ingreso_materias || []).map((rel: any, idx: number) => (
-                  <span
-                    key={idx}
-                    style={{
-                      backgroundColor: '#ffffff',
-                      color: '#0f172a',
-                      border: '1.5px solid #cbd5e1',
-                      borderRadius: '6px',
-                      padding: '5px 12px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {rel.materias?.nombre || 'Materia'}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setSelectedCurso(null)}
-                style={{
-                  backgroundColor: '#0b1e33',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '10px 24px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(11, 30, 51, 0.15)',
-                }}
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Registrar Nuevo Curso de Ingreso */}
+      {/* Modal Crear / Modificar Curso */}
       {showModal && (
         <div style={{
           position: 'fixed',
@@ -464,7 +426,7 @@ export default function CursosIngresoModule() {
             boxSizing: 'border-box',
           }}>
             <h2 style={{ fontSize: '19px', fontWeight: 700, margin: '0 0 16px 0', color: '#0f172a' }}>
-              Registrar Curso de Ingreso
+              {editingId ? 'Modificar Curso de Ingreso' : 'Registrar Curso de Ingreso'}
             </h2>
 
             {errorMsg && (
@@ -523,7 +485,7 @@ export default function CursosIngresoModule() {
                     </span>
                   ) : (
                     materias.map((mat) => {
-                      const checked = formData.materiasSeleccionadas.includes(mat.id);
+                      const checked = formData.materiasSeleccionadas.includes(String(mat.id));
                       return (
                         <label
                           key={mat.id}
@@ -540,7 +502,7 @@ export default function CursosIngresoModule() {
                           <input
                             type="checkbox"
                             checked={checked}
-                            onChange={() => handleCheckboxChange(mat.id)}
+                            onChange={() => handleCheckboxChange(String(mat.id))}
                             style={{ accentColor: '#0b1e33', cursor: 'pointer', width: '15px', height: '15px' }}
                           />
                           <span>{mat.nombre}</span>
@@ -551,6 +513,23 @@ export default function CursosIngresoModule() {
                   )}
                 </div>
               </div>
+
+              {/* ESTADO REUBICADO AL FINAL DEL FORMULARIO */}
+              {editingId && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                    Estado *
+                  </label>
+                  <select
+                    value={formData.activo ? 'true' : 'false'}
+                    onChange={(e) => setFormData({ ...formData, activo: e.target.value === 'true' })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                  >
+                    <option value="true">Activo</option>
+                    <option value="false">Inactivo</option>
+                  </select>
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
                 <button
