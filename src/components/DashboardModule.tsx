@@ -29,11 +29,6 @@ const tarjetas = [
   { campo: 'totalAulas', etiqueta: 'Aulas activas', color: '#d97706', fondo: '#fffbeb' },
 ] as const;
 
-function porcentaje(valor: number, maximo: number): number {
-  if (maximo <= 0) return 0;
-  return Math.min(100, Math.round((valor / maximo) * 100));
-}
-
 export default function DashboardModule() {
   const [resumen, setResumen] = useState<ResumenDashboard>(VACIO);
   const [cargando, setCargando] = useState(true);
@@ -88,7 +83,6 @@ export default function DashboardModule() {
     );
   }
 
-  const maximoOcupacion = Math.max(resumen.cupoTotal, resumen.totalInscriptos, 1);
   const totalEstados = resumen.turnosDisponibles + resumen.turnosCompletos + resumen.turnosSinCupo;
 
   return (
@@ -160,26 +154,6 @@ export default function DashboardModule() {
 
           <div style={styles.grillaPaneles}>
             <article style={styles.panel}>
-              <h2 style={styles.tituloPanel}>Ocupación general</h2>
-              <p style={styles.textoSecundario}>Alumnos inscriptos frente a los cupos definidos.</p>
-              <div style={styles.filaMetrica}>
-                <strong>{resumen.totalInscriptos} inscriptos</strong>
-                <span>{porcentaje(resumen.totalInscriptos, resumen.cupoTotal)}% del cupo</span>
-              </div>
-              <div style={styles.pista} aria-label={`${resumen.totalInscriptos} alumnos inscriptos`}>
-                <div style={{ ...styles.barra, width: `${porcentaje(resumen.totalInscriptos, maximoOcupacion)}%`, backgroundColor: '#2563eb' }} />
-              </div>
-              <div style={styles.filaMetrica}>
-                <strong>{resumen.cupoTotal} cupos totales</strong>
-                <span>{Math.max(0, resumen.cupoTotal - resumen.totalInscriptos)} lugares libres</span>
-              </div>
-              <div style={styles.pista} aria-label={`${resumen.cupoTotal} cupos totales`}>
-                <div style={{ ...styles.barra, width: `${porcentaje(resumen.cupoTotal, maximoOcupacion)}%`, backgroundColor: '#94a3b8' }} />
-              </div>
-              {resumen.cupoTotal === 0 && <p style={styles.nota}>Aún no hay cupos definidos para comparar.</p>}
-            </article>
-
-            <article style={styles.panel}>
               <h2 style={styles.tituloPanel}>Estado de los turnos</h2>
               <p style={styles.textoSecundario}>Disponibilidad actual, sin contar turnos cancelados.</p>
               <div style={styles.barraEstados} aria-label={`${totalEstados} turnos clasificados`}>
@@ -228,9 +202,6 @@ const styles: Record<string, React.CSSProperties> = {
   nota: { margin: '7px 0 0', color: '#94a3b8', fontSize: '12px' },
   panel: { padding: '22px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)' },
   tituloPanel: { margin: '0 0 4px', color: '#0f172a', fontSize: '17px' },
-  filaMetrica: { display: 'flex', justifyContent: 'space-between', gap: '12px', margin: '20px 0 7px', color: '#334155', fontSize: '12px' },
-  pista: { height: '10px', overflow: 'hidden', borderRadius: '999px', backgroundColor: '#e2e8f0' },
-  barra: { height: '100%', minWidth: 0, borderRadius: '999px', transition: 'width 250ms ease' },
   barraEstados: { display: 'flex', height: '14px', overflow: 'hidden', margin: '24px 0 20px', borderRadius: '999px', backgroundColor: '#e2e8f0' },
   listaEstados: { display: 'flex', flexDirection: 'column', gap: '12px' },
   estadoFila: { display: 'flex', alignItems: 'center', gap: '9px', color: '#475569', fontSize: '13px' },

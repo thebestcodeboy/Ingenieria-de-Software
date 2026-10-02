@@ -7,6 +7,7 @@ import AlumnosModule from '../components/AlumnosModule';
 import ProfesoresModule from '../components/ProfesoresModule';
 import MateriasModule from '../components/MateriasModule';
 import CursosIngresoModule from '../components/CursosIngresoModule';
+import InscripcionesModule from '../components/InscripcionesModule';
 import ClasesParticularesModule from '../components/ClasesParticularesModule';
 import TurnosModule from '../components/TurnosModule';
 import AulasModule from '../components/AulasModule';
@@ -345,6 +346,8 @@ export default function AteneoLayout() {
           <MateriasModule />
         ) : activeTabForRole === 'cursos' ? (
           <CursosIngresoModule />
+        ) : activeTabForRole === 'inscripciones' ? (
+          <InscripcionesModule />
         ) : activeTabForRole === 'particulares' ? (
           <ClasesParticularesModule />
         ) : activeTabForRole === 'turnos' ? (

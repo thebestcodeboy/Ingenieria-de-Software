@@ -5,9 +5,9 @@ import {
   getCursosIngreso,
   getMateriasDisponibles,
   createCursoIngreso,
-  cambiarEstadoCursoIngreso,
+  updateCursoIngreso,
 } from '../services/cursosIngreso';
-import { supabase } from '../lib/supabaseClient';
+import { validarPeriodoCurso, duracionCurso } from '../domain/periodoCurso';
 import { Pagination, usePagination } from './Pagination';
 
 type CursoIngreso = {
@@ -15,6 +15,8 @@ type CursoIngreso = {
   nombre: string;
   descripcion?: string | null;
   activo?: boolean;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
   curso_ingreso_materias?: Array<{
     materia_id?: string | number;
     materias?: { id?: string | number; nombre?: string | null } | null;
@@ -34,6 +36,8 @@ export default function CursosIngresoModule() {
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
+    fechaInicio: '',
+    fechaFin: '',
     materiasSeleccionadas: [] as string[],
     activo: true,
   });
@@ -87,7 +91,7 @@ export default function CursosIngresoModule() {
 
   const handleOpenCreate = () => {
     setEditingId(null);
-    setFormData({ nombre: '', descripcion: '', materiasSeleccionadas: [], activo: true });
+    setFormData({ nombre: '', descripcion: '', fechaInicio: '', fechaFin: '', materiasSeleccionadas: [], activo: true });
     setErrorMsg('');
     setShowModal(true);
   };
@@ -101,6 +105,8 @@ export default function CursosIngresoModule() {
     setFormData({
       nombre: c.nombre || '',
       descripcion: c.descripcion || '',
+      fechaInicio: c.fecha_inicio || '',
+      fechaFin: c.fecha_fin || '',
       materiasSeleccionadas: matIds,
       activo: c.activo !== false,
     });
@@ -131,6 +137,9 @@ export default function CursosIngresoModule() {
     e.preventDefault();
     setErrorMsg('');
 
+    const errorPeriodo = validarPeriodoCurso(formData.fechaInicio, formData.fechaFin);
+    if (errorPeriodo) { setErrorMsg(errorPeriodo); return; }
+
     if (formData.materiasSeleccionadas.length === 0) {
       setErrorMsg('Debe seleccionar al menos una materia universitaria para el curso de ingreso.');
       return;
@@ -142,25 +151,11 @@ export default function CursosIngresoModule() {
       if (editingId) {
         const cursoActual = cursos.find((curso) => curso.id === editingId);
         const cambioEstado = Boolean(cursoActual && (cursoActual.activo !== false) !== formData.activo);
-        const { error: updErr } = await supabase
-          .from('cursos_ingreso')
-          .update({
-            nombre: formData.nombre.trim(),
-            descripcion: formData.descripcion?.trim() || null,
-            activo: formData.activo,
-          })
-          .eq('id', editingId);
-
-        if (updErr) throw updErr;
-
-        await supabase.from('curso_ingreso_materias').delete().eq('curso_id', editingId);
-        if (formData.materiasSeleccionadas.length > 0) {
-          const nuevasRelaciones = formData.materiasSeleccionadas.map((mId) => ({
-            curso_id: editingId,
-            materia_id: mId,
-          }));
-          await supabase.from('curso_ingreso_materias').insert(nuevasRelaciones);
-        }
+        await updateCursoIngreso(editingId, {
+          nombre: formData.nombre, descripcion: formData.descripcion,
+          fechaInicio: formData.fechaInicio, fechaFin: formData.fechaFin,
+          activo: formData.activo, materiasIds: formData.materiasSeleccionadas,
+        });
 
         setSuccessMsg(cambioEstado
           ? `Curso de ingreso ${formData.activo ? 'activado' : 'desactivado'} correctamente.`
@@ -169,6 +164,8 @@ export default function CursosIngresoModule() {
         await createCursoIngreso({
           nombre: formData.nombre,
           descripcion: formData.descripcion,
+          fechaInicio: formData.fechaInicio,
+          fechaFin: formData.fechaFin,
           materiasIds: formData.materiasSeleccionadas,
         });
         setSuccessMsg(`Curso "${formData.nombre.trim().toUpperCase()}" registrado con éxito.`);
@@ -313,6 +310,7 @@ export default function CursosIngresoModule() {
                   >
                     <td style={{ padding: '16px 24px', color: '#0f172a', fontWeight: 600, fontSize: '13px' }}>
                       <div style={{ fontWeight: 700, color: '#0b1e33', textTransform: 'uppercase' }}>{c.nombre}</div>
+                      <div style={{ marginTop: '5px', fontSize: '12px', color: '#475569' }}>{c.fecha_inicio && c.fecha_fin ? c.fecha_inicio + ' al ' + c.fecha_fin : 'Período pendiente de configurar'} · {duracionCurso(c.fecha_inicio, c.fecha_fin)}</div>
                       {c.descripcion && (
                         <div style={{ fontSize: '12px', color: '#64748b', marginTop: '3px', fontWeight: 400 }}>
                           {c.descripcion}
@@ -421,6 +419,8 @@ export default function CursosIngresoModule() {
             borderRadius: '12px',
             width: '100%',
             maxWidth: '520px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
             padding: '28px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box',
@@ -513,6 +513,20 @@ export default function CursosIngresoModule() {
                   )}
                 </div>
               </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <label htmlFor="curso-fecha-inicio" style={{ fontSize: '12px', fontWeight: 700 }}>Fecha de inicio *
+                  <input id="curso-fecha-inicio" type="date" required value={formData.fechaInicio}
+                    onChange={e => setFormData({ ...formData, fechaInicio: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '10px', marginTop: '6px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                </label>
+                <label htmlFor="curso-fecha-fin" style={{ fontSize: '12px', fontWeight: 700 }}>Fecha de finalización *
+                  <input id="curso-fecha-fin" type="date" required min={formData.fechaInicio || undefined} value={formData.fechaFin}
+                    onChange={e => setFormData({ ...formData, fechaFin: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '10px', marginTop: '6px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                </label>
+              </div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Duración: {duracionCurso(formData.fechaInicio, formData.fechaFin)}. El período es el mismo para todos los alumnos.</p>
 
               {/* ESTADO REUBICADO AL FINAL DEL FORMULARIO */}
               {editingId && (

@@ -2,9 +2,15 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { listarPagos, generarNumeroComprobante } from '../services/pagos';
+import { listarPagos, generarNumeroComprobante, listarInscripcionesCobro } from '../services/pagos';
+
+import { agruparActividadesCobro, construirVinculoPago, type InscripcionCobro, type VinculoPago } from '../domain/pagoAcademico';
 
 export interface PagoConDetalle {
+  inscripcion_id?: string | null;
+  periodo_desde?: string | null;
+  periodo_hasta?: string | null;
+  detalle_academico?: VinculoPago['detalle_academico'] | null;
   id: string;
   comprobante: string;
   alumno_id: string;
@@ -25,6 +31,10 @@ export interface PagoConDetalle {
     dni: string;
     email: string;
   };
+}
+
+function escaparTextoRecibo(texto: string): string {
+  return texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 export default function PagosModule() {
@@ -54,10 +64,33 @@ export default function PagosModule() {
   const [mostrarDropdownAlumnos, setMostrarDropdownAlumnos] = useState(false);
 
   // Modalidad antes que Concepto
-  const [modalidad, setModalidad] = useState<'Mes' | 'Semana' | 'Clase'>('Mes');
-  const [concepto, setConcepto] = useState('Cuota Mensual Regular');
-  const [cantidad, setCantidad] = useState<number>(1);
-  const [precioUnitario, setPrecioUnitario] = useState<number>(20000);
+  const cantidad = 1;
+  const [precioUnitario, setPrecioUnitario] = useState<number>(0);
+  const [actividadInscripcionId, setActividadInscripcionId] = useState('');
+  const [sesionId, setSesionId] = useState('');
+  const [periodoAbonado, setPeriodoAbonado] = useState('');
+  const [inscripcionesCobro, setInscripcionesCobro] = useState<{ alumnoId: string; filas: InscripcionCobro[]; error: string }>({ alumnoId: '', filas: [], error: '' });
+  const alumnoCobroId = alumnoSeleccionado?.id ? String(alumnoSeleccionado.id) : '';
+  const cargandoActividades = Boolean(alumnoCobroId && inscripcionesCobro.alumnoId !== alumnoCobroId);
+  useEffect(() => {
+    if (!alumnoCobroId) return;
+    let vigente = true;
+    listarInscripcionesCobro(alumnoCobroId).then(filas => {
+      if (vigente) setInscripcionesCobro({ alumnoId: alumnoCobroId, filas, error: '' });
+    }).catch((error: unknown) => {
+      if (vigente) setInscripcionesCobro({ alumnoId: alumnoCobroId, filas: [], error: error instanceof Error ? error.message : 'No se pudieron cargar las inscripciones.' });
+    });
+    return () => { vigente = false; };
+  }, [alumnoCobroId]);
+  const actividades = useMemo(() => agruparActividadesCobro(inscripcionesCobro.alumnoId === alumnoCobroId ? inscripcionesCobro.filas : []), [inscripcionesCobro, alumnoCobroId]);
+  const actividadElegida = actividades.find(a => a.sesiones.some(s => s.id === actividadInscripcionId));
+  const modalidad = actividadElegida?.clave.startsWith('particular:') ? 'Clase' : 'Mes';
+  const datosCobro = useMemo(() => {
+    try { return { vinculo: construirVinculoPago(actividadElegida, modalidad, periodoAbonado, cantidad, sesionId), error: '' }; }
+    catch (error: unknown) { return { vinculo: null, error: error instanceof Error ? error.message : 'Revisá el detalle del cobro.' }; }
+  }, [actividadElegida, modalidad, periodoAbonado, cantidad, sesionId]);
+  const concepto = datosCobro.vinculo?.concepto ?? '';
+
 
   const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito'>('Efectivo');
   const [fechaCobro, setFechaCobro] = useState(fechaHoy);
@@ -91,13 +124,6 @@ export default function PagosModule() {
   useEffect(() => {
     cargarDatos();
   }, []);
-
-  const handleCambiarModalidad = (nueva: 'Mes' | 'Semana' | 'Clase') => {
-    setModalidad(nueva);
-    if (nueva === 'Mes') setConcepto('Cuota Mensual Regular');
-    if (nueva === 'Semana') setConcepto('Abono Semanal de Cursada');
-    if (nueva === 'Clase') setConcepto('Clase Particular Individual');
-  };
 
   const totalACobrar = useMemo(() => {
     const unit = Math.max(0, precioUnitario || 0);
@@ -153,6 +179,7 @@ export default function PagosModule() {
 
   const handleSeleccionarAlumno = (al: any) => {
     setAlumnoSeleccionado(al);
+    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setErrorMsg('');
     setTextoBusquedaAlumno(`${al.apellido}, ${al.nombre} (${al.legajo || 'Sin Legajo'}) - DNI: ${al.dni}`);
     setMostrarDropdownAlumnos(false);
   };
@@ -161,10 +188,8 @@ export default function PagosModule() {
     setPagoBorradorId(null);
     setAlumnoSeleccionado(null);
     setTextoBusquedaAlumno('');
-    setModalidad('Mes');
-    setConcepto('Cuota Mensual Regular');
-    setCantidad(1);
-    setPrecioUnitario(20000);
+    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado('');
+    setPrecioUnitario(0);
     setMontoRecibido(0);
     setNroReferencia('');
     setFechaCobro(fechaHoy);
@@ -176,11 +201,14 @@ export default function PagosModule() {
       setAlumnoSeleccionado(p.alumnos);
       setTextoBusquedaAlumno(`${p.alumnos.apellido}, ${p.alumnos.nombre} (${p.alumnos.legajo || 'Sin Legajo'}) - DNI: ${p.alumnos.dni}`);
     }
-    setModalidad((p.modalidad as any) || 'Mes');
-    setConcepto(p.concepto);
-    setCantidad(p.cantidad || 1);
-    setPrecioUnitario((p.importe / (p.cantidad || 1)) || 20000);
+    setActividadInscripcionId(p.inscripcion_id || '');
+    setSesionId(p.modalidad === 'Clase' ? p.inscripcion_id || '' : '');
+    const requiereRevision = (p.cantidad || 1) !== 1 || p.modalidad === 'Semana';
+    setPeriodoAbonado(!requiereRevision && p.modalidad === 'Mes' ? p.periodo_desde?.slice(0,7) || '' : '');
+    setErrorMsg(requiereRevision ? 'Este borrador cubría varias unidades o semanas. Seleccioná un mes o una clase e indicá su precio antes de confirmar.' : '');
+    setPrecioUnitario(requiereRevision ? 0 : p.importe || 0);
     setMedioPago(p.medio_pago);
+    setNroReferencia((p.observaciones || '').replace(/^(?:N°\s*)?Ref:\s*/i, ''));
     setFechaCobro(p.fecha >= fechaHoy ? p.fecha : fechaHoy);
     setVistaActual('terminal');
   };
@@ -207,6 +235,7 @@ export default function PagosModule() {
       setErrorMsg('Debe vincular un alumno antes de suspender en borrador.');
       return;
     }
+    if (!datosCobro.vinculo) { setErrorMsg(datosCobro.error); return; }
     if (precioUnitario <= 0) {
       setErrorMsg('El precio unitario debe ser mayor a cero.');
       return;
@@ -214,13 +243,14 @@ export default function PagosModule() {
 
     try {
       setGuardando(true);
-      const conceptoCompleto = `${concepto.trim()} (${cantidad} ${modalidad}${cantidad > 1 ? (modalidad === 'Mes' ? 'es' : 's') : ''})`;
+      const conceptoCompleto = datosCobro.vinculo.concepto;
 
       if (pagoBorradorId) {
         const { error } = await supabase
           .from('pagos')
           .update({
             alumno_id: alumnoSeleccionado.id,
+            ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
             cantidad,
@@ -240,6 +270,7 @@ export default function PagosModule() {
           .insert([{
             comprobante: nuevoComp,
             alumno_id: alumnoSeleccionado.id,
+            ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
             cantidad,
@@ -273,6 +304,7 @@ export default function PagosModule() {
       setErrorMsg('Debe seleccionar un alumno para procesar el cobro.');
       return;
     }
+    if (!datosCobro.vinculo) { setErrorMsg(datosCobro.error); return; }
     if (precioUnitario <= 0 || totalACobrar <= 0) {
       setErrorMsg('El importe debe ser un valor positivo y mayor a cero.');
       return;
@@ -292,7 +324,7 @@ export default function PagosModule() {
 
     try {
       setGuardando(true);
-      const conceptoCompleto = `${concepto.trim()} (${cantidad} ${modalidad}${cantidad > 1 ? (modalidad === 'Mes' ? 'es' : 's') : ''})`;
+      const conceptoCompleto = datosCobro.vinculo.concepto;
 
       let pagoConfirmadoResult: PagoConDetalle;
 
@@ -301,6 +333,7 @@ export default function PagosModule() {
           .from('pagos')
           .update({
             alumno_id: alumnoSeleccionado.id,
+            ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
             cantidad,
@@ -323,6 +356,7 @@ export default function PagosModule() {
           .insert([{
             comprobante: nuevoComp,
             alumno_id: alumnoSeleccionado.id,
+            ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
             cantidad,
@@ -609,10 +643,10 @@ export default function PagosModule() {
               <tbody>
                 <tr>
                   <td>
-                    <strong style="color: #0f172a; font-size: 12px;">${pago.concepto}</strong>
+                    <strong style="color: #0f172a; font-size: 12px;">${escaparTextoRecibo(pago.concepto)}</strong>
                     ${pago.observaciones ? `<div style="font-size:10px; color:#64748b; margin-top:4px;">${pago.observaciones}</div>` : ''}
                   </td>
-                  <td style="text-align: center; color: #475569;">${pago.fecha.slice(0, 7)}</td>
+                  <td style="text-align: center; color: #475569;">${pago.periodo_desde ? pago.periodo_desde + ' al ' + pago.periodo_hasta : pago.fecha.slice(0, 7)}</td>
                   <td style="text-align: center; color: #475569;">${cantVal}</td>
                   <td style="text-align: right; font-weight: 700; color: #0f172a;">$ ${totalFormateado}</td>
                 </tr>
@@ -738,6 +772,7 @@ export default function PagosModule() {
                   onChange={(e) => {
                     setTextoBusquedaAlumno(e.target.value);
                     setAlumnoSeleccionado(null);
+                    setActividadInscripcionId(''); setSesionId('');
                     setMostrarDropdownAlumnos(true);
                   }}
                   style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
@@ -793,72 +828,52 @@ export default function PagosModule() {
               )}
 
               <h2 style={{ margin: '24px 0 16px 0', fontSize: '14px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                2. Detalle y Modalidad del Cobro
+                2. Detalle del Cobro
               </h2>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    1. Modalidad *
-                  </label>
-                  <select
-                    value={modalidad}
-                    onChange={(e: any) => handleCambiarModalidad(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', backgroundColor: '#ffffff', boxSizing: 'border-box', fontWeight: 600 }}
-                  >
-                    <option value="Mes">Por Mes</option>
-                    <option value="Semana">Por Semana</option>
-                    <option value="Clase">Por Clase</option>
+              <div style={{ display: 'grid', gap: '12px', marginBottom: '18px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+                  Actividad que abona *
+                  <select value={actividadElegida?.sesiones[0].id || ''} disabled={!alumnoSeleccionado || cargandoActividades}
+                    onChange={(e) => { setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setPrecioUnitario(0); }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}>
+                    <option value="">{cargandoActividades ? 'Cargando inscripciones...' : 'Seleccioná un curso o una clase particular'}</option>
+                    {actividades.map(a => <option key={a.clave} value={a.sesiones[0].id}>{a.nombre} · {a.materias.join(', ')} · {a.docente}</option>)}
                   </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    2. Cantidad de {modalidad === 'Clase' ? 'Clases' : modalidad === 'Semana' ? 'Semanas' : 'Meses'} *
+                </label>
+                {inscripcionesCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{inscripcionesCobro.error}</p>}
+                {alumnoSeleccionado && !cargandoActividades && !actividades.length && !inscripcionesCobro.error && <p style={{ color: '#64748b', margin: 0 }}>Este alumno no tiene inscripciones confirmadas disponibles para cobrar.</p>}
+                {actividadElegida && (modalidad === 'Clase' ? (
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Clase que abona *
+                    <select value={sesionId} onChange={e => setSesionId(e.target.value)} disabled={!actividadElegida}
+                      style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                      <option value="">Seleccioná una sesión</option>
+                      {actividadElegida?.sesiones.map(s => <option key={s.id} value={s.id}>{s.turnos_clase?.fecha} · {s.turnos_clase?.hora_inicio.slice(0,5)} a {s.turnos_clase?.hora_fin.slice(0,5)} · {s.turnos_clase?.materias?.nombre}</option>)}
+                    </select>
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={cantidad}
-                    onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                    onChange={(e) => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', fontWeight: 700 }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    3. Precio Unitario ($) *
+                ) : (
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Mes abonado *
+                    <input type="month" value={periodoAbonado}
+                      onChange={e => setPeriodoAbonado(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    value={precioUnitario || ''}
-                    onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                    onChange={(e) => setPrecioUnitario(Math.max(0, parseFloat(e.target.value) || 0))}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', fontWeight: 700 }}
-                  />
-                </div>
+                ))}
+                {actividadElegida && (periodoAbonado || sesionId) && datosCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{datosCobro.error}</p>}
+                {datosCobro.vinculo && <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '8px', color: '#1e3a8a', fontSize: '13px' }}>{datosCobro.vinculo.concepto}</div>}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    Concepto / Detalle de Inscripción *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej: Cuota Regular, Curso de Ingreso, Particular..."
-                    value={concepto}
-                    onChange={(e) => setConcepto(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
-                  />
-                </div>
+              {datosCobro.vinculo && <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  {modalidad === 'Mes' ? 'Precio del mes ($)' : 'Precio de la clase ($)'} *
+                </label>
+                <input type="number" min="0.01" step="0.01" required value={precioUnitario || ''}
+                  onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                  onChange={e => setPrecioUnitario(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder={modalidad === 'Mes' ? 'Ingresá el importe del mes seleccionado' : 'Ingresá el importe de esta clase'}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>}
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                     Fecha de Operación *
@@ -940,7 +955,7 @@ export default function PagosModule() {
 
                 <div style={{ padding: '14px 0', borderTop: '2px dashed #e2e8f0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>
-                    <span>Subtotal ({cantidad} × ${precioUnitario.toLocaleString('es-AR')}):</span>
+                    <span>{modalidad === 'Mes' ? 'Importe del mes:' : 'Importe de la clase:'}</span>
                     <span>${totalACobrar.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -955,7 +970,7 @@ export default function PagosModule() {
 
                 <button
                   type="submit"
-                  disabled={guardando || !alumnoSeleccionado || totalACobrar <= 0}
+                  disabled={guardando || !alumnoSeleccionado || totalACobrar <= 0 || !datosCobro.vinculo}
                   style={{
                     width: '100%',
                     padding: '13px',

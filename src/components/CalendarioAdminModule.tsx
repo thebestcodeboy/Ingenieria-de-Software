@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getCalendarioAdmin, getInscriptosTurno } from '../services/calendarioAdmin';
 
+import { eventoEnFecha } from '../domain/calendario';
+
 interface TurnoEvento {
   id?: string | number;
   turno_id?: string | number;
-  fecha: string;
+  fecha: string | null;
   dia_semana?: string | null;
   hora_inicio: string;
   hora_fin: string;
@@ -16,9 +18,9 @@ interface TurnoEvento {
   materia_nombre?: string;
   profesor_id?: string;
   profesor_nombre_completo?: string;
-  cupo_maximo?: number;
+  cupo_maximo?: number | null;
   inscriptos_actuales?: number;
-  lugares_disponibles?: number;
+  lugares_disponibles?: number | null;
   estado?: string | null;
 }
 
@@ -131,9 +133,9 @@ export default function CalendarioAdminModule() {
       if (filtroEstado === 'activos' && esCancelado) return false;
       if (filtroEstado === 'cancelados' && !esCancelado) return false;
 
-      return matchMat && matchProf && matchAula;
+      return matchMat && matchProf && matchAula && (vista !== 'dia' || eventoEnFecha(ev, fechaDesde));
     });
-  }, [eventos, filtroMateria, filtroProfesor, filtroAula, filtroEstado]);
+  }, [eventos, filtroMateria, filtroProfesor, filtroAula, filtroEstado, vista, fechaDesde]);
 
   const handleAbrirDetalle = async (turno: TurnoEvento) => {
     setTurnoSeleccionado(turno);
@@ -404,14 +406,7 @@ export default function CalendarioAdminModule() {
           {diasSemana.map((dia, idx) => {
             const diaISO = formatISO(dia);
             const esHoy = formatISO(new Date()) === diaISO;
-            const nombreDiaSemana = NOMBRES_DIAS[dia.getDay()];
-
-            // Coincidencia por fecha puntual O coincidencia periódica por día de semana
-            const turnosDelDia = eventosFiltrados.filter((ev) => {
-              const matchFechaPuntual = ev.fecha === diaISO;
-              const matchPeriodica = !ev.fecha && ev.dia_semana && ev.dia_semana.toLowerCase().includes(nombreDiaSemana);
-              return matchFechaPuntual || matchPeriodica;
-            });
+            const turnosDelDia = eventosFiltrados.filter((ev) => eventoEnFecha(ev, diaISO));
 
             return (
               <div

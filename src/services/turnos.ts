@@ -1,6 +1,8 @@
+import { validarFechaCurso } from '@/domain/periodoCurso';
 import { supabase } from '@/lib/supabaseClient';
 import { validarCupo } from '@/domain/cupo';
 import { generarFechasSemanales } from '@/domain/turnosPeriodicos';
+import { validarHorarioProfesor } from '@/domain/disponibilidadProfesor';
 import { validarAlumnoActivoParaInscripcion } from '../utils/alumnoInscripcion';
 
 export { validarCupo } from '@/domain/cupo';
@@ -245,25 +247,8 @@ export async function validarDisponibilidadProfesor(
   }
 
   const nombreDocente = `${prof.apellido}, ${prof.nombre}`;
-  const disponibilidad: FranjaDisponibilidad[] = Array.isArray(prof.disponibilidad)
-    ? prof.disponibilidad
-    : [];
-
-  if (disponibilidad.length > 0) {
-    const encajaEnAlgunaFranja = disponibilidad.some((franja) => {
-      return horaInicio >= franja.horaInicio && horaFin <= franja.horaFin;
-    });
-
-    if (!encajaEnAlgunaFranja) {
-      const franjasTexto = disponibilidad
-        .map((f) => `${f.franja} (${f.horaInicio} a ${f.horaFin})`)
-        .join(', ');
-      return {
-        valido: false,
-        motivo: `El horario seleccionado (${horaInicio} a ${horaFin}) no coincide con la disponibilidad configurada de ${nombreDocente}. Sus franjas habilitadas son: ${franjasTexto}.`,
-      };
-    }
-  }
+  const errorHorario = validarHorarioProfesor(prof, horaInicio, horaFin);
+  if (errorHorario) return { valido: false, motivo: errorHorario };
 
   let query = supabase
     .from('turnos_clase')
@@ -279,7 +264,7 @@ export async function validarDisponibilidadProfesor(
   const { data: turnosMismoDia, error: queryError } = await query;
 
   if (queryError) {
-    console.error('Error al verificar turnos de profesor:', queryError);
+    return { valido: false, motivo: 'No se pudo verificar la disponibilidad del profesor. Intenta nuevamente.' };
   } else if (turnosMismoDia && turnosMismoDia.length > 0) {
     const solapado = turnosMismoDia.find((t) => {
       const tInicio = String(t.hora_inicio).slice(0, 5);
@@ -349,7 +334,15 @@ export async function validarDisponibilidadAula(
 /**
  * HU08, HU14 y HU16: Registrar nuevo turno
  */
+async function validarPeriodoTurnoCurso(cursoId: string, fecha: string) {
+  const { data, error } = await supabase.from('cursos_ingreso').select('fecha_inicio, fecha_fin').eq('id', cursoId).single();
+  if (error || !data) throw new Error('No se pudo consultar el período del curso.');
+  const motivo = validarFechaCurso(fecha, data.fecha_inicio, data.fecha_fin);
+  if (motivo) throw new Error(motivo);
+}
+
 async function validarDisponibilidadTurno(payload: FormNuevoTurnoPayload) {
+  if (payload.actividadTipo === 'curso') await validarPeriodoTurnoCurso(payload.actividadId, payload.fecha);
   if (payload.horaInicio >= payload.horaFin) {
     throw new Error('La hora de finalización debe ser posterior a la hora de inicio.');
   }
@@ -576,6 +569,9 @@ export async function cancelarTurno(turnoId: string) {
  * HU14: Reprogramar turno de clase (modificar fecha, horario, aula y profesor)
  */
 export async function reprogramarTurno(payload: ReprogramarTurnoPayload) {
+  const { data: original, error: errorOriginal } = await supabase.from('turnos_clase').select('curso_id').eq('id', payload.turnoId).single();
+  if (errorOriginal || !original) throw new Error('No se pudo consultar el turno original.');
+  if (original.curso_id) await validarPeriodoTurnoCurso(original.curso_id, payload.fecha);
   if (payload.horaInicio >= payload.horaFin) {
     throw new Error('La hora de finalización debe ser posterior a la hora de inicio.');
   }
@@ -636,6 +632,7 @@ export async function reprogramarTurnoPeriodico(payload: ReprogramarTurnoPayload
   }
 
   for (const fecha of fechas) {
+    if (turnoOriginal.curso_id) await validarPeriodoTurnoCurso(turnoOriginal.curso_id, fecha);
     const turnoEnFecha = { ...payload, fecha };
     const chequeoProfesor = await validarDisponibilidadProfesor(
       turnoEnFecha.profesorId,

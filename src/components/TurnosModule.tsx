@@ -914,7 +914,7 @@ export default function TurnosModule() {
               </select>
 
               <label style={styles.labelModal} htmlFor="actividadId">
-                Actividad
+                Nombre de Actividad
               </label>
               <select
                 id="actividadId"
