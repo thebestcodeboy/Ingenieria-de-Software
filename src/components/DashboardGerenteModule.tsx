@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { ResumenGerencial } from '../domain/dashboardGerente';
 import { getDashboardGerenteSummary } from '../services/dashboardGerente';
+import IndicadoresFinancierosModule from './IndicadoresFinancierosModule';
 
 const VACIO: ResumenGerencial = {
   inscripcionesMesActual: 0,
@@ -33,6 +34,7 @@ export default function DashboardGerenteModule() {
   const [actualizando, setActualizando] = useState(false);
   const [error, setError] = useState('');
   const [actualizado, setActualizado] = useState<Date | null>(null);
+  const [vista, setVista] = useState<'economicos' | 'academicos'>('economicos');
 
   const cargar = useCallback(async (esActualizacion = false) => {
     if (esActualizacion) setActualizando(true);
@@ -106,6 +108,14 @@ export default function DashboardGerenteModule() {
         </button>
       </header>
 
+      <nav aria-label="Tipos de indicadores" style={styles.selectorVista}>
+        <button type="button" onClick={() => setVista('economicos')} aria-pressed={vista === 'economicos'} style={{ ...styles.botonVista, ...(vista === 'economicos' ? styles.botonVistaActivo : {}) }}>Económicos</button>
+        <button type="button" onClick={() => setVista('academicos')} aria-pressed={vista === 'academicos'} style={{ ...styles.botonVista, ...(vista === 'academicos' ? styles.botonVistaActivo : {}) }}>Académicos</button>
+      </nav>
+
+      {vista === 'economicos' && <IndicadoresFinancierosModule />}
+
+      {vista === 'academicos' && <>
       {error && (
         <div role="alert" style={styles.avisoError}>
           <span>{error} Se conservan los últimos datos cargados.</span>
@@ -165,6 +175,7 @@ export default function DashboardGerenteModule() {
           </div>
         </>
       )}
+      </>}
     </section>
   );
 }
@@ -238,6 +249,9 @@ const styles: Record<string, CSSProperties> = {
   titulo: { margin: 0, color: '#0f172a', fontSize: '28px', lineHeight: 1.2 },
   textoSecundario: { margin: '5px 0 0', color: '#64748b', fontSize: '15px', lineHeight: 1.5 },
   botonPrimario: { border: 0, borderRadius: '7px', padding: '10px 15px', backgroundColor: '#7c3aed', color: '#fff', fontWeight: 700, cursor: 'pointer' },
+  selectorVista: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(140px, 1fr))', gap: '6px', marginBottom: '20px', padding: '5px', border: '1px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#f8fafc' },
+  botonVista: { padding: '11px 16px', border: 0, borderRadius: '7px', backgroundColor: 'transparent', color: '#475569', fontWeight: 700, cursor: 'pointer' },
+  botonVistaActivo: { backgroundColor: '#7c3aed', color: '#fff', boxShadow: '0 1px 3px rgba(15, 23, 42, .18)' },
   botonTexto: { border: 0, background: 'transparent', color: '#b91c1c', fontWeight: 700, cursor: 'pointer' },
   avisoError: { display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '18px', padding: '12px 14px', border: '1px solid #fecaca', borderRadius: '7px', backgroundColor: '#fff7f7', color: '#b91c1c', fontSize: '15px' },
   estadoCentral: { minHeight: '280px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px', padding: '40px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fff', textAlign: 'center' },
