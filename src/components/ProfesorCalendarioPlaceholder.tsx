@@ -1,5 +1,6 @@
 'use client';
 
+import AsistenciasModule from './AsistenciasModule';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cancelarTurnoProfesor, listarCalendarioProfesor, type TurnoCalendarioProfesor } from '@/services/profesorPortal';
 
@@ -15,6 +16,7 @@ function horaCorta(hora: string | null) {
 }
 
 export default function ProfesorCalendarioPlaceholder() {
+  const [turnoAsistencia, setTurnoAsistencia] = useState('');
   const hoy = new Date();
   const [mesVisible, setMesVisible] = useState(() => new Date(hoy.getFullYear(), hoy.getMonth(), 1));
   const [turnos, setTurnos] = useState<TurnoCalendarioProfesor[]>([]);
@@ -138,7 +140,7 @@ export default function ProfesorCalendarioPlaceholder() {
               const esPasado = Boolean(celda.fecha && celda.fecha < fechaHoy);
               return (
                 <div key={celda.clave} style={{ backgroundColor: celda.dia === null ? '#f1f5f9' : esPasado ? '#fff1f2' : '#ffffff', borderRight: (indice + 1) % 7 === 0 ? 'none' : '1px solid #cbd5e1', borderBottom: '1px solid #cbd5e1', minHeight: '128px', padding: '6px', boxSizing: 'border-box' }}>
-                  {celda.dia !== null && <><div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: esHoy ? '#2563eb' : esPasado ? '#fee2e2' : 'transparent', color: esHoy ? '#ffffff' : esPasado ? '#b91c1c' : '#334155', display: 'grid', placeItems: 'center', fontSize: '14px', fontWeight: 700, marginBottom: '5px' }}>{celda.dia}</div><div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>{clases.map((turno) => <article key={turno.turno_id} title={`${turno.actividad_nombre} · Aula ${turno.aula_numero ?? 'sin asignar'}`} style={{ backgroundColor: esPasado ? '#dc2626' : '#2563eb', color: '#ffffff', borderRadius: '5px', padding: '6px', fontSize: '12px', lineHeight: 1.3, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}><strong style={{ display: 'block', fontSize: '12.5px', textTransform: 'uppercase' }}>{turno.materia_nombre}</strong><span style={{ display: 'block', color: esPasado ? '#fee2e2' : '#dbeafe' }}>{turno.actividad_nombre}</span><span style={{ display: 'block', color: esPasado ? '#fee2e2' : '#dbeafe' }}>{horaCorta(turno.hora_inicio)} - {horaCorta(turno.hora_fin)}</span><span style={{ display: 'block', color: esPasado ? '#fecaca' : '#e0e7ff' }}>Aula {turno.aula_numero ?? 'sin asignar'} · {turno.cantidad_alumnos} alumnos</span>{!esPasado && <button type="button" onClick={() => { setMensaje(null); setTurnoParaCancelar(turno); }} style={{ marginTop: '6px', padding: '4px 6px', border: '1px solid rgba(255,255,255,0.65)', borderRadius: '4px', backgroundColor: '#991b1b', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar esta clase</button>}</article>)}</div></>}
+                  {celda.dia !== null && <><div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: esHoy ? '#2563eb' : esPasado ? '#fee2e2' : 'transparent', color: esHoy ? '#ffffff' : esPasado ? '#b91c1c' : '#334155', display: 'grid', placeItems: 'center', fontSize: '14px', fontWeight: 700, marginBottom: '5px' }}>{celda.dia}</div><div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>{clases.map((turno) => <article key={turno.turno_id} title={`${turno.actividad_nombre} · Aula ${turno.aula_numero ?? 'sin asignar'}`} style={{ backgroundColor: esPasado ? '#dc2626' : '#2563eb', color: '#ffffff', borderRadius: '5px', padding: '6px', fontSize: '12px', lineHeight: 1.3, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}><strong style={{ display: 'block', fontSize: '12.5px', textTransform: 'uppercase' }}>{turno.materia_nombre}</strong><span style={{ display: 'block', color: esPasado ? '#fee2e2' : '#dbeafe' }}>{turno.actividad_nombre}</span><span style={{ display: 'block', color: esPasado ? '#fee2e2' : '#dbeafe' }}>{horaCorta(turno.hora_inicio)} - {horaCorta(turno.hora_fin)}</span><span style={{ display: 'block', color: esPasado ? '#fecaca' : '#e0e7ff' }}>Aula {turno.aula_numero ?? 'sin asignar'} · {turno.cantidad_alumnos} alumnos</span><button type="button" onClick={() => setTurnoAsistencia(turno.turno_id)}>Asistencias</button>{!esPasado && <button type="button" onClick={() => { setMensaje(null); setTurnoParaCancelar(turno); }} style={{ marginTop: '6px', padding: '4px 6px', border: '1px solid rgba(255,255,255,0.65)', borderRadius: '4px', backgroundColor: '#991b1b', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar esta clase</button>}</article>)}</div></>}
                 </div>
               );
             })}
@@ -147,6 +149,7 @@ export default function ProfesorCalendarioPlaceholder() {
 
         <div style={{ padding: '9px 12px', backgroundColor: '#f8fafc', color: '#64748b', fontSize: '13px' }}>{cargando ? 'Cargando tus clases...' : turnos.length === 0 && !error ? 'No tenés clases asignadas durante este mes.' : 'Azul: clases próximas. Rojo: clases cuya fecha ya pasó. Solo se muestran turnos asignados por Mesa de Entrada.'}</div>
       </div>
+      {turnoAsistencia && <div><button onClick={() => setTurnoAsistencia('')}>Cerrar asistencias</button><AsistenciasModule key={turnoAsistencia} turnoId={turnoAsistencia}/></div>}
       {turnoParaCancelar && (
         <div role="presentation" onMouseDown={() => !cancelando && setTurnoParaCancelar(null)} style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: '20px', backgroundColor: 'rgba(15, 23, 42, 0.55)' }}>
           <div role="dialog" aria-modal="true" aria-labelledby="titulo-cancelar-clase-docente" onMouseDown={(event) => event.stopPropagation()} style={{ width: '100%', maxWidth: '420px', padding: '24px', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 20px 40px rgba(15, 23, 42, 0.2)' }}>

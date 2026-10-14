@@ -1,0 +1,17 @@
+﻿# Implementación HU26 — Bitácora de asistencias
+
+Se incorporaron versiones inmutables por inscripción, registro y corrección transaccionales con control de concurrencia, filtros combinables, resumen vigente y consulta del historial. Mesa accede desde Asistencias y el detalle del calendario; el profesor desde Asistencias o Mis clases; el alumno desde Mi bitácora.
+
+## Instalación
+
+Aplicar en orden las migraciones previas y luego `supabase/migrations/20261014180000_hu26_bitacora_asistencias.sql` mediante el procedimiento habitual de Supabase. Esta entrega no modifica la base compartida ni genera datos de ejemplo.
+
+Los roles administrativos deben estar en `auth.users.raw_app_meta_data` (rol/role), igual que las inscripciones administrativas. Los profesores necesitan `auth_user_id` y acceso habilitado; los alumnos se vinculan por email institucional, conforme al portal existente. La consulta aplica estos permisos en el servidor y la tabla no concede acceso directo al navegador.
+
+Clase cancelada se genera al cancelar el turno; no puede cargarse manualmente sin cancelar la clase. Los turnos cancelados antes de esta migración se muestran como cancelados sin inventar versiones de auditoría. El autor se muestra por su identificador autenticado. Los horarios se validan en Buenos Aires y las fechas de auditoría se generan en el servidor.
+
+## Verificación
+
+Pruebas de dominio: sin registro no implica falta, correcciones cuentan solo su versión vigente, cancelación no suma falta y filtros combinados incluyen los extremos. Se ejecutó la suite del proyecto.
+
+Pendiente de validación en una base de prueba después de instalar: registro y corrección con Mesa y profesor asignado; rechazo para profesor ajeno y alumno; consulta exclusivamente propia; rechazo de INSERT/UPDATE/DELETE directos; espera y cancelación; clase futura; dos correcciones con la misma versión; cancelación conservando versiones previas. No se consideran verificados estos escenarios mediante las pruebas de dominio.

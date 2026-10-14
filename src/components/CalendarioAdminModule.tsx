@@ -1,5 +1,6 @@
 'use client';
 
+import AsistenciasModule from './AsistenciasModule';
 import React, { useState, useEffect, useMemo } from 'react';
 import { getCalendarioAdmin, getInscriptosTurno } from '../services/calendarioAdmin';
 
@@ -849,6 +850,7 @@ export default function CalendarioAdminModule() {
               </button>
             </div>
 
+            <details><summary>Asistencias de esta clase</summary><AsistenciasModule key={String(turnoSeleccionado.turno_id ?? turnoSeleccionado.id)} turnoId={String(turnoSeleccionado.turno_id ?? turnoSeleccionado.id)}/></details>
             <div
               style={{
                 backgroundColor: turnoSeleccionado.estado === 'cancelado' ? '#fef2f2' : '#f8fafc',
