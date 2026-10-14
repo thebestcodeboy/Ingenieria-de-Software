@@ -1,4 +1,17 @@
 export type ModalidadPago = 'Clase' | 'Semana' | 'Mes';
+export type PagoParaSaldo = { alumno_id: string; importe: number; estado: string };
+export type AlumnoParaSaldo = { id: string; nombre: string; apellido: string; legajo?: string | null };
+export type SaldoPorAlumno = {
+  id: string;
+  nombre: string;
+  apellido: string;
+  legajo?: string | null;
+  totalCobrado: number;
+  montoPendiente: number;
+  montoRechazado: number;
+  saldoAdeudado: number;
+};
+
 export type InscripcionCobro = {
   id: string; estado: string;
   turnos_clase: {
@@ -40,6 +53,65 @@ function fechaValida(texto: string): Date {
   return fecha;
 }
 
+export function fechaASemanaIso(texto: string): string {
+  const fecha = fechaValida(texto);
+  const jueves = new Date(fecha);
+  jueves.setUTCDate(fecha.getUTCDate() + 3 - ((fecha.getUTCDay() + 6) % 7));
+  const anio = jueves.getUTCFullYear();
+  const cuatroDeEnero = new Date(Date.UTC(anio, 0, 4));
+  const inicioPrimeraSemana = new Date(cuatroDeEnero);
+  inicioPrimeraSemana.setUTCDate(cuatroDeEnero.getUTCDate() - ((cuatroDeEnero.getUTCDay() + 6) % 7));
+  const lunes = new Date(fecha);
+  lunes.setUTCDate(fecha.getUTCDate() - ((fecha.getUTCDay() + 6) % 7));
+  const numeroSemana = Math.round((lunes.getTime() - inicioPrimeraSemana.getTime()) / 604800000) + 1;
+  return `${anio}-W${String(numeroSemana).padStart(2, '0')}`;
+}
+
+function inicioSemanaIso(periodo: string): string {
+  const coincidencia = /^(\d{4})-W(\d{2})$/.exec(periodo);
+  if (!coincidencia) throw new Error('Seleccioná una semana válida para el período abonado.');
+
+  const anio = Number(coincidencia[1]);
+  const numeroSemana = Number(coincidencia[2]);
+  if (numeroSemana < 1 || numeroSemana > 53) throw new Error('La semana seleccionada no es válida.');
+
+  const cuatroDeEnero = new Date(Date.UTC(anio, 0, 4));
+  const lunes = new Date(cuatroDeEnero);
+  lunes.setUTCDate(cuatroDeEnero.getUTCDate() - ((cuatroDeEnero.getUTCDay() + 6) % 7) + (numeroSemana - 1) * 7);
+  const fechaInicio = lunes.toISOString().slice(0, 10);
+  if (fechaASemanaIso(fechaInicio) !== periodo) throw new Error('La semana seleccionada no existe.');
+  return fechaInicio;
+}
+
+export function calcularSaldosPorAlumno(
+  alumnos: AlumnoParaSaldo[],
+  pagos: PagoParaSaldo[]
+): SaldoPorAlumno[] {
+  const saldos = new Map(alumnos.map(alumno => [alumno.id, {
+    ...alumno,
+    totalCobrado: 0,
+    montoPendiente: 0,
+    montoRechazado: 0,
+    saldoAdeudado: 0,
+  }]));
+
+  for (const pago of pagos) {
+    const saldo = saldos.get(pago.alumno_id);
+    if (!saldo) continue;
+    const importe = Number(pago.importe);
+    if (!Number.isFinite(importe) || importe <= 0) continue;
+
+    if (pago.estado === 'CONFIRMADO') saldo.totalCobrado += importe;
+    if (pago.estado === 'PENDIENTE') saldo.montoPendiente += importe;
+    if (pago.estado === 'RECHAZADO') saldo.montoRechazado += importe;
+  }
+
+  return [...saldos.values()]
+    .map(saldo => ({ ...saldo, saldoAdeudado: saldo.montoPendiente + saldo.montoRechazado }))
+    .filter(saldo => saldo.totalCobrado > 0 || saldo.saldoAdeudado > 0)
+    .sort((a, b) => b.saldoAdeudado - a.saldoAdeudado || a.apellido.localeCompare(b.apellido));
+}
+
 export function construirVinculoPago(actividad: ActividadCobro | undefined, modalidad: ModalidadPago, periodo: string, cantidad: number, sesionId: string): VinculoPago {
   if (!actividad) throw new Error('Seleccioná una actividad en la que el alumno esté inscripto.');
   if (!Number.isSafeInteger(cantidad) || cantidad < 1) throw new Error('La cantidad debe ser un entero mayor que cero.');
@@ -54,12 +126,12 @@ export function construirVinculoPago(actividad: ActividadCobro | undefined, moda
     sesiones = [sesion];
   } else {
     if (modalidad === 'Mes' && !/^\d{4}-\d{2}$/.test(periodo)) throw new Error('Seleccioná el mes abonado.');
-    desde = modalidad === 'Mes' ? periodo + '-01' : periodo;
+    desde = modalidad === 'Mes' ? periodo + '-01' : modalidad === 'Semana' && /^\d{4}-W\d{2}$/.test(periodo) ? inicioSemanaIso(periodo) : periodo;
     const fin = fechaValida(desde);
     if (modalidad === 'Mes') {
       fin.setUTCMonth(fin.getUTCMonth() + cantidad);
       fin.setUTCDate(0);
-    } else {
+    } else if (modalidad === 'Semana') {
       fin.setUTCDate(fin.getUTCDate() + cantidad * 7 - 1);
     }
     if (!Number.isFinite(fin.getTime())) throw new Error('El período seleccionado no es válido.');
@@ -69,7 +141,7 @@ export function construirVinculoPago(actividad: ActividadCobro | undefined, moda
   }
   const cobertura = modalidad === 'Clase'
     ? 'Clase del ' + desde + ' (' + sesiones[0].turnos_clase!.hora_inicio.slice(0,5) + ' a ' + sesiones[0].turnos_clase!.hora_fin.slice(0,5) + ')'
-    : 'Período: ' + desde + ' al ' + hasta;
+    : (modalidad === 'Semana' ? 'Semana: ' : 'Período: ') + desde + ' al ' + hasta;
   const concepto = [actividad.nombre, actividad.materias.join(', '), actividad.docente ? 'Docente: ' + actividad.docente : '', cobertura].filter(Boolean).join(' · ');
   return { inscripcion_id: sesiones[0].id, periodo_desde: desde, periodo_hasta: hasta,
     detalle_academico: { actividad: actividad.nombre, docente: actividad.docente, materias: actividad.materias, inscripciones: sesiones.map(s => s.id) }, concepto };

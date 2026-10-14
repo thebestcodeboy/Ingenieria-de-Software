@@ -14,6 +14,10 @@ export default function PortalAlumnoModule({ activeTab }) {
   const [todosLosTurnos, setTodosLosTurnos] = useState([]);
   const [misInscripciones, setMisInscripciones] = useState([]);
   const [inscripciones, setInscripciones] = useState([]);
+  const [pagosAlumno, setPagosAlumno] = useState([]);
+  const [bitacoraAlumno, setBitacoraAlumno] = useState([]);
+  const [errorPagos, setErrorPagos] = useState('');
+  const [errorBitacora, setErrorBitacora] = useState('');
   const [alumnoActual, setAlumnoActual] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,6 +25,7 @@ export default function PortalAlumnoModule({ activeTab }) {
   // Filtros del catálogo
   const [filtroNivel, setFiltroNivel] = useState('todos');
   const [paginaActual, setPaginaActual] = useState(1);
+  const [vistaCursos, setVistaCursos] = useState('oferta');
   const elementosPorPagina = 8;
 
   // Inscripción en materia
@@ -107,7 +112,7 @@ export default function PortalAlumnoModule({ activeTab }) {
 
       setAlumnoActual(alumnoData);
 
-      const [matRes, curRes, profRes, turnosRes, inscRes] = await Promise.all([
+      const [matRes, curRes, profRes, turnosRes, inscRes, pagosRes, bitacoraRes] = await Promise.all([
         supabase.from('materias').select('*').order('nombre', { ascending: true }),
         supabase.from('cursos_ingreso').select('*').order('nombre', { ascending: true }),
         supabase.from('profesores').select('*').order('nombre', { ascending: true }),
@@ -118,6 +123,11 @@ export default function PortalAlumnoModule({ activeTab }) {
         supabase
           .from('inscripciones')
           .select('*, turnos_clase(*, materias(nombre, nivel), cursos_ingreso(nombre), profesores(id, nombre, apellido, email))'),
+        supabase.rpc('listar_pagos_portal_alumno'),
+        supabase.from('bitacora_alumno')
+          .select('id, tipo, titulo, detalle, ocurrido_en')
+          .order('ocurrido_en', { ascending: false })
+          .limit(100),
       ]);
 
       if (matRes.error) throw matRes.error;
@@ -130,6 +140,10 @@ export default function PortalAlumnoModule({ activeTab }) {
       setCursos(curRes.data || []);
       setProfesores(profRes.data || []);
       setTodosLosTurnos(turnosRes.data || []);
+      setPagosAlumno(pagosRes.error ? [] : pagosRes.data || []);
+      setBitacoraAlumno(bitacoraRes.error ? [] : bitacoraRes.data || []);
+      setErrorPagos(pagosRes.error ? 'No se pudieron cargar tus pagos. Verificá que la migración HU29 esté aplicada.' : '');
+      setErrorBitacora(bitacoraRes.error ? 'No se pudo cargar la bitácora. Verificá que la migración HU29 esté aplicada.' : '');
 
       const todasInscripciones = inscRes.data || [];
       setInscripciones(todasInscripciones);
@@ -450,6 +464,12 @@ export default function PortalAlumnoModule({ activeTab }) {
             </div>
           </div>
 
+          <ol aria-label="Inscripción en tres pasos" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, margin: '0 0 22px', padding: 0, listStyle: 'none' }}>
+            <li style={{ padding: '9px 11px', borderRadius: 5, background: '#eaf5f1', color: '#17675e', fontSize: 13, fontWeight: 700 }}>1 · Oferta elegida</li>
+            <li aria-current={!profeSeleccionado ? 'step' : undefined} style={{ padding: '9px 11px', borderRadius: 5, background: !profeSeleccionado ? '#0b1e33' : '#eaf5f1', color: !profeSeleccionado ? '#fff' : '#17675e', fontSize: 13, fontWeight: 700 }}>2 · {profeSeleccionado ? 'Docente elegido' : 'Elegí docente'}</li>
+            <li aria-current={profeSeleccionado ? 'step' : undefined} style={{ padding: '9px 11px', borderRadius: 5, background: profeSeleccionado ? '#0b1e33' : '#f1f5f6', color: profeSeleccionado ? '#fff' : '#64748b', fontSize: 13, fontWeight: 700 }}>3 · Elegí horario</li>
+          </ol>
+
           <div style={{ maxWidth: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
               <div style={{ width: '350px' }}>
@@ -677,13 +697,19 @@ export default function PortalAlumnoModule({ activeTab }) {
             )}
           </div>
         </div>
-      ) : activeTab === 'cursos' ? (
+      ) : activeTab === 'cursos' && vistaCursos === 'oferta' ? (
         /* 2. CATÁLOGO DE CURSOS DISPONIBLES */
         <div>
-          <div style={{ marginBottom: '24px' }}>
-            <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
-              Catálogo de Cursos Disponibles
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 24 }}>
+            <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              Inscribirme
             </h1>
+            <div role="tablist" aria-label="Secciones de inscripción" style={{ display: 'inline-flex', border: '1px solid #cbd5e1', borderRadius: 6, overflow: 'hidden', background: '#fff' }}>
+              <button type="button" role="tab" aria-selected={vistaCursos === 'oferta'} onClick={() => setVistaCursos('oferta')}
+                style={{ padding: '9px 13px', border: 0, background: vistaCursos === 'oferta' ? '#0b1e33' : '#fff', color: vistaCursos === 'oferta' ? '#fff' : '#334155', fontWeight: 700, cursor: 'pointer' }}>Oferta</button>
+              <button type="button" role="tab" aria-selected={vistaCursos === 'inscripciones'} onClick={() => setVistaCursos('inscripciones')}
+                style={{ padding: '9px 13px', border: 0, borderLeft: '1px solid #cbd5e1', background: vistaCursos === 'inscripciones' ? '#0b1e33' : '#fff', color: vistaCursos === 'inscripciones' ? '#fff' : '#334155', fontWeight: 700, cursor: 'pointer' }}>Mis cursos</button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
@@ -712,7 +738,7 @@ export default function PortalAlumnoModule({ activeTab }) {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
             {itemsPaginados.length === 0 ? (
               <div style={{ gridColumn: '1 / -1', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '15px' }}>
                 No se encontraron registros activos para este filtro.
@@ -756,7 +782,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                         onClick={() => handleSeleccionarItem(item, esCurso ? 'curso' : 'materia')}
                         style={{ marginTop: '16px', backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', color: '#0b1e33', borderRadius: '6px', padding: '8px 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
                       >
-                        Abrir Calendario y Anotarse
+                        Elegir oferta
                       </button>
                     </div>
                   </div>
@@ -787,9 +813,14 @@ export default function PortalAlumnoModule({ activeTab }) {
             </div>
           )}
         </div>
-      ) : activeTab === 'inscripcion' ? (
+      ) : activeTab === 'inscripcion' || (activeTab === 'cursos' && vistaCursos === 'inscripciones') ? (
         /* 3. MIS CURSOS ANOTADOS */
         <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+            <h1 style={{ margin: 0, fontSize: 25, color: '#0f172a' }}>Mis cursos</h1>
+            <button type="button" onClick={() => { setVistaCursos('oferta'); setCursoDetalleActivo(null); }}
+              style={{ padding: '9px 13px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', color: '#334155', fontWeight: 700, cursor: 'pointer' }}>Ver oferta</button>
+          </div>
           {cursoDetalleActivo ? (
             <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               <button
@@ -835,7 +866,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
                 <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0b1e33', margin: '0 0 16px 0', textTransform: 'uppercase' }}>
                     Docente Titular
@@ -910,18 +941,12 @@ export default function PortalAlumnoModule({ activeTab }) {
             </div>
           ) : (
             <div>
-              <div style={{ marginBottom: '24px' }}>
-                <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
-                  Mis Cursos y Clases Anotadas
-                </h1>
-              </div>
-
               {misInscripcionesVisibles.length === 0 ? (
-                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '15px' }}>
-                  Aún no se encuentra inscripto en ningún curso o clase particular. Diríjase a la pestaña Cursos para registrarse.
+                <div style={{ display: 'grid', justifyItems: 'center', gap: 12, padding: 30, border: '1px solid #dbe4e8', background: '#fff', textAlign: 'center', color: '#64748b' }}>
+                  <p style={{ margin: 0 }}>Aún no tenés inscripciones.</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                   {misCursosAgrupados.map((grupo, idx) => {
                     const ins = grupo.inscripciones[0];
                     const turno = ins.turnos_clase;
@@ -992,6 +1017,47 @@ export default function PortalAlumnoModule({ activeTab }) {
             </div>
           )}
         </div>
+      ) : activeTab === 'pagos' ? (
+        <section style={{ maxWidth: 1100 }}>
+          <header style={{ marginBottom: 20 }}>
+            <h1 style={{ margin: 0, color: '#0f172a', fontSize: 25 }}>Mis pagos</h1>
+            <p style={{ margin: '4px 0 0', color: '#64748b' }}>Comprobantes y estado de tus pagos registrados.</p>
+          </header>
+          {errorPagos ? <div role="alert" style={{ padding: 14, border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b' }}>{errorPagos}</div>
+            : pagosAlumno.length === 0 ? <div style={{ padding: 22, border: '1px solid #dbe4e8', background: '#fff', color: '#64748b' }}>Todavía no hay pagos registrados.</div>
+              : <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 250px)', overflowY: 'auto', border: '1px solid #dbe4e8', background: '#fff' }}>
+                <table style={{ width: '100%', minWidth: 700, borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: '#edf3f4', color: '#334155' }}><tr>
+                    {['Fecha', 'Comprobante', 'Concepto', 'Medio', 'Importe', 'Estado'].map(titulo => <th key={titulo} style={{ padding: '11px 12px' }}>{titulo}</th>)}
+                  </tr></thead>
+                  <tbody>{pagosAlumno.map(pago => <tr key={pago.id} style={{ borderTop: '1px solid #e8edef' }}>
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>{pago.fecha}</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 700 }}>{pago.comprobante}</td>
+                    <td style={{ padding: '10px 12px' }}>{pago.concepto}</td>
+                    <td style={{ padding: '10px 12px' }}>{pago.medio_pago}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>${Number(pago.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 700, color: pago.estado === 'CONFIRMADO' ? '#166534' : pago.estado === 'PENDIENTE' ? '#92400e' : '#475569' }}>{pago.estado === 'CONFIRMADO' ? 'Confirmado' : pago.estado === 'PENDIENTE' ? 'Pendiente' : pago.estado}</td>
+                  </tr>)}</tbody>
+                </table>
+              </div>}
+        </section>
+      ) : activeTab === 'bitacora' ? (
+        <section style={{ maxWidth: 900 }}>
+          <header style={{ marginBottom: 20 }}>
+            <h1 style={{ margin: 0, color: '#0f172a', fontSize: 25 }}>Bitácora</h1>
+            <p style={{ margin: '4px 0 0', color: '#64748b' }}>Actividad reciente de tus inscripciones y pagos.</p>
+          </header>
+          {errorBitacora ? <div role="alert" style={{ padding: 14, border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b' }}>{errorBitacora}</div>
+            : bitacoraAlumno.length === 0 ? <div style={{ padding: 22, border: '1px solid #dbe4e8', background: '#fff', color: '#64748b' }}>Todavía no hay movimientos en tu bitácora.</div>
+              : <ol aria-label="Movimientos recientes" style={{ position: 'relative', display: 'grid', gap: 0, maxHeight: 'calc(100vh - 250px)', overflowY: 'auto', margin: 0, padding: '0 0 0 22px', listStyle: 'none', borderLeft: '2px solid #cbd8dc' }}>
+                {bitacoraAlumno.map(evento => <li key={evento.id} style={{ position: 'relative', padding: '0 0 20px 14px' }}>
+                  <span aria-hidden="true" style={{ position: 'absolute', left: -29, top: 4, width: 12, height: 12, border: '2px solid #fff', borderRadius: '50%', background: evento.tipo.startsWith('pago') ? '#c27b32' : '#168275', boxShadow: '0 0 0 1px #b9c9ca' }} />
+                  <time dateTime={evento.ocurrido_en} style={{ color: '#64748b', fontSize: 13 }}>{new Date(evento.ocurrido_en).toLocaleString('es-AR')}</time>
+                  <h2 style={{ margin: '3px 0', fontSize: 16, color: '#183238' }}>{evento.titulo}</h2>
+                  <p style={{ margin: 0, color: '#475569' }}>{evento.detalle}</p>
+                </li>)}
+              </ol>}
+        </section>
       ) : (
         /* 4. CALENDARIO PERSONAL DEL ALUMNO */
         <div>

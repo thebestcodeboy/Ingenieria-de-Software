@@ -1,4 +1,4 @@
-import type { InscripcionCobro, VinculoPago } from '../domain/pagoAcademico';
+import type { InscripcionCobro, ModalidadPago, VinculoPago } from '../domain/pagoAcademico';
 import { supabase } from '../lib/supabaseClient';
 
 export interface Pago {
@@ -9,12 +9,15 @@ export interface Pago {
   id: string;
   comprobante: string;
   alumno_id: string;
+  modalidad?: ModalidadPago;
+  cantidad?: number;
   concepto: string;
   importe: number;
-  medio_pago: 'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito';
+  medio_pago: 'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Mercado Pago';
   fecha: string;
   observaciones?: string;
-  estado: 'CONFIRMADO' | 'ANULADO';
+  estado: 'CONFIRMADO' | 'ANULADO' | 'CANCELADO' | 'BORRADOR' | 'PENDIENTE' | 'RECHAZADO';
+  external_payment_id?: string | null;
   created_at: string;
   alumnos?: {
     id: string;
@@ -28,6 +31,7 @@ export interface Pago {
 
 export interface FormNuevoPago extends VinculoPago {
   alumno_id: string;
+  modalidad?: ModalidadPago;
   concepto: string;
   importe: number;
   medio_pago: string;
@@ -92,9 +96,10 @@ export async function registrarPago(form: FormNuevoPago): Promise<Pago> {
     concepto: form.concepto.trim(),
     importe: form.importe,
     medio_pago: form.medio_pago,
+    ...(form.modalidad ? { modalidad: form.modalidad } : {}),
     fecha: form.fecha || new Date().toISOString().split('T')[0],
     observaciones: form.observaciones?.trim() || null,
-    estado: 'CONFIRMADO'
+    estado: form.medio_pago === 'Mercado Pago' ? 'PENDIENTE' : 'CONFIRMADO'
   };
 
   const { data, error } = await supabase
@@ -107,7 +112,6 @@ export async function registrarPago(form: FormNuevoPago): Promise<Pago> {
   return data;
 }
 
-// Anulación lógica (conserva trazabilidad requerida en HU21)
 export async function anularPago(pagoId: string): Promise<void> {
   const { error } = await supabase
     .from('pagos')
@@ -116,6 +120,7 @@ export async function anularPago(pagoId: string): Promise<void> {
 
   if (error) throw new Error(`Error al anular el pago: ${error.message}`);
 }
+
 export async function listarInscripcionesCobro(alumnoId: string): Promise<InscripcionCobro[]> {
   const { data, error } = await supabase.from('inscripciones')
     .select('id, estado, turnos_clase(id, fecha, hora_inicio, hora_fin, curso_id, clase_particular_id, materia_id, profesor_id, estado, cancelado, materias(nombre), cursos_ingreso(nombre), clases_particulares(nombre), profesores(nombre, apellido))')
