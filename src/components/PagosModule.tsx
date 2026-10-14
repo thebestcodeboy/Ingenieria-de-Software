@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { listarPagos, generarNumeroComprobante, listarInscripcionesCobro } from '../services/pagos';
 
-import { agruparActividadesCobro, construirVinculoPago, type InscripcionCobro, type VinculoPago } from '../domain/pagoAcademico';
+import { agruparActividadesCobro, calcularSaldosPorAlumno, construirVinculoPago, fechaASemanaIso, type InscripcionCobro, type ModalidadPago, type VinculoPago } from '../domain/pagoAcademico';
 
 export interface PagoConDetalle {
   inscripcion_id?: string | null;
@@ -15,13 +15,14 @@ export interface PagoConDetalle {
   comprobante: string;
   alumno_id: string;
   concepto: string;
-  modalidad?: 'Clase' | 'Semana' | 'Mes' | string;
+  modalidad?: ModalidadPago;
   cantidad?: number;
   importe: number;
-  medio_pago: 'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito';
-  fecha: string;
+  medio_pago: 'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Mercado Pago';  fecha: string;
+
   observaciones?: string | null;
-  estado: 'CONFIRMADO' | 'BORRADOR' | 'CANCELADO' | 'ANULADO';
+  estado: 'CONFIRMADO' | 'BORRADOR' | 'CANCELADO' | 'ANULADO' | 'PENDIENTE' | 'RECHAZADO';
+  external_payment_id?: string | null;
   created_at: string;
   alumnos?: {
     id: string;
@@ -32,6 +33,15 @@ export interface PagoConDetalle {
     email: string;
   };
 }
+
+const PRESENTACION_ESTADO: Record<PagoConDetalle['estado'], { icono: string; color: string; fondo: string; borde: string }> = {
+  CONFIRMADO: { icono: '✓', color: '#166534', fondo: '#f0fdf4', borde: '#bbf7d0' },
+  PENDIENTE: { icono: '◷', color: '#92400e', fondo: '#fffbeb', borde: '#fde68a' },
+  RECHAZADO: { icono: '!', color: '#991b1b', fondo: '#fef2f2', borde: '#fecaca' },
+  BORRADOR: { icono: '…', color: '#1e40af', fondo: '#eff6ff', borde: '#bfdbfe' },
+  CANCELADO: { icono: '×', color: '#991b1b', fondo: '#fef2f2', borde: '#fecaca' },
+  ANULADO: { icono: '×', color: '#991b1b', fondo: '#fef2f2', borde: '#fecaca' }
+};
 
 function escaparTextoRecibo(texto: string): string {
   return texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -69,6 +79,7 @@ export default function PagosModule() {
   const [actividadInscripcionId, setActividadInscripcionId] = useState('');
   const [sesionId, setSesionId] = useState('');
   const [periodoAbonado, setPeriodoAbonado] = useState('');
+  const [modalidadCurso, setModalidadCurso] = useState<'Semana' | 'Mes'>('Mes');
   const [inscripcionesCobro, setInscripcionesCobro] = useState<{ alumnoId: string; filas: InscripcionCobro[]; error: string }>({ alumnoId: '', filas: [], error: '' });
   const alumnoCobroId = alumnoSeleccionado?.id ? String(alumnoSeleccionado.id) : '';
   const cargandoActividades = Boolean(alumnoCobroId && inscripcionesCobro.alumnoId !== alumnoCobroId);
@@ -84,7 +95,7 @@ export default function PagosModule() {
   }, [alumnoCobroId]);
   const actividades = useMemo(() => agruparActividadesCobro(inscripcionesCobro.alumnoId === alumnoCobroId ? inscripcionesCobro.filas : []), [inscripcionesCobro, alumnoCobroId]);
   const actividadElegida = actividades.find(a => a.sesiones.some(s => s.id === actividadInscripcionId));
-  const modalidad = actividadElegida?.clave.startsWith('particular:') ? 'Clase' : 'Mes';
+  const modalidad: ModalidadPago = actividadElegida?.clave.startsWith('particular:') ? 'Clase' : modalidadCurso;
   const datosCobro = useMemo(() => {
     try { return { vinculo: construirVinculoPago(actividadElegida, modalidad, periodoAbonado, cantidad, sesionId), error: '' }; }
     catch (error: unknown) { return { vinculo: null, error: error instanceof Error ? error.message : 'Revisá el detalle del cobro.' }; }
@@ -92,13 +103,13 @@ export default function PagosModule() {
   const concepto = datosCobro.vinculo?.concepto ?? '';
 
 
-  const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito'>('Efectivo');
-  const [fechaCobro, setFechaCobro] = useState(fechaHoy);
+const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Mercado Pago'>('Efectivo');  const [fechaCobro, setFechaCobro] = useState(fechaHoy);
   const [montoRecibido, setMontoRecibido] = useState<number>(0);
   const [nroReferencia, setNroReferencia] = useState('');
 
   // Modales
   const [pagoRecienCreado, setPagoRecienCreado] = useState<PagoConDetalle | null>(null);
+  const [linkPagoMercadoPago, setLinkPagoMercadoPago] = useState<string | null>(null);
   const [comprobanteSeleccionado, setComprobanteSeleccionado] = useState<PagoConDetalle | null>(null);
 
   // Feedback
@@ -177,8 +188,18 @@ export default function PagosModule() {
     return pagosFiltrados.slice(inicio, inicio + elementosPorPagina);
   }, [pagosFiltrados, paginaActual]);
 
+  const saldosPorAlumno = useMemo(() => calcularSaldosPorAlumno(alumnos, pagos), [alumnos, pagos]);
+  const saldosVisibles = useMemo(() => {
+    const q = busqueda.toLowerCase().trim();
+    return saldosPorAlumno.filter(saldo =>
+      !q || `${saldo.apellido} ${saldo.nombre} ${saldo.legajo || ''}`.toLowerCase().includes(q)
+    );
+  }, [saldosPorAlumno, busqueda]);
+  const totalDeudaRegistrada = useMemo(() => saldosPorAlumno.reduce((total, saldo) => total + saldo.saldoAdeudado, 0), [saldosPorAlumno]);
+
   const handleSeleccionarAlumno = (al: any) => {
     setAlumnoSeleccionado(al);
+    setModalidadCurso('Mes');
     setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setErrorMsg('');
     setTextoBusquedaAlumno(`${al.apellido}, ${al.nombre} (${al.legajo || 'Sin Legajo'}) - DNI: ${al.dni}`);
     setMostrarDropdownAlumnos(false);
@@ -189,9 +210,11 @@ export default function PagosModule() {
     setAlumnoSeleccionado(null);
     setTextoBusquedaAlumno('');
     setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado('');
+    setModalidadCurso('Mes');
     setPrecioUnitario(0);
     setMontoRecibido(0);
     setNroReferencia('');
+    setLinkPagoMercadoPago(null);
     setFechaCobro(fechaHoy);
   };
 
@@ -203,9 +226,12 @@ export default function PagosModule() {
     }
     setActividadInscripcionId(p.inscripcion_id || '');
     setSesionId(p.modalidad === 'Clase' ? p.inscripcion_id || '' : '');
-    const requiereRevision = (p.cantidad || 1) !== 1 || p.modalidad === 'Semana';
-    setPeriodoAbonado(!requiereRevision && p.modalidad === 'Mes' ? p.periodo_desde?.slice(0,7) || '' : '');
-    setErrorMsg(requiereRevision ? 'Este borrador cubría varias unidades o semanas. Seleccioná un mes o una clase e indicá su precio antes de confirmar.' : '');
+    setModalidadCurso(p.modalidad === 'Semana' ? 'Semana' : 'Mes');
+    const requiereRevision = (p.cantidad || 1) !== 1;
+    setPeriodoAbonado(p.modalidad === 'Semana'
+      ? p.periodo_desde ? fechaASemanaIso(p.periodo_desde) : ''
+      : p.modalidad === 'Mes' ? p.periodo_desde?.slice(0,7) || '' : '');
+    setErrorMsg(requiereRevision ? 'Este borrador cubría varias unidades. Revisá el período y el precio antes de confirmar.' : '');
     setPrecioUnitario(requiereRevision ? 0 : p.importe || 0);
     setMedioPago(p.medio_pago);
     setNroReferencia((p.observaciones || '').replace(/^(?:N°\s*)?Ref:\s*/i, ''));
@@ -317,16 +343,47 @@ export default function PagosModule() {
       setErrorMsg('El monto recibido no puede ser inferior al total de la operación.');
       return;
     }
-    if (medioPago !== 'Efectivo' && !nroReferencia.trim()) {
+    if (medioPago !== 'Efectivo' && medioPago !== 'Mercado Pago' && !nroReferencia.trim()) {
       setErrorMsg('Debe ingresar el número de referencia u operación.');
       return;
     }
-
+    
     try {
       setGuardando(true);
       const conceptoCompleto = datosCobro.vinculo.concepto;
+      const nuevoComp = pagoBorradorId ? null : await generarNumeroComprobante();
+
+      let externalPaymentId = null;
+      let estadoInicial: 'CONFIRMADO' | 'PENDIENTE' = 'CONFIRMADO';
+      let preferenceId: string | null = null;
+      let checkoutUrl: string | null = null;
+
+      // Lógica de integración con Mercado Pago (HU24)
+      if (medioPago === 'Mercado Pago') {
+        const mpRes = await fetch('/api/pagos/mercadopago', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            importe: totalACobrar,
+            description: conceptoCompleto,
+            payer_email: alumnoSeleccionado.email,
+            external_reference: pagoBorradorId || nuevoComp
+          })
+        });
+        const mpData = await mpRes.json();
+        if (!mpRes.ok) throw new Error(mpData.error || 'Error al conectar con Mercado Pago');
+        preferenceId = mpData.preference_id?.toString() || null;
+        checkoutUrl = mpData.checkout_url || null;
+        if (!checkoutUrl) throw new Error('Mercado Pago no devolvió un enlace de Checkout.');
+        estadoInicial = 'PENDIENTE'; // Criterio de aceptación: queda pendiente hasta su confirmación por webhook
+      }
 
       let pagoConfirmadoResult: PagoConDetalle;
+      const observacionesFinal = medioPago === 'Efectivo' 
+        ? null 
+        : medioPago === 'Mercado Pago' 
+          ? `Mercado Pago Preferencia: ${preferenceId || 'Generada'}` 
+          : `N° Ref: ${nroReferencia.trim()}`;
 
       if (pagoBorradorId) {
         const { data, error } = await supabase
@@ -340,8 +397,9 @@ export default function PagosModule() {
             importe: totalACobrar,
             medio_pago: medioPago,
             fecha: fechaCobro,
-            observaciones: medioPago === 'Efectivo' ? null : `N° Ref: ${nroReferencia.trim()}`,
-            estado: 'CONFIRMADO'
+            observaciones: observacionesFinal,
+            estado: estadoInicial,
+            external_payment_id: externalPaymentId
           })
           .eq('id', pagoBorradorId)
           .select('*, alumnos(id, nombre, apellido, legajo, dni, email)')
@@ -350,11 +408,10 @@ export default function PagosModule() {
         if (error) throw error;
         pagoConfirmadoResult = data as PagoConDetalle;
       } else {
-        const nuevoComp = await generarNumeroComprobante();
         const { data, error } = await supabase
           .from('pagos')
           .insert([{
-            comprobante: nuevoComp,
+            comprobante: nuevoComp ?? await generarNumeroComprobante(),
             alumno_id: alumnoSeleccionado.id,
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
@@ -363,8 +420,9 @@ export default function PagosModule() {
             importe: totalACobrar,
             medio_pago: medioPago,
             fecha: fechaCobro,
-            observaciones: medioPago === 'Efectivo' ? null : `N° Ref: ${nroReferencia.trim()}`,
-            estado: 'CONFIRMADO'
+            observaciones: observacionesFinal,
+            estado: estadoInicial,
+            external_payment_id: externalPaymentId
           }])
           .select('*, alumnos(id, nombre, apellido, legajo, dni, email)')
           .single();
@@ -376,6 +434,7 @@ export default function PagosModule() {
       limpiarFormulario();
       await cargarDatos();
       setPagoRecienCreado(pagoConfirmadoResult);
+      setLinkPagoMercadoPago(checkoutUrl);
       setVistaActual('historial');
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al procesar el cobro.');
@@ -383,7 +442,6 @@ export default function PagosModule() {
       setGuardando(false);
     }
   };
-
   // Descarga directa a PDF con nombre dinámico y layout proporcional A4
   const handleDescargarPDF = (pago: PagoConDetalle) => {
     const ventanaImpresion = window.open('', '_blank');
@@ -835,7 +893,7 @@ export default function PagosModule() {
                 <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
                   Actividad que abona *
                   <select value={actividadElegida?.sesiones[0].id || ''} disabled={!alumnoSeleccionado || cargandoActividades}
-                    onChange={(e) => { setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setPrecioUnitario(0); }}
+                    onChange={(e) => { setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setModalidadCurso('Mes'); setPrecioUnitario(0); }}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}>
                     <option value="">{cargandoActividades ? 'Cargando inscripciones...' : 'Seleccioná un curso o una clase particular'}</option>
                     {actividades.map(a => <option key={a.clave} value={a.sesiones[0].id}>{a.nombre} · {a.materias.join(', ')} · {a.docente}</option>)}
@@ -843,6 +901,15 @@ export default function PagosModule() {
                 </label>
                 {inscripcionesCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{inscripcionesCobro.error}</p>}
                 {alumnoSeleccionado && !cargandoActividades && !actividades.length && !inscripcionesCobro.error && <p style={{ color: '#64748b', margin: 0 }}>Este alumno no tiene inscripciones confirmadas disponibles para cobrar.</p>}
+                {actividadElegida && modalidad !== 'Clase' && (
+                  <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Modalidad de cobro *
+                    <select value={modalidadCurso} onChange={e => { setModalidadCurso(e.target.value as 'Semana' | 'Mes'); setPeriodoAbonado(''); setPrecioUnitario(0); }}
+                      style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                      <option value="Semana">Semana</option>
+                      <option value="Mes">Mes</option>
+                    </select>
+                  </label>
+                )}
                 {actividadElegida && (modalidad === 'Clase' ? (
                   <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Clase que abona *
                     <select value={sesionId} onChange={e => setSesionId(e.target.value)} disabled={!actividadElegida}
@@ -852,8 +919,8 @@ export default function PagosModule() {
                     </select>
                   </label>
                 ) : (
-                  <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Mes abonado *
-                    <input type="month" value={periodoAbonado}
+                  <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>{modalidad === 'Semana' ? 'Semana abonada *' : 'Mes abonado *'}
+                    <input type={modalidad === 'Semana' ? 'week' : 'month'} value={periodoAbonado}
                       onChange={e => setPeriodoAbonado(e.target.value)}
                       style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
                   </label>
@@ -864,12 +931,12 @@ export default function PagosModule() {
 
               {datosCobro.vinculo && <div style={{ marginBottom: '18px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                  {modalidad === 'Mes' ? 'Precio del mes ($)' : 'Precio de la clase ($)'} *
+                  {modalidad === 'Semana' ? 'Precio de la semana ($)' : modalidad === 'Mes' ? 'Precio del mes ($)' : 'Precio de la clase ($)'} *
                 </label>
                 <input type="number" min="0.01" step="0.01" required value={precioUnitario || ''}
                   onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
                   onChange={e => setPrecioUnitario(Math.max(0, parseFloat(e.target.value) || 0))}
-                  placeholder={modalidad === 'Mes' ? 'Ingresá el importe del mes seleccionado' : 'Ingresá el importe de esta clase'}
+                  placeholder={modalidad === 'Semana' ? 'Ingresá el importe de la semana seleccionada' : modalidad === 'Mes' ? 'Ingresá el importe del mes seleccionado' : 'Ingresá el importe de esta clase'}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '16px', boxSizing: 'border-box' }} />
               </div>}
 
@@ -911,6 +978,7 @@ export default function PagosModule() {
                     <option value="Transferencia">Transferencia bancaria</option>
                     <option value="Tarjeta de Débito">Tarjeta de débito</option>
                     <option value="Tarjeta de Crédito">Tarjeta de crédito</option>
+                    <option value="Mercado Pago">Mercado Pago (Link / QR)</option>
                   </select>
                 </div>
 
@@ -929,13 +997,16 @@ export default function PagosModule() {
                       onChange={(e) => setMontoRecibido(Math.max(0, parseFloat(e.target.value) || 0))}
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '18px', fontWeight: 700, boxSizing: 'border-box' }}
                     />
-
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
                       <span style={{ fontSize: '15px', fontWeight: 700, color: '#475569' }}>Vuelto a entregar:</span>
                       <span style={{ fontSize: '19px', fontWeight: 800, color: vuelto > 0 ? '#15803d' : '#64748b' }}>
                         ${vuelto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
+                  </div>
+                ) : medioPago === 'Mercado Pago' ? (
+                  <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '16px', color: '#1e40af', fontSize: '14px' }}>
+                    <strong>Pasarela Mercado Pago:</strong> Al confirmar la operación, el sistema generará de forma automática la preferencia de cobro y dejará el registro en estado <strong>PENDIENTE</strong> hasta que la pasarela confirme el pago.
                   </div>
                 ) : (
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
@@ -955,7 +1026,7 @@ export default function PagosModule() {
 
                 <div style={{ padding: '14px 0', borderTop: '2px dashed #e2e8f0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#64748b', marginBottom: '6px' }}>
-                    <span>{modalidad === 'Mes' ? 'Importe del mes:' : 'Importe de la clase:'}</span>
+                    <span>{modalidad === 'Semana' ? 'Importe de la semana:' : modalidad === 'Mes' ? 'Importe del mes:' : 'Importe de la clase:'}</span>
                     <span>${totalACobrar.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -983,11 +1054,12 @@ export default function PagosModule() {
                     cursor: (!alumnoSeleccionado || totalACobrar <= 0 || guardando) ? 'not-allowed' : 'pointer',
                     boxShadow: '0 4px 6px -1px rgba(11,30,51,0.2)'
                   }}
-                >
+                    >
                   {guardando ? 'Generando Recibo...' : 'Confirmar Cobro y Generar Recibo'}
                 </button>
               </form>
             </div>
+                  
           </div>
         </div>
       ) : (
@@ -1031,8 +1103,11 @@ export default function PagosModule() {
             >
               <option value="todos">Todos los Estados</option>
               <option value="CONFIRMADO">Confirmados</option>
+              <option value="PENDIENTE">Pendientes de acreditación</option>
+              <option value="RECHAZADO">Rechazados</option>
               <option value="BORRADOR">Pendientes (Borrador)</option>
               <option value="CANCELADO">Cancelados</option>
+              <option value="ANULADO">Anulados</option>
             </select>
 
             <select
@@ -1045,8 +1120,46 @@ export default function PagosModule() {
               <option value="Transferencia">Transferencia</option>
               <option value="Tarjeta de Débito">Tarjeta de Débito</option>
               <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+              <option value="Mercado Pago">Mercado Pago</option>
             </select>
           </div>
+
+          <details style={{ marginBottom: '18px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff' }}>
+            <summary style={{ padding: '14px 16px', cursor: 'pointer', fontWeight: 700, color: '#0f172a' }}>
+              Deuda registrada por alumno · ${totalDeudaRegistrada.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+            </summary>
+            <div style={{ padding: '0 16px 16px' }}>
+              <p style={{ margin: '0 0 12px', color: '#64748b', fontSize: '13px' }}>
+                Suma cobros pendientes o rechazados; excluye borradores y operaciones canceladas. No incluye períodos sin un cobro registrado.
+              </p>
+              <div style={{ maxHeight: '320px', overflow: 'auto' }}>
+                <table style={{ width: '100%', minWidth: '620px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                  <thead>
+                    <tr style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', color: '#334155' }}>
+                      <th style={{ padding: '9px 10px' }}>Alumno</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>Cobrado</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>Pendiente</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>Rechazado</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>Saldo adeudado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {saldosVisibles.length ? saldosVisibles.map(saldo => (
+                      <tr key={saldo.id} style={{ borderTop: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '9px 10px' }}>{saldo.apellido}, {saldo.nombre} · {saldo.legajo || 'Sin legajo'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'right' }}>${saldo.totalCobrado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'right', color: '#92400e' }}>${saldo.montoPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'right', color: '#991b1b' }}>${saldo.montoRechazado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 800, color: saldo.saldoAdeudado ? '#991b1b' : '#166534' }}>${saldo.saldoAdeudado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={5} style={{ padding: '16px 10px', textAlign: 'center', color: '#64748b' }}>No hay saldos registrados para esta búsqueda.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
 
           <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
@@ -1075,9 +1188,11 @@ export default function PagosModule() {
                   pagosPaginados.map((p) => {
                     const esBorrador = p.estado === 'BORRADOR';
                     const esCancelado = p.estado === 'CANCELADO' || p.estado === 'ANULADO';
+                    const presentacionEstado = PRESENTACION_ESTADO[p.estado];
+                    const esNoAcreditado = p.estado === 'PENDIENTE' || p.estado === 'RECHAZADO';
 
                     return (
-                      <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: esBorrador ? '#fffbeb' : esCancelado ? '#fef2f2' : 'transparent', opacity: esCancelado ? 0.75 : 1 }}>
+                      <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: esBorrador || p.estado === 'PENDIENTE' ? '#fffbeb' : esCancelado || p.estado === 'RECHAZADO' ? '#fef2f2' : 'transparent', opacity: esCancelado ? 0.75 : 1 }}>
                         <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{p.comprobante}</td>
                         <td style={{ padding: '12px 16px', color: '#475569' }}>{p.fecha}</td>
                         <td style={{ padding: '12px 16px' }}>
@@ -1086,7 +1201,7 @@ export default function PagosModule() {
                         </td>
                         <td style={{ padding: '12px 16px', color: '#334155' }}>{p.concepto}</td>
                         <td style={{ padding: '12px 16px', color: '#475569' }}>{p.medio_pago}</td>
-                        <td style={{ padding: '12px 16px', fontWeight: 700, color: esBorrador ? '#b45309' : esCancelado ? '#991b1b' : '#15803d', fontSize: '16px' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 700, color: esBorrador || p.estado === 'PENDIENTE' ? '#b45309' : esCancelado || p.estado === 'RECHAZADO' ? '#991b1b' : '#15803d', fontSize: '16px' }}>
                           ${Number(p.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                         </td>
                         <td style={{ padding: '12px 16px' }}>
@@ -1095,10 +1210,14 @@ export default function PagosModule() {
                             borderRadius: '4px',
                             fontSize: '12.5px',
                             fontWeight: 700,
-                            backgroundColor: esBorrador ? '#fef3c7' : esCancelado ? '#fee2e2' : '#f0fdf4',
-                            color: esBorrador ? '#92400e' : esCancelado ? '#991b1b' : '#166534',
-                            border: `1px solid ${esBorrador ? '#fde68a' : esCancelado ? '#fca5a5' : '#bbf7d0'}`
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            backgroundColor: presentacionEstado.fondo,
+                            color: presentacionEstado.color,
+                            border: `1px solid ${presentacionEstado.borde}`
                           }}>
+                            <span aria-hidden="true">{presentacionEstado.icono}</span>
                             {esBorrador ? 'PENDIENTE (BORRADOR)' : p.estado}
                           </span>
                         </td>
@@ -1122,6 +1241,10 @@ export default function PagosModule() {
                             ) : esCancelado ? (
                               <span title="Operación anulada e inmutable" style={{ fontSize: '15px', color: '#dc2626', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 8px' }}>
                                 ⊘ Cancelado
+                              </span>
+                            ) : esCancelado || esNoAcreditado ? (
+                              <span title={p.estado === 'RECHAZADO' ? 'El pago no fue acreditado' : p.estado === 'PENDIENTE' ? 'A la espera de acreditación' : 'Operación anulada e inmutable'} style={{ fontSize: '13px', color: presentacionEstado.color, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 8px' }}>
+                                <span aria-hidden="true">{presentacionEstado.icono}</span>{p.estado === 'CANCELADO' || p.estado === 'ANULADO' ? 'Cancelado' : p.estado}
                               </span>
                             ) : (
                               <button
@@ -1170,17 +1293,21 @@ export default function PagosModule() {
       {pagoRecienCreado && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 120, backgroundColor: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', width: '100%', maxWidth: '460px', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', padding: '36px 32px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)', border: '1px solid #e2e8f0' }}>
-            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', border: '2px solid #bbf7d0' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: pagoRecienCreado.estado === 'PENDIENTE' ? '#fffbeb' : '#f0fdf4', color: pagoRecienCreado.estado === 'PENDIENTE' ? '#b45309' : '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', border: `2px solid ${pagoRecienCreado.estado === 'PENDIENTE' ? '#fde68a' : '#bbf7d0'}`, fontSize: '30px', fontWeight: 800 }}>
+              {pagoRecienCreado.estado === 'PENDIENTE' ? '◷' : (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
             </div>
             
             <h2 style={{ fontSize: '21px', fontWeight: 800, color: '#0f172a', margin: '0 0 6px 0' }}>
-              ¡Cobro Registrado con Éxito!
+              {pagoRecienCreado.estado === 'PENDIENTE' ? 'Pago pendiente de acreditación' : '¡Cobro registrado con éxito!'}
             </h2>
             <p style={{ fontSize: '15px', color: '#64748b', margin: '0 0 20px 0' }}>
-              Comprobante <strong>{pagoRecienCreado.comprobante}</strong> generado en el sistema.
+              {pagoRecienCreado.estado === 'PENDIENTE' ? 'Comprobante pendiente ' : 'Comprobante '}
+              <strong>{pagoRecienCreado.comprobante}</strong>
+              {pagoRecienCreado.estado === 'PENDIENTE' ? ' registrado en el sistema.' : ' generado en el sistema.'}
             </p>
 
             <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', marginBottom: '24px', textAlign: 'left', fontSize: '14.5px' }}>
@@ -1197,26 +1324,34 @@ export default function PagosModule() {
                 <strong>{pagoRecienCreado.alumnos?.apellido}, {pagoRecienCreado.alumnos?.nombre}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '4px' }}>
-                <span style={{ color: '#0f172a', fontWeight: 700 }}>Total Abonado:</span>
+                <span style={{ color: '#0f172a', fontWeight: 700 }}>{pagoRecienCreado.estado === 'PENDIENTE' ? 'Importe de la operación:' : 'Total abonado:'}</span>
                 <strong style={{ color: '#15803d', fontSize: '16px' }}>${Number(pagoRecienCreado.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                onClick={() => handleDescargarPDF(pagoRecienCreado)}
-                style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(37,99,235,0.2)' }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <span>Descargar PDF</span>
-              </button>
+              {linkPagoMercadoPago && (
+                <a href={linkPagoMercadoPago} target="_blank" rel="noopener noreferrer" style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: '#ffffff', borderRadius: '8px', fontSize: '15px', fontWeight: 700, textDecoration: 'none', boxSizing: 'border-box' }}>
+                  Abrir Checkout de Mercado Pago
+                </a>
+              )}
+
+              {pagoRecienCreado.estado === 'CONFIRMADO' && (
+                <button
+                  onClick={() => handleDescargarPDF(pagoRecienCreado)}
+                  style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(37,99,235,0.2)' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Descargar PDF</span>
+                </button>
+              )}
 
               <button
-                onClick={() => setPagoRecienCreado(null)}
+                onClick={() => { setPagoRecienCreado(null); setLinkPagoMercadoPago(null); }}
                 style={{ width: '100%', padding: '11px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
               >
                 Volver al Menú Principal
