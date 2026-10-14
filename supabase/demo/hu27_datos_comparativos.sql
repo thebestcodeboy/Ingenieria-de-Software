@@ -1,6 +1,6 @@
 -- Datos demostrativos para HU27. Ejecutar manualmente en Supabase SQL Editor.
 -- Inserta 120 cobros confirmados: 6 por mes durante 2025 y enero-agosto de 2026.
--- Es repetible: los comprobantes DEMO-HU27 no se duplican.
+-- Es repetible y genera comprobantes con formato REC-AAAA-####.
 
 begin;
 
@@ -35,9 +35,8 @@ conceptos(orden, actividad, importe_base, medio_pago) as (
     (5, 'Curso de ingreso: MEDICINA', 60000::numeric, 'Mercado Pago'::text),
     (6, 'Curso de ingreso: ENFERMERÍA', 45000::numeric, 'Tarjeta de Crédito'::text)
 ),
-filas as (
+filas_base as (
   select
-    'DEMO-HU27-' || to_char(m.fecha, 'YYYY-MM') || '-' || c.orden as comprobante,
     a.id as alumno_id,
     c.actividad || ' · Datos demostrativos' as concepto,
     round(
@@ -60,6 +59,29 @@ filas as (
   from meses m
   cross join conceptos c
   join alumnos_demo a on a.numero = ((m.numero + c.orden - 2) % a.cantidad) + 1
+),
+pendientes as (
+  select f.*, extract(year from f.fecha)::integer as anio
+  from filas_base f
+  where not exists (
+    select 1 from public.pagos p
+    where p.observaciones = 'Datos demostrativos HU27; eliminar después de la presentación.'
+      and p.fecha = f.fecha
+      and p.detalle_academico ->> 'actividad' = f.detalle_academico ->> 'actividad'
+  )
+),
+maximos as (
+  select substring(comprobante from 5 for 4)::integer as anio,
+         max(split_part(comprobante, '-', 3)::integer) as ultimo
+  from public.pagos
+  where comprobante ~ '^REC-[0-9]{4}-[0-9]+$'
+  group by 1
+),
+filas as (
+  select p.*,
+    'REC-' || p.anio || '-' || lpad((coalesce(m.ultimo, 0) + row_number() over (partition by p.anio order by p.fecha, p.concepto))::text, 4, '0') as comprobante
+  from pendientes p
+  left join maximos m on m.anio = p.anio
 )
 insert into public.pagos (
   comprobante, alumno_id, concepto, modalidad, cantidad, importe,
@@ -68,10 +90,7 @@ insert into public.pagos (
 select
   f.comprobante, f.alumno_id, f.concepto, 'Mes', 1, f.importe,
   f.medio_pago, f.fecha, 'CONFIRMADO', 'Datos demostrativos HU27; eliminar después de la presentación.', f.detalle_academico
-from filas f
-where not exists (
-  select 1 from public.pagos p where p.comprobante = f.comprobante
-);
+from filas f;
 
 alter table public.pagos enable trigger validar_vinculo_academico_pago;
 
@@ -83,6 +102,6 @@ select extract(year from fecha)::integer as anio,
        count(*) as pagos,
        sum(importe) as total
 from public.pagos
-where comprobante like 'DEMO-HU27-%'
+where observaciones = 'Datos demostrativos HU27; eliminar después de la presentación.'
 group by 1, 2
 order by 1, 2;
