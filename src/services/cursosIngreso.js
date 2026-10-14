@@ -126,7 +126,7 @@ export const cambiarEstadoCursoIngreso = async (id, activo) => {
 };
 
 // El curso y sus materias se guardan en una única transacción de Supabase.
-async function guardarCursoIngreso({ nombre, descripcion, materiasIds, fechaInicio, fechaFin, activo = true }, cursoId = null) {
+async function guardarCursoIngreso({ nombre, descripcion, materiasIds, fechaInicio, fechaFin, precio, modalidadCobro, plazoVencimientoDias, activo = true }, cursoId = null) {
   const errorPeriodo = validarPeriodoCurso(fechaInicio, fechaFin);
   if (errorPeriodo) throw new Error(errorPeriodo);
   const valNombre = normalizarYValidarNombreCurso(nombre);
@@ -134,6 +134,7 @@ async function guardarCursoIngreso({ nombre, descripcion, materiasIds, fechaInic
   if (!Array.isArray(materiasIds) || !materiasIds.filter(Boolean).length) {
     throw new Error('Seleccioná al menos una materia universitaria.');
   }
+  if (!Number.isFinite(Number(precio)) || Number(precio) <= 0) throw new Error('Ingresá un precio mayor a cero.');
   const { data, error } = await supabase.rpc('guardar_curso_ingreso', {
     p_nombre: valNombre.textoLimpio,
     p_descripcion: normalizarDescripcion(descripcion).textoLimpio,
@@ -150,6 +151,11 @@ async function guardarCursoIngreso({ nombre, descripcion, materiasIds, fechaInic
       || curso.fecha_inicio !== fechaInicio || curso.fecha_fin !== fechaFin || curso.activo !== activo) {
     throw new Error('Supabase no confirmó todos los cambios del curso. Actualizá el listado antes de reintentar.');
   }
+  const { error: tarifaError } = await supabase.rpc('configurar_tarifa_actividad', {
+    p_tipo: 'CURSO', p_actividad_id: curso.id, p_precio: Number(precio),
+    p_modalidad: modalidadCobro, p_plazo_vencimiento_dias: Number(plazoVencimientoDias),
+  });
+  if (tarifaError) throw new Error(tarifaError.message || 'No se pudo configurar la tarifa del curso.');
   return curso;
 }
 export const createCursoIngreso = (datos) => guardarCursoIngreso(datos);

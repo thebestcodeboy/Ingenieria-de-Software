@@ -8,7 +8,7 @@
 
 HU27 es un módulo de consulta. Muestra recaudación, comparación mensual, flujo por medio de pago, deuda vencida, ingresos por actividad, ranking de deudores, filtros, conclusiones automáticas e informe imprimible.
 
-No crea, modifica ni anula pagos u obligaciones. Tampoco administra cuotas, intereses, refinanciaciones o facturación.
+El reporte no crea, modifica ni anula pagos u obligaciones. Como soporte operativo mínimo, Gestión de Pagos permite registrar una obligación y asociarle cobros. No administra planes de cuotas, intereses, refinanciaciones o facturación.
 
 ## Contrato de datos
 
@@ -18,7 +18,7 @@ No crea, modifica ni anula pagos u obligaciones. Tampoco administra cuotas, inte
 - Un pago `PENDIENTE` o `RECHAZADO` es una operación no acreditada y no constituye por sí mismo una obligación.
 - Hay mora únicamente cuando una obligación tiene saldo positivo y su vencimiento es anterior a la fecha de corte.
 
-La interfaz para administrar obligaciones corresponde a una historia futura de cuentas por cobrar. HU27 incorpora únicamente la estructura mínima y la consulta requerida para sus indicadores.
+La administración completa de obligaciones corresponde a una historia futura de cuentas por cobrar. HU27 incorpora la estructura, la consulta y un alta mínima para poder probar sus indicadores con datos generados desde la web.
 
 ## Reglas de negocio
 
