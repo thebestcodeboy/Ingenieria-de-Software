@@ -32,17 +32,17 @@ export default function AsistenciasModule({ turnoId = '' }: { turnoId?: string }
 
   async function cargar() {
     setAhora(Date.now()); setCargando(true); setError('');
-    try { setFilas(await listarAsistencias()); }
+    try { setFilas(await listarAsistencias(role)); }
     catch(e) { setError(e instanceof Error ? e.message : 'No se pudo cargar la bitácora'); }
     finally { setCargando(false); }
   }
   useEffect(() => {
     let activo = true;
-    listarAsistencias().then(datos => { if (activo) setFilas(datos); })
+    listarAsistencias(role).then(datos => { if (activo) setFilas(datos); })
       .catch(e => { if (activo) setError(e instanceof Error ? e.message : 'No se pudo cargar'); })
       .finally(() => { if (activo) setCargando(false); });
     return () => { activo = false; };
-  }, []);
+  }, [role]);
   useEffect(() => {
     if (!editando) return;
     const anterior = document.activeElement as HTMLElement | null;
