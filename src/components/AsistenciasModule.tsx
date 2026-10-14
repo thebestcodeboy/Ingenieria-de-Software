@@ -33,13 +33,13 @@ export default function AsistenciasModule({ turnoId = '' }: { turnoId?: string }
   async function cargar() {
     setAhora(Date.now()); setCargando(true); setError('');
     try { setFilas(await listarAsistencias(role)); }
-    catch(e) { setError(e instanceof Error ? e.message : 'No se pudo cargar la bitácora'); }
+    catch(e) { setFilas([]); setError(e instanceof Error ? e.message : 'No se pudo cargar la bitácora'); }
     finally { setCargando(false); }
   }
   useEffect(() => {
     let activo = true;
-    listarAsistencias(role).then(datos => { if (activo) setFilas(datos); })
-      .catch(e => { if (activo) setError(e instanceof Error ? e.message : 'No se pudo cargar'); })
+    listarAsistencias(role).then(datos => { if (activo) { setFilas(datos); setError(''); } })
+      .catch(e => { if (activo) { setFilas([]); setError(e instanceof Error ? e.message : 'No se pudo cargar'); } })
       .finally(() => { if (activo) setCargando(false); });
     return () => { activo = false; };
   }, [role]);
