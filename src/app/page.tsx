@@ -142,9 +142,10 @@ const GERENTE_MENU_ITEMS = [
 ];
 
 const ALUMNO_MENU_ITEMS = [
-  { id: 'cursos', label: 'Cursos', Icon: Icons.Cursos },
-  { id: 'inscripcion', label: 'Mis Cursos para anotarse', Icon: Icons.Materias },
-  { id: 'calendario', label: 'Calendario de turnos', Icon: Icons.Calendario },
+  { id: 'calendario', label: 'Mi calendario', Icon: Icons.Calendario },
+  { id: 'cursos', label: 'Inscribirme', Icon: Icons.Inscripciones },
+  { id: 'pagos', label: 'Mis pagos', Icon: Icons.Pagos },
+  { id: 'bitacora', label: 'Bitácora', Icon: Icons.Particulares },
 ];
 
 const PROFESOR_MENU_ITEMS = [

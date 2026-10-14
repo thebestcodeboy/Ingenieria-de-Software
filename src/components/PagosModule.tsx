@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { listarPagos, generarNumeroComprobante, listarInscripcionesCobro } from '../services/pagos';
+import CierreCajaModule from './CierreCajaModule';
 
 import { agruparActividadesCobro, calcularSaldosPorAlumno, construirVinculoPago, fechaASemanaIso, type InscripcionCobro, type ModalidadPago, type VinculoPago } from '../domain/pagoAcademico';
 
@@ -56,7 +57,7 @@ export default function PagosModule() {
   const fechaHoy = useMemo(() => new Date().toISOString().split('T')[0], []);
 
   // Vista principal: Historial
-  const [vistaActual, setVistaActual] = useState<'historial' | 'terminal'>('historial');
+  const [vistaActual, setVistaActual] = useState<'historial' | 'terminal' | 'caja'>('historial');
 
   // Filtros de historial y Paginación
   const [busqueda, setBusqueda] = useState('');
@@ -79,6 +80,8 @@ export default function PagosModule() {
   const [actividadInscripcionId, setActividadInscripcionId] = useState('');
   const [sesionId, setSesionId] = useState('');
   const [periodoAbonado, setPeriodoAbonado] = useState('');
+  const [selectorMesAbierto, setSelectorMesAbierto] = useState(false);
+  const [anioSelectorMes, setAnioSelectorMes] = useState(() => new Date().getFullYear());
   const [modalidadCurso, setModalidadCurso] = useState<'Semana' | 'Mes'>('Mes');
   const [inscripcionesCobro, setInscripcionesCobro] = useState<{ alumnoId: string; filas: InscripcionCobro[]; error: string }>({ alumnoId: '', filas: [], error: '' });
   const alumnoCobroId = alumnoSeleccionado?.id ? String(alumnoSeleccionado.id) : '';
@@ -101,6 +104,29 @@ export default function PagosModule() {
     catch (error: unknown) { return { vinculo: null, error: error instanceof Error ? error.message : 'Revisá el detalle del cobro.' }; }
   }, [actividadElegida, modalidad, periodoAbonado, cantidad, sesionId]);
   const concepto = datosCobro.vinculo?.concepto ?? '';
+  const mesesDelAnio = Array.from({ length: 12 }, (_, mes) =>
+    new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(2025, mes, 1))
+  );
+  const mesAbonadoVisible = /^\d{4}-\d{2}$/.test(periodoAbonado)
+    ? new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(
+      new Date(Number(periodoAbonado.slice(0, 4)), Number(periodoAbonado.slice(5, 7)) - 1, 1)
+    )
+    : '';
+
+  const abrirSelectorMes = () => {
+    if (selectorMesAbierto) {
+      setSelectorMesAbierto(false);
+      return;
+    }
+    const anioActual = Number(periodoAbonado.slice(0, 4));
+    setAnioSelectorMes(Number.isInteger(anioActual) && anioActual > 0 ? anioActual : new Date().getFullYear());
+    setSelectorMesAbierto(true);
+  };
+
+  const seleccionarMesAbonado = (mes: number) => {
+    setPeriodoAbonado(`${anioSelectorMes}-${String(mes + 1).padStart(2, '0')}`);
+    setSelectorMesAbierto(false);
+  };
 
 
 const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Mercado Pago'>('Efectivo');  const [fechaCobro, setFechaCobro] = useState(fechaHoy);
@@ -200,7 +226,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
   const handleSeleccionarAlumno = (al: any) => {
     setAlumnoSeleccionado(al);
     setModalidadCurso('Mes');
-    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setErrorMsg('');
+    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false); setErrorMsg('');
     setTextoBusquedaAlumno(`${al.apellido}, ${al.nombre} (${al.legajo || 'Sin Legajo'}) - DNI: ${al.dni}`);
     setMostrarDropdownAlumnos(false);
   };
@@ -209,7 +235,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
     setPagoBorradorId(null);
     setAlumnoSeleccionado(null);
     setTextoBusquedaAlumno('');
-    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado('');
+    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false);
     setModalidadCurso('Mes');
     setPrecioUnitario(0);
     setMontoRecibido(0);
@@ -228,9 +254,11 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
     setSesionId(p.modalidad === 'Clase' ? p.inscripcion_id || '' : '');
     setModalidadCurso(p.modalidad === 'Semana' ? 'Semana' : 'Mes');
     const requiereRevision = (p.cantidad || 1) !== 1;
-    setPeriodoAbonado(p.modalidad === 'Semana'
+    const periodoReanudado = p.modalidad === 'Semana'
       ? p.periodo_desde ? fechaASemanaIso(p.periodo_desde) : ''
-      : p.modalidad === 'Mes' ? p.periodo_desde?.slice(0,7) || '' : '');
+      : p.modalidad === 'Mes' ? p.periodo_desde?.slice(0,7) || '' : '';
+    setPeriodoAbonado(periodoReanudado);
+    setSelectorMesAbierto(false);
     setErrorMsg(requiereRevision ? 'Este borrador cubría varias unidades. Revisá el período y el precio antes de confirmar.' : '');
     setPrecioUnitario(requiereRevision ? 0 : p.importe || 0);
     setMedioPago(p.medio_pago);
@@ -737,6 +765,10 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
     ventanaImpresion.document.close();
   };
 
+  if (vistaActual === 'caja') {
+    return <CierreCajaModule onVolver={() => setVistaActual('historial')} />;
+  }
+
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }}>
       
@@ -893,7 +925,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                 <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
                   Actividad que abona *
                   <select value={actividadElegida?.sesiones[0].id || ''} disabled={!alumnoSeleccionado || cargandoActividades}
-                    onChange={(e) => { setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setModalidadCurso('Mes'); setPrecioUnitario(0); }}
+                    onChange={(e) => { setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false); setModalidadCurso('Mes'); setPrecioUnitario(0); }}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}>
                     <option value="">{cargandoActividades ? 'Cargando inscripciones...' : 'Seleccioná un curso o una clase particular'}</option>
                     {actividades.map(a => <option key={a.clave} value={a.sesiones[0].id}>{a.nombre} · {a.materias.join(', ')} · {a.docente}</option>)}
@@ -903,7 +935,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                 {alumnoSeleccionado && !cargandoActividades && !actividades.length && !inscripcionesCobro.error && <p style={{ color: '#64748b', margin: 0 }}>Este alumno no tiene inscripciones confirmadas disponibles para cobrar.</p>}
                 {actividadElegida && modalidad !== 'Clase' && (
                   <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Modalidad de cobro *
-                    <select value={modalidadCurso} onChange={e => { setModalidadCurso(e.target.value as 'Semana' | 'Mes'); setPeriodoAbonado(''); setPrecioUnitario(0); }}
+                    <select value={modalidadCurso} onChange={e => { setModalidadCurso(e.target.value as 'Semana' | 'Mes'); setPeriodoAbonado(''); setSelectorMesAbierto(false); setPrecioUnitario(0); }}
                       style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
                       <option value="Semana">Semana</option>
                       <option value="Mes">Mes</option>
@@ -920,9 +952,48 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                   </label>
                 ) : (
                   <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>{modalidad === 'Semana' ? 'Semana abonada *' : 'Mes abonado *'}
-                    <input type={modalidad === 'Semana' ? 'week' : 'month'} value={periodoAbonado}
-                      onChange={e => setPeriodoAbonado(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                    {modalidad === 'Semana' ? (
+                      <input type="week" value={periodoAbonado}
+                        onChange={e => setPeriodoAbonado(e.target.value)}
+                        style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                    ) : (
+                      <div style={{ position: 'relative', marginTop: '6px' }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input type="text" required readOnly value={mesAbonadoVisible} placeholder="Seleccioná un mes y año"
+                            aria-label="Mes y año abonado" aria-haspopup="dialog" aria-expanded={selectorMesAbierto}
+                            onClick={abrirSelectorMes}
+                            style={{ flex: 1, minWidth: 0, width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box', background: '#fff', cursor: 'pointer' }} />
+                          <button type="button" onClick={abrirSelectorMes} aria-label="Abrir selector de meses" title="Abrir selector de meses" aria-haspopup="dialog" aria-expanded={selectorMesAbierto}
+                            style={{ width: 44, minWidth: 44, display: 'grid', placeItems: 'center', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#fff', color: '#31504f', cursor: 'pointer' }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <rect x="3" y="5" width="18" height="16" rx="2" />
+                              <path d="M16 3v4M8 3v4M3 10h18" />
+                            </svg>
+                          </button>
+                        </div>
+                        {selectorMesAbierto && (
+                          <div role="dialog" aria-label="Seleccionar mes abonado"
+                            style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 30, width: 'min(320px, 100%)', padding: 14, border: '1px solid #b8cbc7', borderRadius: 8, background: '#fff', boxShadow: '0 12px 28px rgba(18, 48, 45, .18)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                              <button type="button" onClick={() => setAnioSelectorMes(anio => anio - 1)} aria-label="Año anterior"
+                                style={{ width: 34, height: 34, border: '1px solid #d4e0dd', borderRadius: 5, background: '#f6faf8', color: '#31504f', fontSize: 20, cursor: 'pointer' }}>‹</button>
+                              <strong aria-live="polite" style={{ color: '#183238', fontSize: 16 }}>{anioSelectorMes}</strong>
+                              <button type="button" onClick={() => setAnioSelectorMes(anio => anio + 1)} aria-label="Año siguiente"
+                                style={{ width: 34, height: 34, border: '1px solid #d4e0dd', borderRadius: 5, background: '#f6faf8', color: '#31504f', fontSize: 20, cursor: 'pointer' }}>›</button>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+                              {mesesDelAnio.map((mes, indice) => {
+                                const elegido = periodoAbonado === `${anioSelectorMes}-${String(indice + 1).padStart(2, '0')}`;
+                                return <button key={mes} type="button" aria-pressed={elegido} onClick={() => seleccionarMesAbonado(indice)}
+                                  style={{ minHeight: 40, padding: '6px 4px', border: elegido ? '1px solid #147d70' : '1px solid #d4e0dd', borderRadius: 5, background: elegido ? '#147d70' : '#f7faf9', color: elegido ? '#fff' : '#31504f', fontWeight: elegido ? 800 : 600, cursor: 'pointer', textTransform: 'capitalize' }}>
+                                  {mes}
+                                </button>;
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </label>
                 ))}
                 {actividadElegida && (periodoAbonado || sesionId) && datosCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{datosCobro.error}</p>}
@@ -1072,12 +1143,20 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
               </h1>
             </div>
 
-            <button
-              onClick={() => { limpiarFormulario(); setVistaActual('terminal'); }}
-              style={{ padding: '10px 18px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
-            >
-              + Registrar Nuevo Cobro
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
+              <button
+                onClick={() => setVistaActual('caja')}
+                style={{ padding: '10px 14px', backgroundColor: '#e9f3f0', color: '#17675e', border: '1px solid #9cbab4', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Cierre de caja
+              </button>
+              <button
+                onClick={() => { limpiarFormulario(); setVistaActual('terminal'); }}
+                style={{ padding: '10px 18px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                + Registrar Nuevo Cobro
+              </button>
+            </div>
           </header>
 
           {mensajeExito && (
