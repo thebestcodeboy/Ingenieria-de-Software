@@ -43,7 +43,7 @@ function abrirInformePdf(resumen: ResumenFinanciero, filtros: FiltrosFinancieros
     @page{size:A4;margin:14mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,sans-serif;margin:0;color:#1e293b;font-size:11px}h1{margin:0;color:#0f766e;font-size:24px}h2{margin:0 0 10px;font-size:16px;color:#0f172a}.encabezado{display:flex;justify-content:space-between;border-bottom:3px solid #0f766e;padding-bottom:12px}.muted{color:#64748b}.aviso{margin:12px 0;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:6px}.metricas{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}.metrica{padding:10px;border:1px solid #cbd5e1;border-radius:7px}.metrica strong{display:block;font-size:16px;color:#0f172a;margin-bottom:4px}.panel{break-inside:avoid;margin:0 0 12px;padding:12px;border:1px solid #cbd5e1;border-radius:8px}.dos{display:grid;grid-template-columns:1fr 1fr;gap:12px}table{width:100%;border-collapse:collapse;margin-top:9px}th,td{padding:6px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:#e2e8f0}tbody tr:nth-child(even){background:#f8fafc}.barras{margin:8px 0}.barra-fila{margin:6px 0}.barra-etiqueta{display:flex;justify-content:space-between}.pista{height:8px;background:#e2e8f0;border-radius:8px;overflow:hidden}.barra{height:100%;border-radius:8px}.mensual{display:flex;height:135px;gap:5px;border-bottom:1px solid #94a3b8}.mes{flex:1;display:grid;grid-template-rows:1fr 18px;text-align:center}.columnas{display:flex;align-items:flex-end;justify-content:center;gap:2px}.columnas i{display:block;width:35%;min-height:1px}.conclusion{margin-top:9px;padding:8px;background:#f0f9ff;border-left:3px solid #0284c7;color:#0c4a6e}.pie{margin-top:12px;text-align:center;color:#64748b}@media print{body{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.barra,.pista,.columnas i,th,.conclusion,.aviso{visibility:visible!important}.no-print{display:none}}
   </style></head><body>
     <header class="encabezado"><div><h1>Instituto Ateneo</h1><strong>Informe gerencial de pagos y morosidad</strong></div><div class="muted">Período<br><strong>${escaparHtml(filtros.desde)} a ${escaparHtml(filtros.hasta)}</strong></div></header>
-    <div class="aviso">Datos de demostración: no corresponden a movimientos reales.</div>
+    <div class="aviso">Fuente: pagos y obligaciones registrados en el sistema.</div>
     <section class="metricas">
       <div class="metrica"><strong>${pesos.format(resumen.totalPeriodo)}</strong>Recaudación del período</div>
       <div class="metrica"><strong>${pesos.format(resumen.totalMes)}</strong>Recaudación mensual</div>
@@ -75,6 +75,7 @@ export default function IndicadoresFinancierosModule() {
   const [actividades, setActividades] = useState<string[]>([]);
   const [medios, setMedios] = useState<string[]>([]);
   const [filtros, setFiltros] = useState<FiltrosFinancieros>({ desde: `${hoy.slice(0, 4)}-01-01`, hasta: hoy, actividad: 'todos', medioPago: 'todos' });
+  const [fechasEdicion, setFechasEdicion] = useState({ desde: `${hoy.slice(0, 4)}-01-01`, hasta: hoy });
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
@@ -101,6 +102,18 @@ export default function IndicadoresFinancierosModule() {
     try { return calcularIndicadoresFinancieros(pagos, obligaciones, filtros); }
     catch { return null; }
   }, [pagos, obligaciones, filtros]);
+  const fechasValidas = /^\d{4}-\d{2}-\d{2}$/.test(fechasEdicion.desde)
+    && /^\d{4}-\d{2}-\d{2}$/.test(fechasEdicion.hasta)
+    && fechasEdicion.desde <= fechasEdicion.hasta;
+  const actualizarFecha = (campo: 'desde' | 'hasta', valor: string) => {
+    const siguientes = { ...fechasEdicion, [campo]: valor };
+    setFechasEdicion(siguientes);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(siguientes.desde)
+      && /^\d{4}-\d{2}-\d{2}$/.test(siguientes.hasta)
+      && siguientes.desde <= siguientes.hasta) {
+      setFiltros((actuales) => ({ ...actuales, desde: siguientes.desde, hasta: siguientes.hasta }));
+    }
+  };
 
   if (cargando) return <div aria-busy="true" style={s.estado}>Cargando indicadores económicos...</div>;
   if (error) return <div role="alert" style={{ ...s.estado, color: '#991b1b', borderColor: '#fecaca' }}><strong>{error}</strong><button style={s.boton} onClick={() => void cargar()}>Reintentar</button></div>;
@@ -109,27 +122,27 @@ export default function IndicadoresFinancierosModule() {
   const anio = filtros.hasta.slice(0, 4);
   return (
     <section aria-labelledby="titulo-finanzas" style={{ marginTop: 28 }}>
-      <div role="status" style={s.demo}>Datos de demostración: no corresponden a movimientos reales ni se guardan en Supabase.</div>
       <header style={s.cabecera}>
         <div><p style={s.sobretitulo}>HU27 · Gestión económica</p><h2 id="titulo-finanzas" style={s.titulo}>Pagos y morosidad</h2><p style={s.secundario}>Recaudación, caja y cartera vencida con conclusiones para la toma de decisiones.</p></div>
         <div style={s.acciones}>
-          <button type="button" style={s.botonSecundario} onClick={() => abrirInformePdf(resumen, filtros)}>↓ Descargar informe PDF</button>
-          <button type="button" style={s.boton} onClick={() => void cargar()}>↻ Actualizar</button>
+          <button type="button" disabled={!fechasValidas} style={{ ...s.botonSecundario, opacity: fechasValidas ? 1 : 0.55 }} onClick={() => abrirInformePdf(resumen, filtros)}>Descargar informe PDF</button>
+          <button type="button" style={s.boton} onClick={() => void cargar()}>Actualizar</button>
         </div>
       </header>
 
       <div style={s.filtros}>
-        <Campo label="Desde"><input type="date" value={filtros.desde} max={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} style={s.control} /></Campo>
-        <Campo label="Hasta"><input type="date" value={filtros.hasta} min={filtros.desde} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} style={s.control} /></Campo>
+        <Campo label="Desde"><input type="date" value={fechasEdicion.desde} max={fechasEdicion.hasta || undefined} onChange={(e) => actualizarFecha('desde', e.target.value)} style={s.control} /></Campo>
+        <Campo label="Hasta"><input type="date" value={fechasEdicion.hasta} min={fechasEdicion.desde || undefined} onChange={(e) => actualizarFecha('hasta', e.target.value)} style={s.control} /></Campo>
         <Campo label="Curso o materia"><select value={filtros.actividad} onChange={(e) => setFiltros({ ...filtros, actividad: e.target.value })} style={s.control}><option value="todos">Todas las actividades</option>{actividades.map((a) => <option key={a}>{a}</option>)}</select></Campo>
         <Campo label="Medio de pago"><select value={filtros.medioPago} onChange={(e) => setFiltros({ ...filtros, medioPago: e.target.value })} style={s.control}><option value="todos">Todos los medios</option>{medios.map((m) => <option key={m}>{m}</option>)}</select></Campo>
       </div>
+      {!fechasValidas && <p role="alert" style={s.errorFecha}>Completá ambas fechas y verificá que “Desde” no sea posterior a “Hasta”.</p>}
 
       <div style={s.tarjetas}>
-        <Metrica icono="💰" titulo="Recaudación" valor={pesos.format(resumen.totalPeriodo)} detalle={variacionTexto(resumen.variacionPeriodo)} conclusion={resumen.conclusiones.recaudacion} onClick={() => setDetalle('recaudacion')} />
-        <Metrica icono="💳" titulo="Flujo de caja" valor={pesos.format(resumen.totalPeriodo)} detalle={`${resumen.flujoPorMedio.length} medios de pago`} conclusion={resumen.conclusiones.mediosPago} onClick={() => setDetalle('caja')} />
-        <Metrica icono="⚠️" titulo="Morosidad" valor={pesos.format(resumen.morosidad.importe)} detalle={`${resumen.morosidad.alumnos} alumnos con deuda`} conclusion={resumen.conclusiones.morosidad} alerta={resumen.morosidad.importe > 0} onClick={() => setDetalle('morosidad')} />
-        <Metrica icono="📚" titulo="Ingresos por actividad" valor={resumen.ingresosPorActividad[0]?.nombre ?? 'Sin datos'} detalle={resumen.ingresosPorActividad[0] ? pesos.format(resumen.ingresosPorActividad[0].importe) : 'Sin ingresos'} conclusion={resumen.conclusiones.actividades} onClick={() => setDetalle('actividades')} />
+        <Metrica titulo="Recaudación" valor={pesos.format(resumen.totalPeriodo)} detalle={variacionTexto(resumen.variacionPeriodo)} conclusion={resumen.conclusiones.recaudacion} onClick={() => setDetalle('recaudacion')} />
+        <Metrica titulo="Flujo de caja" valor={pesos.format(resumen.totalPeriodo)} detalle={`${resumen.flujoPorMedio.length} medios de pago`} conclusion={resumen.conclusiones.mediosPago} onClick={() => setDetalle('caja')} />
+        <Metrica titulo="Morosidad" valor={pesos.format(resumen.morosidad.importe)} detalle={`${resumen.morosidad.alumnos} alumnos con deuda`} conclusion={resumen.conclusiones.morosidad} alerta={resumen.morosidad.importe > 0} onClick={() => setDetalle('morosidad')} />
+        <Metrica titulo="Ingresos por actividad" valor={resumen.ingresosPorActividad[0]?.nombre ?? 'Sin datos'} detalle={resumen.ingresosPorActividad[0] ? pesos.format(resumen.ingresosPorActividad[0].importe) : 'Sin ingresos'} conclusion={resumen.conclusiones.actividades} onClick={() => setDetalle('actividades')} />
       </div>
 
       {detalle === 'recaudacion' && <DetalleModal titulo="Recaudación" onClose={() => setDetalle(null)}>
@@ -174,19 +187,19 @@ export default function IndicadoresFinancierosModule() {
 }
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) { return <label style={s.campo}><span>{label}</span>{children}</label>; }
-function Metrica({ icono, titulo, valor, detalle, conclusion, alerta = false, onClick }: { icono: string; titulo: string; valor: string; detalle: string; conclusion: string; alerta?: boolean; onClick: () => void }) {
-  return <button type="button" onClick={onClick} aria-label={`Ver detalle de ${titulo}`} style={{ ...s.metrica, borderColor: alerta ? '#fecaca' : '#e2e8f0' }}><span aria-hidden="true" style={s.icono}>{icono}</span><span style={s.contenidoMetrica}><span style={s.valor}>{valor}</span><strong style={s.etiqueta}>{titulo}</strong><span style={s.detalle}>{detalle}</span><span style={s.miniConclusion}>{conclusion}</span><span style={s.verDetalle}>Ver detalle →</span></span></button>;
+function Metrica({ titulo, valor, detalle, conclusion, alerta = false, onClick }: { titulo: string; valor: string; detalle: string; conclusion: string; alerta?: boolean; onClick: () => void }) {
+  return <button type="button" onClick={onClick} aria-label={`Ver detalle de ${titulo}`} style={{ ...s.metrica, borderColor: alerta ? '#fecaca' : '#e2e8f0' }}><span style={s.contenidoMetrica}><span style={s.valor}>{valor}</span><strong style={s.etiqueta}>{titulo}</strong><span style={s.detalle}>{detalle}</span><span style={s.miniConclusion}>{conclusion}</span><span style={s.verDetalle}>Ver detalle</span></span></button>;
 }
 function DetalleModal({ titulo, onClose, children }: { titulo: string; onClose: () => void; children: React.ReactNode }) {
   return <div role="presentation" style={s.modalFondo} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
     <section role="dialog" aria-modal="true" aria-labelledby="titulo-detalle-financiero" style={s.modal}>
-      <header style={s.modalCabecera}><h2 id="titulo-detalle-financiero" style={s.modalTitulo}>{titulo}</h2><button type="button" onClick={onClose} aria-label="Cerrar detalle" style={s.cerrar}>×</button></header>
+      <header style={s.modalCabecera}><h2 id="titulo-detalle-financiero" style={s.modalTitulo}>{titulo}</h2><button type="button" onClick={onClose} style={s.cerrar}>Cerrar</button></header>
       <div style={s.modalContenido}>{children}</div>
     </section>
   </div>;
 }
 function Panel({ titulo, subtitulo, children }: { titulo: string; subtitulo: string; children: React.ReactNode }) { return <article style={s.panel}><h3 style={s.panelTitulo}>{titulo}</h3><p style={s.secundario}>{subtitulo}</p>{children}</article>; }
-function Conclusion({ texto }: { texto: string }) { return <div style={s.conclusion}><span aria-hidden="true">💡</span><div><strong>Conclusión automática</strong><p style={{ margin: '3px 0 0' }}>{texto}</p></div></div>; }
+function Conclusion({ texto }: { texto: string }) { return <div style={s.conclusion}><div><strong>Conclusión automática</strong><p style={{ margin: '3px 0 0' }}>{texto}</p></div></div>; }
 
 function Barras({ datos, color }: { datos: Array<{ nombre: string; importe: number; porcentaje: number }>; color: string }) {
   const maximo = Math.max(...datos.map((x) => x.importe), 1);
@@ -205,19 +218,19 @@ function Tabla({ encabezados, filas, vacio = 'Sin datos para mostrar.' }: { enca
 
 const s: Record<string, CSSProperties> = {
   cabecera: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 18 },
-  demo: { marginBottom: 14, padding: '10px 14px', border: '1px solid #fde68a', borderRadius: 8, background: '#fffbeb', color: '#92400e', fontSize: 13, fontWeight: 700 },
   sobretitulo: { margin: '0 0 5px', color: '#047857', fontSize: 13, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase' },
   titulo: { margin: 0, fontSize: 26, color: '#0f172a' }, secundario: { margin: '5px 0 0', color: '#64748b', fontSize: 14 },
   boton: { border: 0, borderRadius: 7, padding: '10px 15px', background: '#0f766e', color: '#fff', fontWeight: 700, cursor: 'pointer' },
   acciones: { display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 },
   botonSecundario: { border: '1px solid #0f766e', borderRadius: 7, padding: '9px 14px', background: '#fff', color: '#0f766e', fontWeight: 700, cursor: 'pointer' },
   filtros: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, padding: 16, marginBottom: 16, background: '#fff', border: '1px solid #cbd5e1', borderRadius: 10 },
+  errorFecha: { margin: '-7px 0 16px', color: '#b91c1c', fontSize: 13, fontWeight: 700 },
   campo: { display: 'grid', gap: 6, color: '#334155', fontSize: 13, fontWeight: 700 }, control: { width: '100%', padding: '9px 10px', border: '1px solid #94a3b8', borderRadius: 6, background: '#fff', color: '#0f172a', boxSizing: 'border-box' },
   tarjetas: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 16 },
-  metrica: { minHeight: 175, display: 'flex', gap: 13, padding: 18, textAlign: 'left', cursor: 'pointer', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxSizing: 'border-box', font: 'inherit' }, contenidoMetrica: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }, icono: { width: 40, height: 40, display: 'grid', placeItems: 'center', flexShrink: 0, borderRadius: 9, background: '#ecfdf5', fontSize: 20 }, valor: { display: 'block', color: '#0f172a', fontSize: 22, fontWeight: 800 }, etiqueta: { display: 'block', color: '#334155', fontSize: 14, marginTop: 3 }, detalle: { display: 'block', color: '#64748b', fontSize: 12, marginTop: 5 }, miniConclusion: { display: 'block', margin: '9px 0 0', color: '#475569', fontSize: 12, lineHeight: 1.4 }, verDetalle: { display: 'block', marginTop: 'auto', paddingTop: 10, color: '#0f766e', fontSize: 12, fontWeight: 800 },
+  metrica: { minHeight: 175, display: 'flex', padding: 18, textAlign: 'left', cursor: 'pointer', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxSizing: 'border-box', font: 'inherit' }, contenidoMetrica: { display: 'flex', width: '100%', flexDirection: 'column', alignItems: 'flex-start' }, valor: { display: 'block', color: '#0f172a', fontSize: 22, fontWeight: 800 }, etiqueta: { display: 'block', color: '#334155', fontSize: 14, marginTop: 3 }, detalle: { display: 'block', color: '#64748b', fontSize: 12, marginTop: 5 }, miniConclusion: { display: 'block', margin: '9px 0 0', color: '#475569', fontSize: 12, lineHeight: 1.4 }, verDetalle: { display: 'block', marginTop: 'auto', paddingTop: 10, color: '#0f766e', fontSize: 12, fontWeight: 800, textDecoration: 'underline' },
   modalFondo: { position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(15, 23, 42, .62)' },
   modal: { width: 'min(1050px, 96vw)', maxHeight: '90vh', overflow: 'hidden', borderRadius: 14, background: '#f8fafc', boxShadow: '0 24px 70px rgba(15, 23, 42, .3)' },
-  modalCabecera: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #cbd5e1', background: '#fff' }, modalTitulo: { margin: 0, color: '#0f172a', fontSize: 21 }, cerrar: { width: 38, height: 38, border: 0, borderRadius: 8, background: '#e2e8f0', color: '#334155', cursor: 'pointer', fontSize: 26, lineHeight: 1 }, modalContenido: { maxHeight: 'calc(90vh - 71px)', overflowY: 'auto', padding: 18 },
+  modalCabecera: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #cbd5e1', background: '#fff' }, modalTitulo: { margin: 0, color: '#0f172a', fontSize: 21 }, cerrar: { padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 7, background: '#fff', color: '#334155', cursor: 'pointer', fontSize: 13, fontWeight: 700 }, modalContenido: { maxHeight: 'calc(90vh - 71px)', overflowY: 'auto', padding: 18 },
   dosColumnas: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }, panel: { marginBottom: 16, padding: 20, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10 }, panelTitulo: { margin: 0, color: '#0f172a', fontSize: 18 },
   conclusion: { display: 'flex', gap: 10, marginTop: 16, padding: 13, border: '1px solid #bae6fd', borderRadius: 8, background: '#f0f9ff', color: '#0c4a6e', fontSize: 13, lineHeight: 1.45 },
   filaBarra: { display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 5, color: '#334155', fontSize: 13 }, pista: { height: 11, overflow: 'hidden', background: '#e2e8f0', borderRadius: 999 }, barra: { height: '100%', borderRadius: 999 },

@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -18,6 +13,12 @@ export async function POST(request: Request) {
     if (!accessToken) {
       return NextResponse.json({ error: 'Falta MP_ACCESS_TOKEN en el servidor.' }, { status: 500 });
     }
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json({ error: 'Falta configurar Supabase para procesar el webhook.' }, { status: 500 });
+    }
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(String(paymentId))}`, {
       headers: { Authorization: `Bearer ${accessToken}` }

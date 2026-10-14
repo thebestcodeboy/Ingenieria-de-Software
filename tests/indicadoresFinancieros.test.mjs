@@ -7,6 +7,8 @@ const pagos = [
   { fecha: '2026-10-06', importe: 50000, estado: 'CONFIRMADO', medio_pago: 'Transferencia', detalle_academico: { actividad: 'Medicina' } },
   { fecha: '2026-09-15', importe: 100000, estado: 'CONFIRMADO', medio_pago: 'Efectivo', detalle_academico: { actividad: 'Medicina' } },
   { fecha: '2026-09-20', importe: 30000, estado: 'ANULADO', medio_pago: 'Efectivo', detalle_academico: { actividad: 'Medicina' } },
+  { fecha: '2026-10-07', importe: 45000, estado: 'PENDIENTE', medio_pago: 'Mercado Pago', detalle_academico: { actividad: 'Medicina' } },
+  { fecha: '2026-10-07', importe: 35000, estado: 'RECHAZADO', medio_pago: 'Mercado Pago', detalle_academico: { actividad: 'Medicina' } },
   { fecha: '2025-10-05', importe: 90000, estado: 'CONFIRMADO', medio_pago: 'Efectivo', detalle_academico: { actividad: 'Medicina' } },
   { fecha: '2026-10-08', importe: 70000, estado: 'CONFIRMADO', medio_pago: 'Tarjeta', detalle_academico: { actividad: 'Derecho' } },
 ];
@@ -18,7 +20,7 @@ const deudas = [
   { alumno_id: 'a3', alumno_nombre: 'Sin mora', fecha_vencimiento: '2026-10-31', saldo_pendiente: 10000, actividad_nombre: 'Medicina' },
 ];
 
-test('calcula recaudacion, excluye anulados y compara periodos', () => {
+test('calcula recaudacion y excluye pagos anulados, pendientes o rechazados', () => {
   const r = calcularIndicadoresFinancieros(pagos, deudas, { desde: '2026-10-01', hasta: '2026-10-31', actividad: 'todos', medioPago: 'todos' });
   assert.equal(r.totalPeriodo, 220000);
   assert.equal(r.totalPeriodoAnterior, 100000);

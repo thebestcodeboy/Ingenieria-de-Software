@@ -6,50 +6,61 @@
 
 ## Alcance
 
-El panel es de solo lectura. Incluye recaudación del período, mes y semana; comparación mensual del año seleccionado contra el anterior; flujo por medio de pago; deuda vencida; ingresos por actividad; ranking de deudores; filtros y conclusiones automáticas.
+HU27 es un módulo de consulta. Muestra recaudación, comparación mensual, flujo por medio de pago, deuda vencida, ingresos por actividad, ranking de deudores, filtros, conclusiones automáticas e informe imprimible.
 
-No modifica pagos u obligaciones, no proyecta ingresos y no aplica intereses.
+No crea, modifica ni anula pagos u obligaciones. Tampoco administra cuotas, intereses, refinanciaciones o facturación.
 
-## Fuente temporal
+## Contrato de datos
 
-- `src/data/indicadoresFinancierosDemo.ts`: pagos y obligaciones locales para demostrar la HU27 sin escribir en la única base productiva compartida.
-- Los datos conservan la forma prevista para pagos y obligaciones reales, de modo que el dominio y la interfaz puedan reutilizarse al integrar la fuente definitiva.
-- La pantalla debe advertir que los datos son de demostración.
+- `pagos` proviene de HU24. Solo los registros `CONFIRMADO` integran la recaudación.
+- `obligaciones_pago` contiene el importe esperado, saldo pendiente y vencimiento.
+- La ausencia de un pago no demuestra una deuda.
+- Un pago `PENDIENTE` o `RECHAZADO` es una operación no acreditada y no constituye por sí mismo una obligación.
+- Hay mora únicamente cuando una obligación tiene saldo positivo y su vencimiento es anterior a la fecha de corte.
 
-La ausencia de un pago no demuestra una deuda. Una deuda existe únicamente cuando hay una obligación con saldo positivo y vencimiento anterior a la fecha de corte.
+La interfaz para administrar obligaciones corresponde a una historia futura de cuentas por cobrar. HU27 incorpora únicamente la estructura mínima y la consulta requerida para sus indicadores.
 
 ## Reglas de negocio
 
 | ID | Regla |
 |---|---|
-| RN-01 | Solo el rol `gerente` puede acceder a los indicadores. |
-| RN-02 | La recaudación incluye solo pagos con estado `CONFIRMADO`. |
+| RN-01 | Solo Gerencia puede consultar indicadores y obligaciones. |
+| RN-02 | La recaudación incluye exclusivamente pagos `CONFIRMADO`. |
 | RN-03 | El período anterior tiene igual cantidad de días y termina el día anterior al período filtrado. |
-| RN-04 | La comparación anual contiene los doce meses del año de la fecha final y los doce del año anterior. |
+| RN-04 | La comparación anual contiene los doce meses del año seleccionado y los doce del anterior. |
 | RN-05 | El flujo de caja agrupa importe y participación por medio de pago. |
 | RN-06 | Hay mora cuando `saldo_pendiente > 0` y `fecha_vencimiento < fecha_corte`. |
 | RN-07 | La antigüedad se divide en hasta 30, 31–60 y más de 60 días. |
-| RN-08 | La cantidad de deudores cuenta alumnos distintos; el monto suma todas sus obligaciones vencidas. |
-| RN-09 | Los filtros de período, actividad y medio se combinan. El medio de pago no afecta la deuda. |
-| RN-10 | Cada conclusión menciona el dato observado y propone una acción. |
-| RN-11 | Fechas y moneda usan formato argentino y zona `America/Argentina/Buenos_Aires`. |
+| RN-08 | La cantidad de deudores cuenta alumnos distintos. |
+| RN-09 | Los filtros de período, actividad y medio se combinan; el medio no afecta la deuda. |
+| RN-10 | Cada conclusión explica el dato y propone una acción. |
+| RN-11 | Fechas y moneda usan formato argentino. |
 | RN-12 | Cada gráfico tiene una tabla equivalente con filas alternadas. |
 
 ## Criterios verificables
 
-1. Se muestran recaudación del período, mes y semana, comparadas con sus períodos anteriores.
-2. El gráfico anual compara los doce meses del año seleccionado contra el anterior, incluso con meses en cero.
+1. Se muestran recaudación del período, mes y semana comparadas con períodos anteriores.
+2. El gráfico anual compara el año seleccionado con el anterior.
 3. El flujo de caja muestra importe y porcentaje por medio de pago.
-4. La morosidad informa deudores únicos, monto total y tres tramos de antigüedad.
-5. Se muestran ingresos por curso o materia y ranking descendente de deudores.
+4. La morosidad informa deudores únicos, monto y tres tramos de antigüedad.
+5. Se muestran ingresos por actividad y ranking de deudores.
 6. Cada bloque presenta una conclusión automática.
-7. Los filtros recalculan todos los indicadores aplicables.
-8. Cada gráfico incluye una tabla de apoyo con filas alternadas.
-9. Existen datos locales con el año anterior completo y los meses transcurridos del actual.
-10. Un usuario sin rol Gerente no accede al panel financiero.
+7. Los filtros recalculan los indicadores aplicables.
+8. Cada gráfico incluye una tabla con filas alternadas.
+9. El informe puede guardarse como PDF.
+10. Un usuario sin rol Gerente no puede ejecutar la consulta financiera.
 
-## Estrategia de validación
+## Casos límite
 
-- Pruebas unitarias para períodos, anulaciones, filtros, agrupaciones, tramos y alumnos únicos.
-- Compilación TypeScript/Next.js.
-- Revisión visual con datos abundantes y con filtros sin resultados.
+- Pagos pendientes, rechazados, anulados o cancelados no suman recaudación.
+- Varias obligaciones del mismo alumno suman su saldo, pero cuentan un único deudor.
+- Un vencimiento igual a la fecha de corte todavía no está vencido.
+- Sin datos se muestran ceros y estados vacíos comprensibles.
+- Un rango invertido se rechaza.
+
+## Validación
+
+- Pruebas unitarias de períodos, estados, filtros, agrupaciones, tramos y alumnos únicos.
+- Compilación TypeScript y Next.js.
+- Verificación de permisos mediante RLS y RPC.
+- Revisión visual con datos reales y estados vacíos.
