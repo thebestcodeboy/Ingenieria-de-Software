@@ -123,7 +123,7 @@ export default function IndicadoresFinancierosModule() {
   return (
     <section aria-labelledby="titulo-finanzas" style={{ marginTop: 28 }}>
       <header style={s.cabecera}>
-        <div><p style={s.sobretitulo}>HU27 · Gestión económica</p><h2 id="titulo-finanzas" style={s.titulo}>Pagos y morosidad</h2><p style={s.secundario}>Recaudación, caja y cartera vencida con conclusiones para la toma de decisiones.</p></div>
+        <div><h2 id="titulo-finanzas" style={s.titulo}>Pagos y morosidad</h2><p style={s.secundario}>Recaudación, caja y cartera vencida con conclusiones para la toma de decisiones.</p></div>
         <div style={s.acciones}>
           <button type="button" disabled={!fechasValidas} style={{ ...s.botonSecundario, opacity: fechasValidas ? 1 : 0.55 }} onClick={() => abrirInformePdf(resumen, filtros)}>Descargar informe PDF</button>
           <button type="button" style={s.boton} onClick={() => void cargar()}>Actualizar</button>
@@ -220,9 +220,9 @@ const s: Record<string, CSSProperties> = {
   cabecera: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 18 },
   sobretitulo: { margin: '0 0 5px', color: '#047857', fontSize: 13, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase' },
   titulo: { margin: 0, fontSize: 26, color: '#0f172a' }, secundario: { margin: '5px 0 0', color: '#64748b', fontSize: 14 },
-  boton: { border: 0, borderRadius: 7, padding: '10px 15px', background: '#0f766e', color: '#fff', fontWeight: 700, cursor: 'pointer' },
+  boton: { border: 0, borderRadius: 7, padding: '10px 15px', background: '#0b1e33', color: '#fff', fontWeight: 700, cursor: 'pointer' },
   acciones: { display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 },
-  botonSecundario: { border: '1px solid #0f766e', borderRadius: 7, padding: '9px 14px', background: '#fff', color: '#0f766e', fontWeight: 700, cursor: 'pointer' },
+  botonSecundario: { border: '1px solid #0b1e33', borderRadius: 7, padding: '9px 14px', background: '#fff', color: '#0b1e33', fontWeight: 700, cursor: 'pointer' },
   filtros: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, padding: 16, marginBottom: 16, background: '#fff', border: '1px solid #cbd5e1', borderRadius: 10 },
   errorFecha: { margin: '-7px 0 16px', color: '#b91c1c', fontSize: 13, fontWeight: 700 },
   campo: { display: 'grid', gap: 6, color: '#334155', fontSize: 13, fontWeight: 700 }, control: { width: '100%', padding: '9px 10px', border: '1px solid #94a3b8', borderRadius: 6, background: '#fff', color: '#0f172a', boxSizing: 'border-box' },

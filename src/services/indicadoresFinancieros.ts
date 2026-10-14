@@ -25,7 +25,7 @@ export async function cargarDatosFinancieros() {
   const { data, error } = await supabase.rpc('obtener_indicadores_financieros_hu27');
   if (error) {
     if (error.code === 'PGRST202' || error.code === '42883') {
-      throw new Error('Falta aplicar la migración de indicadores HU27 en Supabase.');
+      throw new Error('Falta aplicar la migración de indicadores financieros en Supabase.');
     }
     if (error.code === '42501' || error.message.includes('ACCESO_RESTRINGIDO_GERENCIA')) {
       throw new Error('Acceso restringido: se requiere el rol Gerente.');

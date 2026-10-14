@@ -840,7 +840,7 @@ export default function TurnosModule() {
                             type="button"
                             onClick={() => handleAbrirReprogramar(turno)}
                             style={styles.botonAccionPrincipal}
-                            title="Cambiar fecha, hora, aula o profesor (HU14)"
+                            title="Cambiar fecha, hora, aula o profesor"
                           >
                             Reprogramar
                           </button>
@@ -851,7 +851,7 @@ export default function TurnosModule() {
                               setTurnoParaCancelar(turno);
                             }}
                             style={styles.botonAccionPeligro}
-                            title="Cancelar clase y liberar horario (HU14)"
+                            title="Cancelar clase y liberar horario"
                           >
                             Cancelar
                           </button>
