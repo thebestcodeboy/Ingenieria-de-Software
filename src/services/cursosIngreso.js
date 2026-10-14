@@ -1,156 +1,207 @@
-import { validarPeriodoCurso } from '../domain/periodoCurso';
 import { supabase } from '../lib/supabaseClient';
 
-const PALABRAS_PROHIBIDAS = [
-  'curso', 'test', 'prueba', 'asdf', 'admin', 'ninguno', 'falso', 'temporal'
-];
-
-// Validador y normalizador de Nombre del Curso (Bloquea números estrictamente)
-export const normalizarYValidarNombreCurso = (texto) => {
-  if (!texto || typeof texto !== 'string' || texto.trim() === '') {
-    return { valido: false, error: 'El nombre del curso es obligatorio.' };
+async function asegurarPermisoAdministrativo() {
+  const { data: sesionData, error: sesionError } = await supabase.auth.getSession();
+  if (sesionError || !sesionData?.session?.user) {
+    throw new Error('Tu sesión ha expirado. Por favor, volvé a iniciar sesión.');
   }
 
-  if (/\d/.test(texto)) {
-    return { valido: false, error: 'El nombre del curso no puede contener números. Use la descripción para indicar años o cohortes.' };
-  }
+  const user = sesionData.session.user;
+  const rawRole = (
+    user.app_metadata?.rol ||
+    user.app_metadata?.role ||
+    user.user_metadata?.rol ||
+    user.user_metadata?.role ||
+    ''
+  ).toLowerCase().trim();
 
-  const limpio = texto.trim().replace(/\s+/g, ' ');
+  // Acepta mesa_entrada, mesa de entrada, gerente o admin
+  const tienePermiso =
+    rawRole === 'mesa_entrada' ||
+    rawRole === 'mesa de entrada' ||
+    rawRole === 'gerente' ||
+    rawRole === 'admin' ||
+    rawRole.includes('mesa');
 
-  if (limpio.length < 4) {
-    return { valido: false, error: 'El nombre del curso debe tener al menos 4 caracteres.' };
-  }
+  if (!tienePermiso) {
+    // Si no está en metadata, comprobar en perfiles
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('rol')
+      .eq('id', user.id)
+      .maybeSingle();
 
-  const palabras = limpio.split(' ');
-  for (const p of palabras) {
-    const min = p.toLowerCase();
-    if (PALABRAS_PROHIBIDAS.includes(min)) {
-      return { valido: false, error: `"${p}" no es un nombre de curso válido.` };
+    const rolPerfil = (perfil?.rol || '').toLowerCase().trim();
+    if (rolPerfil.includes('mesa') || rolPerfil.includes('gerente') || rolPerfil.includes('admin')) {
+      return true;
     }
-    if (
-      /(\w{2,3})\1{1,}/.test(min) || 
-      /asdf|qwer|zxcv|hjkl|dasd|dada/.test(min)
-    ) {
-      return { valido: false, error: `El nombre contiene una secuencia de prueba no permitida ("${p}").` };
-    }
+
+    throw new Error('Tu cuenta no tiene permisos administrativos para guardar cursos. Contactá al administrador.');
   }
 
-  return { valido: true, textoLimpio: limpio.toUpperCase() };
-};
+  return true;
+}
 
-// Normalizador de Descripción (Permite números, ej: 2027)
-export const normalizarDescripcion = (texto) => {
-  if (!texto || typeof texto !== 'string' || texto.trim() === '') return { valido: true, textoLimpio: null };
-  const limpio = texto.trim().replace(/\s+/g, ' ');
-  return { valido: true, textoLimpio: limpio };
-};
-
-// Obtener exclusivamente materias de NIVEL UNIVERSITARIO (Filtro seguro en JS)
-export const getMateriasDisponibles = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('materias')
-      .select('id, nombre, nivel')
-      .eq('activo', true)
-      .order('nombre', { ascending: true });
-
-    if (error) throw new Error(error.message);
-    
-    // Filtrar estrictamente en memoria para descartar cualquier rastro de secundario
-    const soloUniversitarias = (data || []).filter((m) => {
-      const niv = (m.nivel || '').toLowerCase();
-      return niv.includes('univ') && !niv.includes('secun');
-    });
-
-    return soloUniversitarias;
-  } catch (err) {
-    console.error('Error en getMateriasDisponibles:', err);
-    throw err;
-  }
-};
-
-// Listado de cursos de ingreso con sus materias asociadas
-export const getCursosIngreso = async () => {
-  try {
-    const { data: cursosData, error: cursoError } = await supabase
-      .from('cursos_ingreso')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (cursoError) throw new Error(cursoError.message);
-    if (!cursosData || cursosData.length === 0) return [];
-
-    const { data: relacionesData, error: relError } = await supabase
-      .from('curso_ingreso_materias')
-      .select(`
-        curso_id,
+export async function getCursosIngreso() {
+  const { data, error } = await supabase
+    .from('cursos_ingreso')
+    .select(`
+      id,
+      nombre,
+      descripcion,
+      activo,
+      fecha_inicio,
+      fecha_fin,
+      curso_ingreso_materias (
         materia_id,
         materias (
           id,
           nombre,
           nivel
         )
-      `);
+      )
+    `)
+    .order('nombre', { ascending: true });
+
+  if (error) {
+    console.error('Error al obtener cursos de ingreso:', error);
+    throw error;
+  }
+  return data || [];
+}
+
+export async function getMateriasDisponibles() {
+  const { data, error } = await supabase
+    .from('materias')
+    .select('id, nombre, nivel, activo')
+    .eq('activo', true)
+    .order('nombre', { ascending: true });
+
+  if (error) {
+    console.error('Error al obtener materias:', error);
+    throw error;
+  }
+  return data || [];
+}
+
+export async function createCursoIngreso({ nombre, descripcion, fechaInicio, fechaFin, materiasIds }) {
+  await asegurarPermisoAdministrativo();
+
+  const cleanNombre = nombre?.trim();
+  if (!cleanNombre) {
+    throw new Error('El nombre del curso es obligatorio.');
+  }
+
+  if (!materiasIds || materiasIds.length === 0) {
+    throw new Error('Debe asociar al menos una materia universitaria al curso.');
+  }
+
+  const { data: cursoCreado, error: cursoError } = await supabase
+    .from('cursos_ingreso')
+    .insert([
+      {
+        nombre: cleanNombre,
+        descripcion: descripcion?.trim() || null,
+        fecha_inicio: fechaInicio || null,
+        fecha_fin: fechaFin || null,
+        activo: true
+      }
+    ])
+    .select()
+    .single();
+
+  if (cursoError) {
+    console.error('Error en createCursoIngreso:', cursoError);
+    if (cursoError.message?.includes('violates row-level security')) {
+      throw new Error('Tu cuenta no tiene permisos administrativos para guardar cursos. Contactá al administrador.');
+    }
+    throw new Error(cursoError.message || 'Error al registrar el curso de ingreso.');
+  }
+
+  if (cursoCreado && materiasIds.length > 0) {
+    const filasRelacion = materiasIds.map((materiaId) => ({
+      curso_id: cursoCreado.id,
+      materia_id: materiaId
+    }));
+
+    const { error: relError } = await supabase
+      .from('curso_ingreso_materias')
+      .insert(filasRelacion);
 
     if (relError) {
-      console.warn('Aviso al traer relaciones de materias:', relError.message);
+      console.warn('Advertencia al asociar materias al curso:', relError.message);
     }
-
-    const cursosMapeados = cursosData.map((curso) => {
-      const relsDelCurso = (relacionesData || []).filter(
-        (r) => String(r.curso_id) === String(curso.id)
-      );
-      return {
-        ...curso,
-        curso_ingreso_materias: relsDelCurso,
-      };
-    });
-
-    return cursosMapeados;
-  } catch (err) {
-    console.error('Error en getCursosIngreso:', err);
-    throw err;
   }
-};
 
-export const cambiarEstadoCursoIngreso = async (id, activo) => {
-  const { data, error } = await supabase
+  return cursoCreado;
+}
+
+export async function updateCursoIngreso(id, { nombre, descripcion, fechaInicio, fechaFin, activo, materiasIds }) {
+  await asegurarPermisoAdministrativo();
+
+  const cleanNombre = nombre?.trim();
+  if (!cleanNombre) {
+    throw new Error('El nombre del curso es obligatorio.');
+  }
+
+  const payload = {
+    nombre: cleanNombre,
+    descripcion: descripcion?.trim() || null,
+    fecha_inicio: fechaInicio || null,
+    fecha_fin: fechaFin || null,
+    activo: Boolean(activo)
+  };
+
+  const { data: cursoActualizado, error: cursoError } = await supabase
     .from('cursos_ingreso')
-    .update({ activo })
+    .update(payload)
     .eq('id', id)
     .select()
     .single();
 
-  if (error) throw new Error(error.message || 'No se pudo cambiar el estado del curso.');
-  return data;
-};
+  if (cursoError) {
+    console.error('Error en updateCursoIngreso:', cursoError);
+    if (cursoError.message?.includes('violates row-level security')) {
+      throw new Error('Tu cuenta no tiene permisos administrativos para guardar cursos. Contactá al administrador.');
+    }
+    throw new Error(cursoError.message || 'Error al actualizar el curso de ingreso.');
+  }
 
-// El curso y sus materias se guardan en una única transacción de Supabase.
-async function guardarCursoIngreso({ nombre, descripcion, materiasIds, fechaInicio, fechaFin, activo = true }, cursoId = null) {
-  const errorPeriodo = validarPeriodoCurso(fechaInicio, fechaFin);
-  if (errorPeriodo) throw new Error(errorPeriodo);
-  const valNombre = normalizarYValidarNombreCurso(nombre);
-  if (!valNombre.valido) throw new Error(valNombre.error);
-  if (!Array.isArray(materiasIds) || !materiasIds.filter(Boolean).length) {
-    throw new Error('Seleccioná al menos una materia universitaria.');
+  if (materiasIds && materiasIds.length > 0) {
+    await supabase
+      .from('curso_ingreso_materias')
+      .delete()
+      .eq('curso_id', id);
+
+    const nuevasFilas = materiasIds.map((materiaId) => ({
+      curso_id: id,
+      materia_id: materiaId
+    }));
+
+    const { error: relError } = await supabase
+      .from('curso_ingreso_materias')
+      .insert(nuevasFilas);
+
+    if (relError) {
+      console.warn('Advertencia al actualizar materias del curso:', relError.message);
+    }
   }
-  const { data, error } = await supabase.rpc('guardar_curso_ingreso', {
-    p_nombre: valNombre.textoLimpio,
-    p_descripcion: normalizarDescripcion(descripcion).textoLimpio,
-    p_fecha_inicio: fechaInicio, p_fecha_fin: fechaFin,
-    p_materias: [...new Set(materiasIds.filter(Boolean))],
-    p_activo: activo, p_curso_id: cursoId,
-  });
-  if (error) {
-    if (error.code === 'PGRST202') throw new Error('Falta instalar la actualización de guardado de cursos en Supabase.');
-    throw new Error(error.message || 'No se pudo guardar el curso.');
-  }
-  const curso = Array.isArray(data) ? data[0] : data;
-  if (!curso || (cursoId !== null && String(curso.id) !== String(cursoId))
-      || curso.fecha_inicio !== fechaInicio || curso.fecha_fin !== fechaFin || curso.activo !== activo) {
-    throw new Error('Supabase no confirmó todos los cambios del curso. Actualizá el listado antes de reintentar.');
-  }
-  return curso;
+
+  return cursoActualizado;
 }
-export const createCursoIngreso = (datos) => guardarCursoIngreso(datos);
-export const updateCursoIngreso = (id, datos) => guardarCursoIngreso(datos, id);
+
+export async function cambiarEstadoCursoIngreso(id, activo) {
+  await asegurarPermisoAdministrativo();
+
+  const { data, error } = await supabase
+    .from('cursos_ingreso')
+    .update({ activo: Boolean(activo) })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message || 'No se pudo cambiar el estado del curso.');
+  }
+  return data;
+}

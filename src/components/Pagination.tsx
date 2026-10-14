@@ -8,7 +8,7 @@ interface EstadoPaginacion {
   pagina: number;
 }
 
-export function usePagination<T>(elementos: T[], claveFiltros: string, elementosPorPagina = 8) {
+export function usePagination<T>(elementos: T[], claveFiltros: string, elementosPorPagina = 10) {
   const [estado, setEstado] = useState<EstadoPaginacion>({
     claveFiltros,
     cantidadElementos: elementos.length,
@@ -49,18 +49,19 @@ export function Pagination({
   if (totalPaginas <= 1) return null;
 
   const estiloBoton = (deshabilitado: boolean) => ({
-    padding: '7px 14px',
+    padding: '7px 16px',
     borderRadius: '6px',
     border: '1.5px solid #cbd5e1',
     backgroundColor: deshabilitado ? '#f1f5f9' : '#ffffff',
-    color: '#0f172a',
-    fontSize: '14px',
+    color: deshabilitado ? '#94a3b8' : '#0f172a',
+    fontSize: '14.5px',
     fontWeight: 700,
     cursor: deshabilitado ? 'not-allowed' : 'pointer',
+    transition: 'all 0.15s ease',
   });
 
   return (
-    <nav aria-label="Paginación" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginTop: '20px', paddingBottom: '20px' }}>
+    <nav aria-label="Paginación" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginTop: '16px', marginBottom: '8px' }}>
       <button
         type="button"
         onClick={() => onCambiarPagina(paginaActual - 1)}
@@ -69,7 +70,7 @@ export function Pagination({
       >
         Anterior
       </button>
-      <span aria-live="polite" style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>
+      <span aria-live="polite" style={{ fontSize: '15px', fontWeight: 700, color: '#334155' }}>
         Página {paginaActual} de {totalPaginas}
       </span>
       <button

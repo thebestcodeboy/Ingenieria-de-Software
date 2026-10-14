@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { getProfesores, createProfesor, updateProfesor } from '../services/profesores';
+import { getProfesores, createProfesor, updateProfesor, cambiarEstadoProfesor } from '../services/profesores';
 import { getMaterias } from '../services/materias';
 import { calcularCuilArgentino } from '../services/alumnos';
 import { generateTeacherUsername } from '../utils/credentials';
@@ -62,6 +62,9 @@ export default function ProfesoresModule() {
 
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterEstado, setFilterEstado] = useState<string>('TODOS');
+
+  // Modal Ver Detalle (Solo lectura)
+  const [profesorDetalle, setProfesorDetalle] = useState<Profesor | null>(null);
 
   // Modal y formulario de creación/edición
   const [editingId, setEditingId] = useState<string | number | null>(null);
@@ -288,20 +291,6 @@ export default function ProfesoresModule() {
     const limpio = texto.trim().replace(/\s+/g, ' ');
     if (!limpio) return { error: `El campo ${campo} es obligatorio.` };
     if (limpio.length < 3) return { error: `El ${campo} debe tener al menos 3 caracteres.` };
-
-    const palabras = limpio.split(' ');
-    const nexosPermitidos = ['de', 'del', 'la', 'las', 'los', 'di', 'da', 'san', 'santa'];
-
-    for (let i = 0; i < palabras.length; i++) {
-      const p = palabras[i].toLowerCase();
-      if (p.length === 1) return { error: `El ${campo} no puede contener letras sueltas.` };
-      if (p.length < 3 && !nexosPermitidos.includes(p)) {
-        return { error: `"${palabras[i]}" no parece un ${campo} válido.` };
-      }
-      if (/(.)\1{3,}/.test(p) || /asdf|qwer|zxcv|1234/.test(p)) {
-        return { error: `El ${campo} contiene secuencias no permitidas.` };
-      }
-    }
     return { limpio: limpio.toUpperCase() };
   };
 
@@ -317,26 +306,9 @@ export default function ProfesoresModule() {
 
     const dniLimpio = formData.dni.trim();
     if (dniLimpio.length !== 8) return setErrorMsg('El DNI debe contener exactamente 8 dígitos.');
-    
-    const dniNum = parseInt(dniLimpio, 10);
-    if (dniNum < 10000000 || dniNum > 56000000) {
-      return setErrorMsg('El DNI no corresponde a un rango demográfico válido (10 a 56 millones).');
-    }
-    if (/^(\d)\1{7}$/.test(dniLimpio)) return setErrorMsg('El DNI no puede ser un número repetido.');
 
     let telLimpio = formData.telefono.replace(/\D/g, '');
-    if (telLimpio) {
-      if (telLimpio.length === 11 && telLimpio.startsWith('0')) telLimpio = telLimpio.slice(1);
-      if (telLimpio.length !== 10 && telLimpio.length !== 12 && telLimpio.length !== 13) {
-        return setErrorMsg('El teléfono debe contener 10 dígitos (código de área + número local. Ej: 3874123456).');
-      }
-    }
-
     const emailLimpio = formData.email.trim().toLowerCase();
-    if (emailLimpio) {
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(emailLimpio)) return setErrorMsg('El formato del correo electrónico es inválido.');
-    }
 
     if (selectedMaterias.length === 0) {
       return setErrorMsg('Debe asociar al menos una materia al profesor.');
@@ -348,10 +320,10 @@ export default function ProfesoresModule() {
 
     for (const d of disponibilidad) {
       if (!d.horaInicio || !d.horaFin) {
-        return setErrorMsg(`Debe definir tanto hora de inicio como de fin para el turno ${d.franja}.`);
+        return setErrorMsg(`Debe definir hora de inicio y fin para el turno ${d.franja}.`);
       }
       if (d.horaInicio >= d.horaFin) {
-        return setErrorMsg(`En la franja ${d.franja}, la hora de inicio (${d.horaInicio}) debe ser anterior a la hora de fin (${d.horaFin}).`);
+        return setErrorMsg(`En la franja ${d.franja}, la hora de inicio debe ser anterior a la de fin.`);
       }
     }
 
@@ -365,27 +337,27 @@ export default function ProfesoresModule() {
         dni: dniLimpio,
         email: emailLimpio || null,
         telefono: telLimpio || null,
-        activo: formData.activo,
+        activo: Boolean(formData.activo),
         materiasIds: selectedMaterias,
         turnos: turnosStrings,
         disponibilidad: disponibilidad,
       };
 
       if (editingId) {
-        const profActual = profesores.find((p) => p.id === editingId);
-        const cambioEstado = Boolean(profActual && (profActual.activo !== false) !== formData.activo);
         await updateProfesor(editingId, payload);
-        setSuccessMsg(cambioEstado
-          ? `Profesor ${formData.activo ? 'activado' : 'desactivado'} correctamente.`
-          : 'Profesor y disponibilidad horaria actualizados correctamente.');
+        await cambiarEstadoProfesor(editingId, formData.activo);
+
+        setSuccessMsg(formData.activo
+          ? 'Profesor activado correctamente.'
+          : 'Profesor desactivado correctamente.');
       } else {
         await createProfesor(payload);
         setSuccessMsg('Profesor registrado y disponibilidad guardada correctamente.');
       }
 
-      setTimeout(() => setSuccessMsg(''), 4000);
       handleCloseModal();
       await loadData();
+      setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: unknown) {
       setErrorMsg(mensajeDeError(err, 'Error al guardar los datos del profesor.'));
     } finally {
@@ -404,12 +376,13 @@ export default function ProfesoresModule() {
       return matchTerm && matchEstado;
     });
   }, [profesores, searchTerm, filterEstado]);
+
   const {
     elementosPaginados: profesoresPaginados,
     paginaActual,
     totalPaginas,
     cambiarPagina,
-  } = usePagination(profesoresFiltrados, JSON.stringify([searchTerm, filterEstado]));
+  } = usePagination(profesoresFiltrados, JSON.stringify([searchTerm, filterEstado]), 10);
 
   const obtenerNombreMateria = (mId: string | number) => {
     const encontrada = materias.find((m) => String(m.id).trim() === String(mId).trim());
@@ -417,15 +390,15 @@ export default function ProfesoresModule() {
   };
 
   return (
-    <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a' }}>
+    <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a', fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}>
       
-      {/* Encabezado */}
+      {/* Encabezado EXACTO ALUMNO */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Nómina de Profesores y Disponibilidad Horaria
           </h1>
-          <p style={{ color: '#475569', fontSize: '15px', margin: '4px 0 0 0', fontWeight: 500 }}>
+          <p style={{ color: '#475569', fontSize: '16px', margin: '4px 0 0 0', fontWeight: 500 }}>
             {profesores.length} {profesores.length === 1 ? 'docente registrado' : 'docentes registrados'}
           </p>
         </div>
@@ -437,30 +410,30 @@ export default function ProfesoresModule() {
             color: '#ffffff',
             border: 'none',
             borderRadius: '6px',
-            padding: '10px 20px',
-            fontSize: '15px',
-            fontWeight: 600,
+            padding: '11px 22px',
+            fontSize: '16px',
+            fontWeight: 700,
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '8px',
             boxShadow: '0 2px 4px rgba(11, 30, 51, 0.12)',
             transition: 'background-color 0.15s ease'
           }}
           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e3a5f'}
           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0b1e33'}
         >
-          <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span> Registrar Profesor
+          <span style={{ fontSize: '19px', lineHeight: 1 }}>+</span> Registrar Profesor
         </button>
       </div>
 
       {errorMsg && !isModalOpen && (
-        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
+        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px 16px', borderRadius: '6px', fontSize: '16px', marginBottom: '16px', fontWeight: 500 }}>
           {errorMsg}
         </div>
       )}
       {successMsg && !isModalOpen && (
-        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '12px 16px', borderRadius: '6px', fontSize: '16px', marginBottom: '16px', fontWeight: 500 }}>
           {successMsg}
         </div>
       )}
@@ -479,7 +452,7 @@ export default function ProfesoresModule() {
           boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
         }}>
           <span style={{ color: '#334155', display: 'flex' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
@@ -489,14 +462,22 @@ export default function ProfesoresModule() {
             placeholder="Buscar profesor por apellido, nombre o DNI..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '15px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
+            style={{
+              border: 'none',
+              outline: 'none',
+              width: '100%',
+              fontSize: '16px',
+              color: '#0f172a',
+              backgroundColor: 'transparent',
+              fontWeight: 500
+            }}
           />
         </div>
         <select
           aria-label="Filtrar profesores por estado"
           value={filterEstado}
           onChange={(e) => setFilterEstado(e.target.value)}
-          style={{ padding: '10px 14px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', cursor: 'pointer' }}
+          style={{ padding: '10px 16px', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '16px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 600, cursor: 'pointer' }}
         >
           <option value="TODOS">Todos los estados</option>
           <option value="ACTIVO">Activos</option>
@@ -504,62 +485,55 @@ export default function ProfesoresModule() {
         </select>
       </div>
 
-      {/* Tabla */}
+      {/* Tabla con Columna Portal Web, fuentes oscuras y badges con bordes sólidos */}
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflowX: 'auto', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '16px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '20%' }}>APELLIDO Y NOMBRE</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '11%' }}>DNI</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '18%' }}>MATERIAS HABILITADAS</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '23%' }}>DISPONIBILIDAD HORARIA</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '8%', textAlign: 'center' }}>ESTADO</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%', textAlign: 'center' }}>PORTAL WEB</th>
-              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '10%' }}>ACCIÓN</th>
+              <th style={{ padding: '15px 20px', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '20%' }}>APELLIDO Y NOMBRE</th>
+              <th style={{ padding: '15px 20px', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '11%' }}>DNI</th>
+              <th style={{ padding: '15px 20px', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '17%' }}>MATERIAS HABILITADAS</th>
+              <th style={{ padding: '15px 20px', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '22%' }}>DISPONIBILIDAD HORARIA</th>
+              <th style={{ padding: '15px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '10%' }}>ESTADO</th>
+              <th style={{ padding: '15px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '10%' }}>PORTAL WEB</th>
+              <th style={{ padding: '15px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '10%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#475569', fontWeight: 500 }}>
+                <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#475569', fontWeight: 500, fontSize: '16px' }}>
                   Cargando nómina de profesores...
                 </td>
               </tr>
             ) : profesoresFiltrados.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ padding: '54px 20px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px' }}>No se encontraron profesores registrados</div>
-                  <div style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Utiliza el botón superior &quot;+ Registrar Profesor&quot; para dar de alta a un docente.</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '17px' }}>No se encontraron profesores registrados</div>
                 </td>
               </tr>
             ) : (
               profesoresPaginados.map((prof) => {
-                let listMids: (string | number)[] = [];
-                if (Array.isArray(prof.materias_ids)) {
-                  listMids = prof.materias_ids;
-                } else if (typeof prof.materias_ids === 'string') {
-                  try {
-                    listMids = JSON.parse(prof.materias_ids);
-                  } catch {
-                    listMids = [];
-                  }
-                }
-
-                const tieneDispDetalle = prof.disponibilidad && Array.isArray(prof.disponibilidad) && prof.disponibilidad.length > 0;
+                const activo = prof.activo !== false;
+                const materiasList = Array.isArray(prof.materias_ids) ? prof.materias_ids : [];
 
                 return (
                   <tr key={prof.id} style={{ borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.15s ease' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}>
-                    <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '15px', textTransform: 'uppercase' }}>
+                    <td
+                      onClick={() => setProfesorDetalle(prof)}
+                      style={{ padding: '16px 20px', color: '#0b1e33', fontWeight: 700, fontSize: '16px', textTransform: 'uppercase', cursor: 'pointer' }}
+                      title="Haz clic para consultar la ficha completa"
+                    >
                       {prof.apellido}, {prof.nombre}
                     </td>
-                    <td style={{ padding: '16px 20px', color: '#0b1e33', fontWeight: 700, fontSize: '15.5px' }}>
+                    <td style={{ padding: '16px 20px', color: '#0b1e33', fontWeight: 700, fontSize: '16px' }}>
                       {String(prof.dni).padStart(8, '0')}
                     </td>
                     <td style={{ padding: '16px 20px' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {listMids.length > 0 ? (
-                          listMids.map((mId, idx) => (
-                            <span key={idx} style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontSize: '13px', padding: '3px 8px', borderRadius: '4px', fontWeight: 600, border: '1px solid #c7d2fe' }}>
+                        {materiasList.length > 0 ? (
+                          materiasList.map((mId, i) => (
+                            <span key={i} style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 8px', borderRadius: '4px', fontSize: '13px', fontWeight: 600 }}>
                               {obtenerNombreMateria(mId)}
                             </span>
                           ))
@@ -570,61 +544,56 @@ export default function ProfesoresModule() {
                     </td>
                     <td style={{ padding: '16px 20px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {tieneDispDetalle ? (
-                          prof.disponibilidad!.map((disp, idx) => (
-                            <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ backgroundColor: '#f1f5f9', color: '#1e293b', fontSize: '13px', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, border: '1px solid #cbd5e1' }}>
+                        {(prof.disponibilidad || []).length > 0 ? (
+                          prof.disponibilidad!.map((disp, i) => (
+                            <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ backgroundColor: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', fontSize: '13px', fontWeight: 800 }}>
                                 {disp.franja}
                               </span>
-                              <span style={{ fontSize: '13.5px', color: '#475569', fontWeight: 600, fontFamily: 'monospace' }}>
+                              <span style={{ fontSize: '14px', color: '#0b1e33', fontWeight: 700, fontFamily: 'monospace' }}>
                                 {disp.horaInicio} - {disp.horaFin}
                               </span>
                             </div>
                           ))
-                        ) : (prof.turnos || []).length > 0 ? (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                            {prof.turnos!.map((t, idx) => (
-                              <span key={idx} style={{ backgroundColor: '#f1f5f9', color: '#334155', fontSize: '13px', padding: '3px 8px', borderRadius: '4px', fontWeight: 600, border: '1px solid #cbd5e1' }}>
-                                {t}
-                              </span>
-                            ))}
-                          </div>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '14px' }}>Sin franjas asignadas</span>
+                          <span style={{ color: '#94a3b8', fontSize: '14px' }}>No asignada</span>
                         )}
                       </div>
                     </td>
-                    {/* Badge informativo de estado SIN CLICK */}
+                    {/* Badge Estado exacto a Alumnos */}
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <span
                         style={{
-                          backgroundColor: prof.activo === false ? '#fef2f2' : '#f0fdf4',
-                          color: prof.activo === false ? '#991b1b' : '#15803d',
-                          border: `1px solid ${prof.activo === false ? '#fca5a5' : '#bbf7d0'}`,
-                          padding: '4px 10px',
-                          borderRadius: '4px',
-                          fontSize: '13px',
-                          fontWeight: 700,
+                          backgroundColor: activo ? '#f0fdf4' : '#fef2f2',
+                          color: activo ? '#15803d' : '#991b1b',
+                          border: `1.5px solid ${activo ? '#bbf7d0' : '#fca5a5'}`,
+                          padding: '4px 12px',
+                          borderRadius: '5px',
+                          fontSize: '14px',
+                          fontWeight: 800,
                           letterSpacing: '0.04em',
                           userSelect: 'none',
                           display: 'inline-block'
                         }}
                       >
-                        {prof.activo === false ? 'INACTIVO' : 'ACTIVO'}
+                        {activo ? 'ACTIVO' : 'INACTIVO'}
                       </span>
                     </td>
+                    {/* Columna Portal Web */}
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        fontSize: '13px',
-                        fontWeight: 700,
-                        letterSpacing: '0.03em',
-                        backgroundColor: prof.acceso_portal ? '#eff6ff' : '#f8fafc',
-                        color: prof.acceso_portal ? '#1d4ed8' : '#94a3b8',
-                        border: `1px solid ${prof.acceso_portal ? '#bfdbfe' : '#e2e8f0'}`
-                      }}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          borderRadius: '5px',
+                          fontSize: '14px',
+                          fontWeight: 700,
+                          letterSpacing: '0.03em',
+                          backgroundColor: prof.acceso_portal ? '#eff6ff' : '#f8fafc',
+                          color: prof.acceso_portal ? '#1d4ed8' : '#94a3b8',
+                          border: `1px solid ${prof.acceso_portal ? '#bfdbfe' : '#e2e8f0'}`
+                        }}
+                      >
                         {prof.acceso_portal ? 'HABILITADO' : 'SIN ACCESO'}
                       </span>
                     </td>
@@ -633,11 +602,11 @@ export default function ProfesoresModule() {
                         onClick={() => handleEdit(prof)}
                         style={{
                           backgroundColor: '#ffffff',
-                          border: '1px solid #94a3b8',
+                          border: '1.5px solid #94a3b8',
                           color: '#0b1e33',
-                          borderRadius: '5px',
-                          padding: '6px 14px',
-                          fontSize: '14px',
+                          borderRadius: '6px',
+                          padding: '7px 16px',
+                          fontSize: '15px',
                           fontWeight: 700,
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
@@ -665,9 +634,86 @@ export default function ProfesoresModule() {
           </tbody>
         </table>
       </div>
+
       <Pagination paginaActual={paginaActual} totalPaginas={totalPaginas} onCambiarPagina={cambiarPagina} />
 
-      {/* Modal Registrar / Modificar Profesor */}
+      {/* MODAL FICHA DE DETALLE (SOLO LECTURA) */}
+      {profesorDetalle && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 110, backgroundColor: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '540px', padding: '32px', border: '1.5px solid #0b1e33', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0b1e33', paddingBottom: '14px', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '21px', fontWeight: 800, color: '#0f172a', margin: 0, textTransform: 'uppercase' }}>
+                  Ficha del Docente
+                </h2>
+                <div style={{ fontSize: '14px', color: '#64748b', marginTop: '2px' }}>Consulta de materias y disponibilidad horaria</div>
+              </div>
+              <button onClick={() => setProfesorDetalle(null)} style={{ border: 'none', background: 'transparent', fontSize: '24px', cursor: 'pointer', color: '#64748b' }}>×</button>
+            </div>
+
+            <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px', marginBottom: '20px', fontSize: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div><span style={{ color: '#64748b', fontSize: '13px', fontWeight: 700 }}>DOCENTE:</span><br/><strong style={{ color: '#0f172a' }}>{profesorDetalle.apellido}, {profesorDetalle.nombre}</strong></div>
+                <div><span style={{ color: '#64748b', fontSize: '13px', fontWeight: 700 }}>DNI:</span><br/><strong style={{ color: '#0b1e33' }}>{profesorDetalle.dni}</strong></div>
+                <div><span style={{ color: '#64748b', fontSize: '13px', fontWeight: 700 }}>TELÉFONO:</span><br/><span style={{ color: '#0f172a', fontWeight: 600 }}>{profesorDetalle.telefono || 'No registrado'}</span></div>
+                <div><span style={{ color: '#64748b', fontSize: '13px', fontWeight: 700 }}>EMAIL:</span><br/><span style={{ color: '#0f172a', fontWeight: 600 }}>{profesorDetalle.email || 'No registrado'}</span></div>
+                <div>
+                  <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 700 }}>ESTADO:</span><br/>
+                  <strong style={{ color: profesorDetalle.activo !== false ? '#15803d' : '#991b1b', fontSize: '15px' }}>
+                    {profesorDetalle.activo !== false ? 'ACTIVO' : 'INACTIVO'}
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 700 }}>PORTAL WEB:</span><br/>
+                  <strong style={{ color: profesorDetalle.acceso_portal ? '#1d4ed8' : '#64748b', fontSize: '15px' }}>
+                    {profesorDetalle.acceso_portal ? 'HABILITADO' : 'SIN ACCESO'}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '18px' }}>
+              <span style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', marginBottom: '8px' }}>Materias Habilitadas</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {(profesorDetalle.materias_ids || []).map((mId, i) => (
+                  <span key={i} style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '4px 10px', borderRadius: '4px', fontSize: '13px', fontWeight: 600 }}>
+                    {obtenerNombreMateria(mId)}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <span style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', marginBottom: '8px' }}>Franjas Horarias Disponibles</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(profesorDetalle.disponibilidad || []).map((disp, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 14px', backgroundColor: '#f1f5f9', borderRadius: '6px', fontSize: '14px', fontWeight: 700 }}>
+                    <span style={{ color: '#0b1e33' }}>Turno {disp.franja}</span>
+                    <span style={{ color: '#2563eb' }}>{disp.horaInicio} a {disp.horaFin} hs</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                onClick={() => { const p = profesorDetalle; setProfesorDetalle(null); handleEdit(p); }}
+                style={{ padding: '10px 22px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '15.5px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Editar este Profesor
+              </button>
+              <button
+                onClick={() => setProfesorDetalle(null)}
+                style={{ padding: '10px 22px', backgroundColor: '#f1f5f9', border: '1.5px solid #cbd5e1', borderRadius: '6px', fontSize: '15.5px', fontWeight: 700, cursor: 'pointer', color: '#0b1e33' }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CREAR / EDITAR CON ESTADO AL FINAL */}
       {isModalOpen && (
         <div style={{
           position: 'fixed',
@@ -687,18 +733,18 @@ export default function ProfesoresModule() {
             borderRadius: '12px',
             width: '100%',
             maxWidth: '560px',
-            padding: '28px',
+            padding: '30px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box',
             maxHeight: '90vh',
             overflowY: 'auto'
           }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 20px 0', color: '#0f172a' }}>
+            <h2 style={{ fontSize: '21px', fontWeight: 800, margin: '0 0 20px 0', color: '#0f172a' }}>
               {editingId ? 'Modificar Profesor y Disponibilidad' : 'Registrar Nuevo Profesor'}
             </h2>
 
             {errorMsg && (
-              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}>
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
                 {errorMsg}
               </div>
             )}
@@ -709,8 +755,8 @@ export default function ProfesoresModule() {
                 backgroundColor: currentProfesor.acceso_portal ? '#f0fdf4' : '#f8fafc',
                 border: `1.5px dashed ${currentProfesor.acceso_portal ? '#86efac' : '#cbd5e1'}`,
                 borderRadius: '8px',
-                padding: '12px 14px',
-                marginBottom: '18px',
+                padding: '14px 16px',
+                marginBottom: '20px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -718,11 +764,11 @@ export default function ProfesoresModule() {
               }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '14.5px', fontWeight: 700, color: '#0f172a' }}>Portal Docente</span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Portal Docente</span>
                     <span style={{
-                      fontSize: '12.5px',
+                      fontSize: '12px',
                       fontWeight: 700,
-                      padding: '2px 6px',
+                      padding: '2px 8px',
                       borderRadius: '4px',
                       backgroundColor: currentProfesor.acceso_portal ? '#dcfce7' : '#e2e8f0',
                       color: currentProfesor.acceso_portal ? '#15803d' : '#64748b'
@@ -730,7 +776,7 @@ export default function ProfesoresModule() {
                       {currentProfesor.acceso_portal ? 'HABILITADO' : 'SIN ACCESO'}
                     </span>
                   </div>
-                  <p style={{ fontSize: '13.5px', color: '#64748b', margin: '4px 0 0 0' }}>
+                  <p style={{ fontSize: '14px', color: '#64748b', margin: '4px 0 0 0' }}>
                     {currentProfesor.acceso_portal ? (
                       <span>
                         Usuario: <strong style={{ color: '#0b1e33', fontFamily: 'monospace' }}>{currentProfesor.username_institucional}</strong>
@@ -751,9 +797,9 @@ export default function ProfesoresModule() {
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '6px',
-                      padding: '8px 12px',
-                      fontSize: '13.5px',
-                      fontWeight: 600,
+                      padding: '9px 14px',
+                      fontSize: '14px',
+                      fontWeight: 700,
                       cursor: generandoAcceso ? 'not-allowed' : 'pointer',
                       whiteSpace: 'nowrap',
                       opacity: generandoAcceso ? 0.7 : 1
@@ -776,9 +822,9 @@ export default function ProfesoresModule() {
                       border: '1px solid #86efac',
                       color: '#15803d',
                       borderRadius: '6px',
-                      padding: '6px 12px',
-                      fontSize: '13.5px',
-                      fontWeight: 600,
+                      padding: '7px 14px',
+                      fontSize: '14px',
+                      fontWeight: 700,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap'
                     }}
@@ -792,7 +838,7 @@ export default function ProfesoresModule() {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Nombre *</label>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Nombre *</label>
                   <input
                     type="text"
                     name="nombre"
@@ -800,11 +846,11 @@ export default function ProfesoresModule() {
                     placeholder="Ej: ALBERTO"
                     value={formData.nombre}
                     onChange={handleTextChange}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box', textTransform: 'uppercase', fontWeight: 500 }}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', color: '#0f172a', boxSizing: 'border-box', textTransform: 'uppercase', fontWeight: 500 }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Apellido *</label>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Apellido *</label>
                   <input
                     type="text"
                     name="apellido"
@@ -812,7 +858,7 @@ export default function ProfesoresModule() {
                     placeholder="Ej: GIMÉNEZ"
                     value={formData.apellido}
                     onChange={handleTextChange}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box', textTransform: 'uppercase', fontWeight: 500 }}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', color: '#0f172a', boxSizing: 'border-box', textTransform: 'uppercase', fontWeight: 500 }}
                   />
                 </div>
               </div>
@@ -820,7 +866,7 @@ export default function ProfesoresModule() {
               {/* DNI y CUIL */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: editingId ? '#64748b' : '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: editingId ? '#64748b' : '#1e293b', marginBottom: '6px' }}>
                     DNI * {editingId && '(No modificable)'}
                   </label>
                   <input
@@ -835,10 +881,10 @@ export default function ProfesoresModule() {
                     onChange={handleNumericChange}
                     style={{
                       width: '100%',
-                      padding: '10px 12px',
+                      padding: '11px 14px',
                       borderRadius: '6px',
                       border: '1.5px solid #cbd5e1',
-                      fontSize: '15px',
+                      fontSize: '16px',
                       color: editingId ? '#475569' : '#0b1e33',
                       backgroundColor: editingId ? '#f1f5f9' : '#ffffff',
                       boxSizing: 'border-box',
@@ -848,21 +894,21 @@ export default function ProfesoresModule() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>CUIL</label>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>CUIL</label>
                   <input
                     type="text"
                     readOnly
                     disabled
                     placeholder="Generando..."
                     value={cuilCalculado}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '15px', color: '#0b1e33', backgroundColor: '#f1f5f9', fontWeight: 700, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '16px', color: '#0b1e33', backgroundColor: '#f1f5f9', fontWeight: 700, boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Teléfono</label>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Teléfono</label>
                   <input
                     type="text"
                     name="telefono"
@@ -870,28 +916,28 @@ export default function ProfesoresModule() {
                     placeholder="Ej: 3874123456"
                     value={formData.telefono}
                     onChange={handleNumericChange}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', color: '#0f172a', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Correo Electrónico</label>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>Correo Electrónico</label>
                   <input
                     type="email"
                     name="email"
                     placeholder="profesor@ejemplo.com"
                     value={formData.email}
                     onChange={handleInputChange}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', color: '#0f172a', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
 
               {/* Materias Habilitadas */}
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Materias que puede dictar * ({selectedMaterias.length} seleccionadas)
                 </label>
-                <div style={{ maxHeight: '130px', overflowY: 'auto', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ maxHeight: '140px', overflowY: 'auto', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '10px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {materias.length === 0 ? (
                     <p style={{ fontSize: '14px', color: '#64748b', padding: '8px', margin: 0 }}>No hay materias disponibles.</p>
                   ) : (
@@ -900,12 +946,12 @@ export default function ProfesoresModule() {
                       if (mat.activo === false && !yaAsignada) return null;
 
                       return (
-                        <label key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 6px', borderRadius: '4px', cursor: 'pointer', fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
+                        <label key={mat.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 6px', borderRadius: '4px', cursor: 'pointer', fontSize: '14px', color: '#0f172a', fontWeight: 600 }}>
                           <input
                             type="checkbox"
                             checked={yaAsignada}
                             onChange={() => toggleMateria(mat.id)}
-                            style={{ width: '15px', height: '15px', accentColor: '#0b1e33' }}
+                            style={{ width: '16px', height: '16px', accentColor: '#0b1e33' }}
                           />
                           <span>{mat.nombre}</span>
                           <span style={{ color: '#64748b', fontSize: '12px' }}>{mat.activo === false ? '(inactiva, ya asignada)' : `(${mat.nivel})`}</span>
@@ -916,15 +962,11 @@ export default function ProfesoresModule() {
                 </div>
               </div>
 
-              {/* Disponibilidad Horaria Docente */}
+              {/* Disponibilidad Horaria */}
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#0b1e33', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#0b1e33', marginBottom: '6px' }}>
                   Disponibilidad Horaria Docente *
                 </label>
-                <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 10px 0' }}>
-                  Configurá una o más franjas habilitadas con sus rangos de inicio y fin para asignación de turnos.
-                </p>
-
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {(['Mañana', 'Tarde', 'Noche'] as const).map((franja) => {
                     const sel = disponibilidad.find((d) => d.franja === franja);
@@ -937,7 +979,7 @@ export default function ProfesoresModule() {
                           border: isChecked ? '1.5px solid #0b1e33' : '1px solid #cbd5e1',
                           backgroundColor: isChecked ? '#f8fafc' : '#ffffff',
                           borderRadius: '8px',
-                          padding: '10px 14px',
+                          padding: '12px 14px',
                           transition: 'all 0.15s ease'
                         }}
                       >
@@ -947,12 +989,12 @@ export default function ProfesoresModule() {
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleFranja(franja)}
-                              style={{ width: '16px', height: '16px', accentColor: '#0b1e33' }}
+                              style={{ width: '17px', height: '17px', accentColor: '#0b1e33' }}
                             />
                             Turno {franja}
                           </label>
                           {isChecked && (
-                            <span style={{ fontSize: '13px', color: '#15803d', fontWeight: 600, backgroundColor: '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
+                            <span style={{ fontSize: '12px', color: '#15803d', fontWeight: 800, backgroundColor: '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
                               Habilitado
                             </span>
                           )}
@@ -969,7 +1011,7 @@ export default function ProfesoresModule() {
                                 required
                                 value={sel?.horaInicio || '08:00'}
                                 onChange={(e) => handleHorarioChange(franja, 'horaInicio', e.target.value)}
-                                style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', color: '#0f172a', fontWeight: 600, boxSizing: 'border-box' }}
+                                style={{ width: '100%', padding: '7px 10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', color: '#0f172a', fontWeight: 700, boxSizing: 'border-box' }}
                               />
                             </div>
                             <span style={{ alignSelf: 'flex-end', paddingBottom: '8px', color: '#94a3b8', fontWeight: 700 }}>a</span>
@@ -982,7 +1024,7 @@ export default function ProfesoresModule() {
                                 required
                                 value={sel?.horaFin || '12:00'}
                                 onChange={(e) => handleHorarioChange(franja, 'horaFin', e.target.value)}
-                                style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', color: '#0f172a', fontWeight: 600, boxSizing: 'border-box' }}
+                                style={{ width: '100%', padding: '7px 10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '14px', color: '#0f172a', fontWeight: 700, boxSizing: 'border-box' }}
                               />
                             </div>
                           </div>
@@ -993,16 +1035,16 @@ export default function ProfesoresModule() {
                 </div>
               </div>
 
-              {/* ESTADO REUBICADO AL FINAL DEL FORMULARIO */}
+              {/* Selector de Estado al final */}
               {editingId && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                     Estado *
                   </label>
                   <select
                     value={formData.activo ? 'true' : 'false'}
                     onChange={(e) => setFormData({ ...formData, activo: e.target.value === 'true' })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 600, boxSizing: 'border-box', cursor: 'pointer' }}
                   >
                     <option value="true">Activo</option>
                     <option value="false">Inactivo</option>
@@ -1014,14 +1056,14 @@ export default function ProfesoresModule() {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '15px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '10px 18px', fontSize: '15.5px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting}
-                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '15px', fontWeight: 600, color: '#ffffff', cursor: formSubmitting ? 'not-allowed' : 'pointer', opacity: formSubmitting ? 0.7 : 1 }}
+                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '10px 22px', fontSize: '15.5px', fontWeight: 700, color: '#ffffff', cursor: formSubmitting ? 'not-allowed' : 'pointer', opacity: formSubmitting ? 0.7 : 1 }}
                 >
                   {formSubmitting ? 'Guardando...' : 'Guardar Profesor'}
                 </button>
@@ -1050,31 +1092,31 @@ export default function ProfesoresModule() {
             backgroundColor: '#ffffff',
             borderRadius: '12px',
             width: '100%',
-            maxWidth: '460px',
-            padding: '30px',
+            maxWidth: '480px',
+            padding: '32px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box'
           }}>
             <div style={{ textAlign: 'center', marginBottom: '18px' }}>
               <div style={{
-                width: '46px',
-                height: '46px',
+                width: '50px',
+                height: '50px',
                 borderRadius: '50%',
                 backgroundColor: '#f0fdf4',
                 color: '#16a34a',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 10px auto'
+                margin: '0 auto 12px auto'
               }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
               </div>
-              <h2 style={{ fontSize: '19px', fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0' }}>
                 Acceso Docente Habilitado
               </h2>
-              <p style={{ color: '#64748b', fontSize: '14.5px', margin: 0 }}>
+              <p style={{ color: '#64748b', fontSize: '15px', margin: 0 }}>
                 Entregá estas credenciales al docente para su ingreso al portal institucional.
               </p>
             </div>
@@ -1083,46 +1125,46 @@ export default function ProfesoresModule() {
               backgroundColor: '#f8fafc',
               border: '1.5px solid #cbd5e1',
               borderRadius: '8px',
-              padding: '16px 18px',
+              padding: '18px 20px',
               marginBottom: '20px'
             }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '10px', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '10px', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' }}>
                 Ficha de Acceso Docente
               </div>
 
               <div style={{ marginBottom: '12px' }}>
-                <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600, display: 'block' }}>PROFESOR</span>
-                <span style={{ fontSize: '15.5px', fontWeight: 700, color: '#0f172a' }}>{credencialesModal.nombreCompleto}</span>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600, display: 'block' }}>PROFESOR</span>
+                <span style={{ fontSize: '16.5px', fontWeight: 800, color: '#0f172a' }}>{credencialesModal.nombreCompleto}</span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600, display: 'block' }}>USUARIO</span>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600, display: 'block' }}>USUARIO</span>
                   <span style={{
                     display: 'inline-block',
                     marginTop: '2px',
                     fontFamily: 'monospace',
-                    fontSize: '16px',
+                    fontSize: '17px',
                     fontWeight: 700,
                     color: '#0b1e33',
                     backgroundColor: '#e2e8f0',
-                    padding: '3px 8px',
+                    padding: '4px 8px',
                     borderRadius: '4px'
                   }}>
                     {credencialesModal.usuario}
                   </span>
                 </div>
                 <div>
-                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600, display: 'block' }}>CLAVE PROVISORIA (DNI)</span>
+                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 600, display: 'block' }}>CLAVE PROVISORIA</span>
                   <span style={{
                     display: 'inline-block',
                     marginTop: '2px',
                     fontFamily: 'monospace',
-                    fontSize: '16px',
+                    fontSize: '17px',
                     fontWeight: 700,
                     color: '#0b1e33',
                     backgroundColor: '#e2e8f0',
-                    padding: '3px 8px',
+                    padding: '4px 8px',
                     borderRadius: '4px'
                   }}>
                     {credencialesModal.claveProvisoria}
@@ -1145,17 +1187,13 @@ export default function ProfesoresModule() {
                   border: '1px solid #cbd5e1',
                   color: copiado ? '#ffffff' : '#0b1e33',
                   borderRadius: '6px',
-                  padding: '10px',
-                  fontSize: '15px',
-                  fontWeight: 600,
+                  padding: '11px',
+                  fontSize: '15.5px',
+                  fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
                 }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
                 {copiado ? '¡Copiado!' : 'Copiar Credenciales'}
               </button>
 
@@ -1167,9 +1205,9 @@ export default function ProfesoresModule() {
                   border: 'none',
                   color: '#ffffff',
                   borderRadius: '6px',
-                  padding: '10px 18px',
-                  fontSize: '15px',
-                  fontWeight: 600,
+                  padding: '11px 20px',
+                  fontSize: '15.5px',
+                  fontWeight: 700,
                   cursor: 'pointer'
                 }}
               >

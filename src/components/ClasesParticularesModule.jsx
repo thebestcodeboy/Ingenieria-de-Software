@@ -128,19 +128,6 @@ export default function ClasesParticularesModule() {
     }
   };
 
-  const handleToggleEstado = async (id, activoActual) => {
-    try {
-      setError('');
-      await cambiarEstadoClase(id, activoActual);
-      setClases(clases.map((c) => (c.id === id ? { ...c, activo: !activoActual } : c)));
-      setSuccess(`Clase particular ${activoActual ? 'desactivada' : 'activada'} correctamente.`);
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setSuccess('');
-      setError(`No se pudo cambiar el estado: ${err.message}`);
-    }
-  };
-
   const materiasFiltradasModal = useMemo(() => {
     const nivForm = (form.nivel || '').toLowerCase();
     return materias.filter((m) => {
@@ -172,6 +159,7 @@ export default function ClasesParticularesModule() {
       return matchTerm && matchNivel && matchEstado;
     });
   }, [clases, searchTerm, filterNivel, filterEstado]);
+
   const {
     elementosPaginados: clasesPaginadas,
     paginaActual,
@@ -180,15 +168,15 @@ export default function ClasesParticularesModule() {
   } = usePagination(clasesFiltradas, JSON.stringify([searchTerm, filterNivel, filterEstado]));
 
   return (
-    <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a' }}>
+    <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a', fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}>
       
       {/* Encabezado */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Clases Particulares
           </h1>
-          <p style={{ color: '#475569', fontSize: '15px', margin: '4px 0 0 0', fontWeight: 500 }}>
+          <p style={{ color: '#475569', fontSize: '16px', margin: '4px 0 0 0', fontWeight: 500 }}>
             {clases.length} {clases.length === 1 ? 'propuesta registrada' : 'propuestas registradas'} de apoyo académico
           </p>
         </div>
@@ -200,30 +188,30 @@ export default function ClasesParticularesModule() {
             color: '#ffffff',
             border: 'none',
             borderRadius: '6px',
-            padding: '10px 20px',
-            fontSize: '15px',
-            fontWeight: 600,
+            padding: '11px 22px',
+            fontSize: '16px',
+            fontWeight: 700,
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '8px',
             boxShadow: '0 2px 4px rgba(11, 30, 51, 0.12)',
             transition: 'background-color 0.15s ease'
           }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1e3a5f')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#0b1e33')}
         >
-          <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span> Registrar Clase Particular
+          <span style={{ fontSize: '19px', lineHeight: 1 }}>+</span> Registrar Clase Particular
         </button>
       </div>
 
       {success && !showModal && (
-        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
+        <div role="status" aria-live="polite" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '12px 16px', borderRadius: '6px', fontSize: '16px', marginBottom: '16px', fontWeight: 500 }}>
           {success}
         </div>
       )}
       {error && !showModal && (
-        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
+        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px 16px', borderRadius: '6px', fontSize: '16px', marginBottom: '16px', fontWeight: 500 }}>
           {error}
         </div>
       )}
@@ -242,7 +230,7 @@ export default function ClasesParticularesModule() {
           boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
         }}>
           <span style={{ color: '#334155', display: 'flex' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
@@ -252,7 +240,7 @@ export default function ClasesParticularesModule() {
             placeholder="Buscar por nombre de actividad o materia..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '15px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
+            style={{ border: 'none', outline: 'none', width: '100%', fontSize: '16px', color: '#0f172a', backgroundColor: 'transparent', fontWeight: 500 }}
           />
         </div>
 
@@ -262,13 +250,13 @@ export default function ClasesParticularesModule() {
             onChange={(e) => setFilterNivel(e.target.value)}
             style={{
               width: '100%',
-              padding: '10px 14px',
+              padding: '10px 16px',
               border: '1.5px solid #cbd5e1',
               borderRadius: '6px',
-              fontSize: '15px',
+              fontSize: '16px',
               backgroundColor: '#ffffff',
               color: '#0f172a',
-              fontWeight: 500,
+              fontWeight: 600,
               outline: 'none',
               cursor: 'pointer'
             }}
@@ -285,13 +273,13 @@ export default function ClasesParticularesModule() {
             onChange={(e) => setFilterEstado(e.target.value)}
             style={{
               width: '100%',
-              padding: '10px 14px',
+              padding: '10px 16px',
               border: '1.5px solid #cbd5e1',
               borderRadius: '6px',
-              fontSize: '15px',
+              fontSize: '16px',
               backgroundColor: '#ffffff',
               color: '#0f172a',
-              fontWeight: 500,
+              fontWeight: 600,
               outline: 'none',
               cursor: 'pointer'
             }}
@@ -305,28 +293,28 @@ export default function ClasesParticularesModule() {
 
       {/* Tabla Institucional */}
       <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflowX: 'auto', boxShadow: '0 2px 4px rgba(15, 23, 42, 0.05)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '16px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f1f5f9' }}>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '32%' }}>NOMBRE DE LA ACTIVIDAD</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '26%' }}>MATERIA ASOCIADA</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>NIVEL</th>
-              <th style={{ padding: '14px 20px', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
-              <th style={{ padding: '14px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', width: '14%' }}>ACCIÓN</th>
+              <th style={{ padding: '15px 20px', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '32%' }}>NOMBRE DE LA ACTIVIDAD</th>
+              <th style={{ padding: '15px 20px', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '26%' }}>MATERIA ASOCIADA</th>
+              <th style={{ padding: '15px 20px', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '14%' }}>NIVEL</th>
+              <th style={{ padding: '15px 20px', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '14%' }}>ESTADO</th>
+              <th style={{ padding: '15px 20px', textAlign: 'center', fontWeight: 800, color: '#0f172a', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase', width: '14%' }}>ACCIÓN</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#475569', fontWeight: 500 }}>
+                <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: '#475569', fontWeight: 500, fontSize: '16px' }}>
                   Cargando clases particulares...
                 </td>
               </tr>
             ) : clasesFiltradas.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ padding: '54px 20px', textAlign: 'center', color: '#64748b' }}>
-                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px' }}>No hay clases particulares que coincidan con los filtros</div>
-                  <div style={{ fontSize: '14px', color: '#64748b', marginTop: '4px' }}>Intenta ajustando los filtros de búsqueda superior.</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '17px' }}>No hay clases particulares que coincidan con los filtros</div>
+                  <div style={{ fontSize: '15px', color: '#64748b', marginTop: '4px' }}>Intenta ajustando los filtros de búsqueda superior.</div>
                 </td>
               </tr>
             ) : (
@@ -336,7 +324,7 @@ export default function ClasesParticularesModule() {
 
                 return (
                   <tr key={c.id} style={{ borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.15s ease' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}>
-                    <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '15px', textTransform: 'uppercase' }}>
+                    <td style={{ padding: '16px 20px', color: '#0f172a', fontWeight: 600, fontSize: '16px', textTransform: 'uppercase' }}>
                       {c.nombre}
                     </td>
                     <td style={{ padding: '16px 20px', color: '#475569', fontWeight: 500 }}>
@@ -346,7 +334,7 @@ export default function ClasesParticularesModule() {
                       <span style={{
                         backgroundColor: esUniv ? '#e0e7ff' : '#fef3c7',
                         color: esUniv ? '#3730a3' : '#92400e',
-                        fontSize: '13px',
+                        fontSize: '14px',
                         padding: '4px 10px',
                         borderRadius: '4px',
                         fontWeight: 600,
@@ -355,17 +343,16 @@ export default function ClasesParticularesModule() {
                         {esUniv ? 'Universitario' : 'Secundario'}
                       </span>
                     </td>
-                    {/* Badge informativo de estado sin click directo */}
                     <td style={{ padding: '16px 20px' }}>
                       <span
                         style={{
                           backgroundColor: estaActivo ? '#f0fdf4' : '#fef2f2',
                           color: estaActivo ? '#15803d' : '#991b1b',
-                          border: `1px solid ${estaActivo ? '#bbf7d0' : '#fca5a5'}`,
-                          padding: '4px 10px',
-                          borderRadius: '4px',
-                          fontSize: '13px',
-                          fontWeight: 700,
+                          border: `1.5px solid ${estaActivo ? '#bbf7d0' : '#fca5a5'}`,
+                          padding: '4px 12px',
+                          borderRadius: '5px',
+                          fontSize: '14px',
+                          fontWeight: 800,
                           letterSpacing: '0.04em',
                           userSelect: 'none',
                           display: 'inline-block'
@@ -379,11 +366,11 @@ export default function ClasesParticularesModule() {
                         onClick={() => handleOpenEdit(c)}
                         style={{
                           backgroundColor: '#ffffff',
-                          border: '1px solid #94a3b8',
+                          border: '1.5px solid #94a3b8',
                           color: '#0b1e33',
-                          borderRadius: '5px',
-                          padding: '6px 14px',
-                          fontSize: '14px',
+                          borderRadius: '6px',
+                          padding: '7px 16px',
+                          fontSize: '15px',
                           fontWeight: 700,
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
@@ -439,15 +426,15 @@ export default function ClasesParticularesModule() {
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             boxSizing: 'border-box'
           }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, margin: '0 0 6px 0', color: '#0f172a' }}>
+            <h2 style={{ fontSize: '21px', fontWeight: 800, margin: '0 0 6px 0', color: '#0f172a' }}>
               {editingId ? 'Modificar Clase Particular' : 'Registrar Clase Particular'}
             </h2>
-            <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 20px 0' }}>
+            <p style={{ fontSize: '15px', color: '#64748b', margin: '0 0 20px 0' }}>
               La fecha, el aula y el profesor se asignan al programar el turno.
             </p>
 
             {error && (
-              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '9px 14px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}>
+              <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '6px', fontSize: '15px', marginBottom: '16px' }}>
                 {error}
               </div>
             )}
@@ -455,7 +442,7 @@ export default function ClasesParticularesModule() {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Nombre de la actividad (Solo texto) *
                 </label>
                 <input
@@ -466,12 +453,12 @@ export default function ClasesParticularesModule() {
                   placeholder="Ej. Apoyo de Matemática"
                   maxLength={120}
                   required
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', color: '#0f172a', boxSizing: 'border-box', fontWeight: 500 }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Nivel *
                 </label>
                 <select
@@ -480,7 +467,7 @@ export default function ClasesParticularesModule() {
                   value={form.nivel}
                   onChange={handleChange}
                   required
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 600, boxSizing: 'border-box', cursor: 'pointer' }}
                 >
                   <option value="universitario">Nivel Universitario</option>
                   <option value="secundario">Nivel Secundario</option>
@@ -488,7 +475,7 @@ export default function ClasesParticularesModule() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                   Materia *
                 </label>
                 <select
@@ -497,7 +484,7 @@ export default function ClasesParticularesModule() {
                   value={form.materiaId}
                   onChange={handleChange}
                   required
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 600, boxSizing: 'border-box', cursor: 'pointer' }}
                 >
                   <option value="">Seleccioná una materia</option>
                   {materiasFiltradasModal.map((materia) => (
@@ -510,7 +497,7 @@ export default function ClasesParticularesModule() {
 
               {editingId && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
                     Estado *
                   </label>
                   <select
@@ -519,7 +506,7 @@ export default function ClasesParticularesModule() {
                     value={form.activo ? 'true' : 'false'}
                     onChange={handleChange}
                     required
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 500, boxSizing: 'border-box', cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '16px', backgroundColor: '#ffffff', color: '#0f172a', fontWeight: 600, boxSizing: 'border-box', cursor: 'pointer' }}
                   >
                     <option value="true">Activo</option>
                     <option value="false">Inactivo</option>
@@ -531,14 +518,14 @@ export default function ClasesParticularesModule() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '9px 16px', fontSize: '15px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                  style={{ backgroundColor: 'transparent', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '10px 18px', fontSize: '15.5px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '9px 20px', fontSize: '15px', fontWeight: 600, color: '#ffffff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+                  style={{ backgroundColor: '#0b1e33', border: 'none', borderRadius: '6px', padding: '10px 22px', fontSize: '15.5px', fontWeight: 700, color: '#ffffff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
                 >
                   {saving ? 'Guardando...' : editingId ? 'Guardar Cambios' : 'Registrar clase particular'}
                 </button>

@@ -49,7 +49,7 @@ export async function getProfesores() {
 /**
  * Registrar un nuevo profesor con franjas horarias (HU16)
  */
-export async function createProfesor({ nombre, apellido, dni, email, telefono, materiasIds, turnos, disponibilidad }) {
+export async function createProfesor({ nombre, apellido, dni, email, telefono, activo, materiasIds, turnos, disponibilidad }) {
   const cleanNombre = nombre?.trim();
   const cleanApellido = apellido?.trim();
   const cleanDni = dni?.trim();
@@ -72,7 +72,6 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
     throw new Error(`Ya existe un profesor registrado con el DNI ${cleanDni}.`);
   }
 
-  // Normalizar turnos a partir de la disponibilidad si viene seteada
   const turnosCalculados = turnos || (disponibilidad ? disponibilidad.map(d => d.franja) : []);
 
   const payload = {
@@ -81,6 +80,7 @@ export async function createProfesor({ nombre, apellido, dni, email, telefono, m
     dni: cleanDni,
     email: email?.trim() || null,
     telefono: telefono?.trim() || null,
+    activo: activo !== undefined ? Boolean(activo) : true,
     materias_ids: materiasIds,
     turnos: turnosCalculados,
     disponibilidad: disponibilidad || []
@@ -151,7 +151,7 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
     dni: cleanDni,
     email: email?.trim() || null,
     telefono: telefono?.trim() || null,
-    activo: activo !== false,
+    activo: Boolean(activo),
     materias_ids: materiasIds,
     turnos: turnosCalculados,
     disponibilidad: disponibilidad || []
@@ -194,7 +194,7 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
 export async function cambiarEstadoProfesor(id, activo) {
   const { data, error } = await supabase
     .from('profesores')
-    .update({ activo })
+    .update({ activo: Boolean(activo) })
     .eq('id', id)
     .select()
     .single();

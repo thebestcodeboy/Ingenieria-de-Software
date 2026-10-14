@@ -1,12 +1,12 @@
 import { supabase } from '../lib/supabaseClient';
 
 /**
- * Obtiene la lista de aulas ordenadas por número, incluyendo capacidad física
+ * Obtiene la lista de aulas ordenadas por número, incluyendo capacidad física y estado
  */
 export async function getAulas() {
   const { data, error } = await supabase
     .from('aulas')
-    .select('numero, descripcion, capacidad')
+    .select('numero, descripcion, capacidad, activo')
     .order('numero', { ascending: true });
 
   if (error) {
@@ -18,9 +18,9 @@ export async function getAulas() {
 }
 
 /**
- * Crea una nueva aula con su capacidad física
+ * Crea una nueva aula con su capacidad física y estado
  */
-export async function createAula({ numero, descripcion, capacidad }) {
+export async function createAula({ numero, descripcion, capacidad, activo = true }) {
   const numParsed = Number(numero);
   const capParsed = Number(capacidad);
 
@@ -35,6 +35,7 @@ export async function createAula({ numero, descripcion, capacidad }) {
     numero: numParsed,
     descripcion: descripcion?.trim() || `Aula ${numParsed}`,
     capacidad: capParsed,
+    activo: activo !== false,
   };
 
   const { data, error } = await supabase
@@ -54,9 +55,9 @@ export async function createAula({ numero, descripcion, capacidad }) {
 }
 
 /**
- * Actualiza la descripción y/o capacidad física de un aula existente
+ * Actualiza la descripción, capacidad física y/o estado de un aula existente
  */
-export async function updateAula(numero, { descripcion, capacidad }) {
+export async function updateAula(numero, { descripcion, capacidad, activo }) {
   const capParsed = Number(capacidad);
 
   if (!capParsed || capParsed <= 0) {
@@ -67,6 +68,10 @@ export async function updateAula(numero, { descripcion, capacidad }) {
     descripcion: descripcion?.trim() || `Aula ${numero}`,
     capacidad: capParsed,
   };
+
+  if (typeof activo === 'boolean') {
+    payload.activo = activo;
+  }
 
   const { data, error } = await supabase
     .from('aulas')

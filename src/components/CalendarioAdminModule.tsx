@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { getCalendarioAdmin, getInscriptosTurno } from '../services/calendarioAdmin';
-
 import { eventoEnFecha } from '../domain/calendario';
 
 interface TurnoEvento {
@@ -34,11 +33,8 @@ interface InscriptoDetalle {
   legajo?: string;
 }
 
-const NOMBRES_DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-
 export default function CalendarioAdminModule() {
   const [vista, setVista] = useState<'dia' | 'semana'>('semana');
-  // Se inicializa en el día actual del sistema
   const [fechaReferencia, setFechaReferencia] = useState<Date>(() => new Date());
 
   const [eventos, setEventos] = useState<TurnoEvento[]>([]);
@@ -51,7 +47,7 @@ export default function CalendarioAdminModule() {
   const [filtroAula, setFiltroAula] = useState<string>('');
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
 
-  // Modal
+  // Modal Detalle
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<TurnoEvento | null>(null);
   const [inscriptos, setInscriptos] = useState<InscriptoDetalle[]>([]);
   const [loadingInscriptos, setLoadingInscriptos] = useState<boolean>(false);
@@ -93,7 +89,7 @@ export default function CalendarioAdminModule() {
       setLoading(true);
       setErrorMsg('');
       const data = await getCalendarioAdmin(fechaDesde, fechaHasta);
-      setEventos(data);
+      setEventos(data || []);
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al conectar con la agenda.');
     } finally {
@@ -155,57 +151,29 @@ export default function CalendarioAdminModule() {
   };
 
   return (
-    <div style={{ width: '100%', padding: '32px 40px', boxSizing: 'border-box', color: '#0f172a' }}>
+    <div style={{ width: '100%', boxSizing: 'border-box' }}>
       
-      {/* Encabezado sin leyenda HU */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px',
-          flexWrap: 'wrap',
-          gap: '16px',
-        }}
-      >
+      {/* Encabezado */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px', flexWrap: 'wrap', gap: '14px' }}>
         <div>
-          <h1
-            style={{
-              fontSize: '25px',
-              fontWeight: 700,
-              color: '#0f172a',
-              margin: 0,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Agenda Institucional y Turnos
-          </h1>
-          <p style={{ color: '#475569', fontSize: '15px', margin: '4px 0 0 0', fontWeight: 500 }}>
-            Mesa de Entrada &bull; Control centralizado de clases, aulas y ocupación
+          <h1 style={{ margin: 0 }}>Agenda Institucional y Turnos</h1>
+          <p style={{ color: '#64748b', margin: '4px 0 0', fontSize: '14.5px' }}>
+            Mesa de Entrada · Control centralizado de clases, aulas y ocupación
           </p>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            backgroundColor: '#e2e8f0',
-            padding: '3px',
-            borderRadius: '8px',
-            gap: '4px',
-          }}
-        >
+        <div style={{ display: 'flex', backgroundColor: '#e2e8f0', padding: '3px', borderRadius: '8px', gap: '4px' }}>
           <button
             onClick={() => setVista('dia')}
             style={{
               border: 'none',
               padding: '8px 16px',
               borderRadius: '6px',
-              fontSize: '14.5px',
+              fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
               backgroundColor: vista === 'dia' ? '#0b1e33' : 'transparent',
               color: vista === 'dia' ? '#ffffff' : '#475569',
-              transition: 'all 0.15s ease',
             }}
           >
             Día
@@ -216,12 +184,11 @@ export default function CalendarioAdminModule() {
               border: 'none',
               padding: '8px 16px',
               borderRadius: '6px',
-              fontSize: '14.5px',
+              fontSize: '13px',
               fontWeight: 700,
               cursor: 'pointer',
               backgroundColor: vista === 'semana' ? '#0b1e33' : 'transparent',
               color: vista === 'semana' ? '#ffffff' : '#475569',
-              transition: 'all 0.15s ease',
             }}
           >
             Semana
@@ -230,98 +197,39 @@ export default function CalendarioAdminModule() {
       </div>
 
       {/* Navegación y Filtros */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          backgroundColor: '#ffffff',
-          border: '1px solid #cbd5e1',
-          borderRadius: '8px',
-          padding: '12px 18px',
-          marginBottom: '20px',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '8px', padding: '12px 18px', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={() => navegarPeriodo(-1)}
-            style={{
-              backgroundColor: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              padding: '7px 12px',
-              fontSize: '14.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              color: '#0b1e33',
-            }}
+            style={{ padding: '8px 14px', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, color: '#0b1e33' }}
           >
-            &larr; Anterior
+            ← Anterior
           </button>
           <button
             onClick={irAHoy}
-            style={{
-              backgroundColor: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              padding: '7px 14px',
-              fontSize: '14.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              color: '#0b1e33',
-            }}
+            style={{ padding: '8px 16px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}
           >
             Hoy
           </button>
           <button
             onClick={() => navegarPeriodo(1)}
-            style={{
-              backgroundColor: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              padding: '7px 12px',
-              fontSize: '14.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              color: '#0b1e33',
-            }}
+            style={{ padding: '8px 14px', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, color: '#0b1e33' }}
           >
-            Siguiente &rarr;
+            Siguiente →
           </button>
         </div>
 
-        <div style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', textTransform: 'capitalize' }}>
+        <div style={{ fontSize: '15px', fontWeight: 800, color: '#0b1e33', textTransform: 'capitalize' }}>
           {vista === 'dia'
-            ? fechaReferencia.toLocaleDateString('es-AR', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })
-            : `Semana del ${diasSemana[0]?.toLocaleDateString('es-AR', {
-                day: 'numeric',
-                month: 'short',
-              })} al ${diasSemana[6]?.toLocaleDateString('es-AR', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}`}
+            ? fechaReferencia.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+            : `Semana del ${diasSemana[0]?.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })} al ${diasSemana[6]?.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })}`}
         </div>
 
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <select
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
-            style={{
-              padding: '7px 10px',
-              fontSize: '14px',
-              borderRadius: '6px',
-              border: '1.5px solid #cbd5e1',
-              color: '#334155',
-              fontWeight: 600,
-            }}
+            style={{ padding: '7px 12px', fontSize: '13px', borderRadius: '6px', border: '1.5px solid #cbd5e1', color: '#0b1e33', fontWeight: 600 }}
           >
             <option value="todos">Todos los estados</option>
             <option value="activos">Solo activos</option>
@@ -332,76 +240,37 @@ export default function CalendarioAdminModule() {
             placeholder="Filtrar materia..."
             value={filtroMateria}
             onChange={(e) => setFiltroMateria(e.target.value)}
-            style={{
-              padding: '7px 10px',
-              fontSize: '14px',
-              borderRadius: '6px',
-              border: '1.5px solid #cbd5e1',
-              width: '120px',
-            }}
+            style={{ padding: '7px 12px', fontSize: '13px', borderRadius: '6px', width: '130px' }}
           />
           <input
             type="text"
-            placeholder="Filtrar profesor..."
+            placeholder="Profesor..."
             value={filtroProfesor}
             onChange={(e) => setFiltroProfesor(e.target.value)}
-            style={{
-              padding: '7px 10px',
-              fontSize: '14px',
-              borderRadius: '6px',
-              border: '1.5px solid #cbd5e1',
-              width: '120px',
-            }}
+            style={{ padding: '7px 12px', fontSize: '13px', borderRadius: '6px', width: '120px' }}
           />
           <input
             type="text"
             placeholder="Aula..."
             value={filtroAula}
             onChange={(e) => setFiltroAula(e.target.value)}
-            style={{
-              padding: '7px 10px',
-              fontSize: '14px',
-              borderRadius: '6px',
-              border: '1.5px solid #cbd5e1',
-              width: '60px',
-            }}
+            style={{ padding: '7px 12px', fontSize: '13px', borderRadius: '6px', width: '70px' }}
           />
         </div>
       </div>
 
       {errorMsg && (
-        <div
-          style={{
-            backgroundColor: '#fee2e2',
-            border: '1px solid #fca5a5',
-            color: '#991b1b',
-            padding: '10px 14px',
-            borderRadius: '6px',
-            fontSize: '15px',
-            marginBottom: '16px',
-          }}
-        >
+        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px 16px', borderRadius: '6px', marginBottom: '16px', fontSize: '14px' }}>
           {errorMsg}
         </div>
       )}
 
-      {/* Calendario */}
+      {/* Grilla Semanal con eventoEnFecha */}
       {loading ? (
-        <div
-          style={{
-            padding: '60px',
-            textAlign: 'center',
-            color: '#64748b',
-            fontWeight: 500,
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            border: '1px solid #cbd5e1',
-          }}
-        >
-          Cargando turnos desde la base de datos...
+        <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', backgroundColor: '#ffffff', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px' }}>
+          Cargando agenda de turnos...
         </div>
       ) : vista === 'semana' ? (
-        /* VISTA SEMANAL */
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px' }}>
           {diasSemana.map((dia, idx) => {
             const diaISO = formatISO(dia);
@@ -423,46 +292,22 @@ export default function CalendarioAdminModule() {
               >
                 <div
                   style={{
-                    padding: '10px',
+                    padding: '12px 10px',
                     textAlign: 'center',
                     backgroundColor: esHoy ? '#0b1e33' : '#f8fafc',
                     color: esHoy ? '#ffffff' : '#1e293b',
                     borderBottom: '1px solid #e2e8f0',
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
+                  <div style={{ fontSize: '11.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {dia.toLocaleDateString('es-AR', { weekday: 'short' })}
                   </div>
                   <div style={{ fontSize: '17px', fontWeight: 800 }}>{dia.getDate()}</div>
                 </div>
 
-                <div
-                  style={{
-                    padding: '8px',
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    overflowY: 'auto',
-                  }}
-                >
+                <div style={{ padding: '8px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
                   {turnosDelDia.length === 0 ? (
-                    <span
-                      style={{
-                        fontSize: '13px',
-                        color: '#94a3b8',
-                        fontStyle: 'italic',
-                        textAlign: 'center',
-                        marginTop: '16px',
-                      }}
-                    >
+                    <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', marginTop: '16px' }}>
                       Sin clases
                     </span>
                   ) : (
@@ -479,137 +324,54 @@ export default function CalendarioAdminModule() {
                           onClick={() => handleAbrirDetalle(ev)}
                           style={{
                             backgroundColor: esCancelado ? '#fef2f2' : '#f8fafc',
-                            border: `1px solid ${
-                              esCancelado ? '#fca5a5' : lleno ? '#fca5a5' : '#cbd5e1'
-                            }`,
-                            borderLeft: `3.5px solid ${
-                              esCancelado ? '#dc2626' : lleno ? '#dc2626' : '#2563eb'
-                            }`,
-                            borderRadius: '5px',
-                            padding: '8px 10px',
+                            border: `1px solid ${esCancelado ? '#fca5a5' : lleno ? '#fca5a5' : '#cbd5e1'}`,
+                            borderLeft: `4px solid ${esCancelado ? '#dc2626' : lleno ? '#dc2626' : '#2563eb'}`,
+                            borderRadius: '6px',
+                            padding: '10px',
                             cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                            opacity: esCancelado ? 0.85 : 1,
+                            opacity: esCancelado ? 0.8 : 1,
                           }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.backgroundColor = esCancelado
-                              ? '#fee2e2'
-                              : '#eff6ff')
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.backgroundColor = esCancelado
-                              ? '#fef2f2'
-                              : '#f8fafc')
-                          }
                         >
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: '13px',
-                                fontWeight: 700,
-                                color: esCancelado ? '#991b1b' : '#1e3a8a',
-                              }}
-                            >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11.5px', fontWeight: 700, color: esCancelado ? '#991b1b' : '#1e3a8a' }}>
                               {ev.hora_inicio?.slice(0, 5)} - {ev.hora_fin?.slice(0, 5)}
                             </span>
                             {esCancelado ? (
-                              <span
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 800,
-                                  backgroundColor: '#fee2e2',
-                                  color: '#991b1b',
-                                  border: '1px solid #fca5a5',
-                                  borderRadius: '3px',
-                                  padding: '1px 4px',
-                                  letterSpacing: '0.04em',
-                                }}
-                              >
-                                CANCELADO
-                              </span>
+                              <span style={{ fontSize: '9.5px', fontWeight: 800, color: '#991b1b' }}>⊘ CANCELADO</span>
                             ) : esPeriodico ? (
-                              <span
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  backgroundColor: '#fef3c7',
-                                  color: '#92400e',
-                                  borderRadius: '3px',
-                                  padding: '1px 4px',
-                                }}
-                              >
+                              <span style={{ fontSize: '9.5px', fontWeight: 800, color: '#92400e', backgroundColor: '#fef3c7', padding: '1px 5px', borderRadius: '3px' }}>
                                 PERIÓDICA
                               </span>
                             ) : null}
                           </div>
 
-                          <div
-                            style={{
-                              fontSize: '14px',
-                              fontWeight: 700,
-                              color: esCancelado ? '#64748b' : '#0f172a',
-                              textDecoration: esCancelado ? 'line-through' : 'none',
-                              margin: '2px 0',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: esCancelado ? '#64748b' : '#0f172a', margin: '4px 0', textDecoration: esCancelado ? 'line-through' : 'none' }}>
                             {ev.materia_nombre || ev.actividad_nombre || 'Clase'}
                           </div>
 
-                          <div style={{ fontSize: '13px', color: '#475569' }}>
+                          <div style={{ fontSize: '12px', color: '#475569' }}>
                             Aula: <strong>{ev.aula_numero || 'S/A'}</strong>
                           </div>
 
-                          <div
-                            style={{
-                              fontSize: '12.5px',
-                              color: '#64748b',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
+                          <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
                             {ev.profesor_nombre_completo || 'Sin profesor'}
                           </div>
 
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginTop: '4px',
-                            }}
-                          >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
                             {esCancelado ? (
-                              <span
-                                style={{
-                                  fontSize: '12px',
-                                  fontStyle: 'italic',
-                                  color: '#991b1b',
-                                  fontWeight: 600,
-                                }}
-                              >
+                              <span style={{ fontSize: '11px', color: '#991b1b', fontStyle: 'italic', fontWeight: 600 }}>
                                 Horario liberado
                               </span>
                             ) : (
-                              <span
-                                style={{
-                                  fontSize: '12px',
-                                  fontWeight: 700,
-                                  padding: '1px 5px',
-                                  borderRadius: '3px',
-                                  backgroundColor: lleno ? '#fee2e2' : '#f1f5f9',
-                                  color: lleno ? '#991b1b' : '#334155',
-                                }}
-                              >
+                              <span style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: lleno ? '#fee2e2' : '#f0fdf4',
+                                color: lleno ? '#991b1b' : '#15803d',
+                                border: `1px solid ${lleno ? '#fca5a5' : '#bbf7d0'}`,
+                              }}>
                                 {inscriptos}/{cupo} insc.
                               </span>
                             )}
@@ -624,49 +386,22 @@ export default function CalendarioAdminModule() {
           })}
         </div>
       ) : (
-        /* VISTA DIARIA */
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '8px',
-            overflow: 'hidden',
-          }}
-        >
+        /* Vista Diaria */
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden' }}>
           {eventosFiltrados.length === 0 ? (
             <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
-              <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px' }}>
-                No hay turnos registrados para esta fecha
-              </div>
-              <div style={{ fontSize: '14px', marginTop: '4px' }}>
-                Comprobá los filtros activos o navegá a otro día.
-              </div>
+              <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '16px' }}>No hay turnos registrados para esta fecha</div>
             </div>
           ) : (
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                textAlign: 'left',
-                fontSize: '15px',
-              }}
-            >
+            <table>
               <thead>
-                <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
-                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '14%' }}>HORARIO</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '26%' }}>
-                    MATERIA / ACTIVIDAD
-                  </th>
-                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '20%' }}>DOCENTE</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '8%', textAlign: 'center' }}>
-                    AULA
-                  </th>
-                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '14%', textAlign: 'center' }}>
-                    ESTADO / CUPO
-                  </th>
-                  <th style={{ padding: '12px 18px', fontWeight: 800, width: '12%', textAlign: 'center' }}>
-                    ACCIÓN
-                  </th>
+                <tr>
+                  <th style={{ width: '16%' }}>HORARIO</th>
+                  <th style={{ width: '28%' }}>MATERIA / ACTIVIDAD</th>
+                  <th style={{ width: '22%' }}>DOCENTE</th>
+                  <th style={{ width: '10%', textAlign: 'center' }}>AULA</th>
+                  <th style={{ width: '14%', textAlign: 'center' }}>ESTADO / CUPO</th>
+                  <th style={{ width: '10%', textAlign: 'center' }}>ACCIÓN</th>
                 </tr>
               </thead>
               <tbody>
@@ -675,90 +410,40 @@ export default function CalendarioAdminModule() {
                   const inscriptos = Number(ev.inscriptos_actuales || 0);
                   const cupo = Number(ev.cupo_maximo || 0);
                   const lleno = !esCancelado && cupo > 0 && inscriptos >= cupo;
-                  const esPeriodico = !ev.fecha && !!ev.dia_semana;
 
                   return (
-                    <tr
-                      key={idx}
-                      style={{
-                        borderBottom: '1px solid #e2e8f0',
-                        backgroundColor: esCancelado ? '#fef2f2' : undefined,
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: '14px 18px',
-                          fontWeight: 700,
-                          color: esCancelado ? '#991b1b' : '#0b1e33',
-                        }}
-                      >
-                        {ev.hora_inicio?.slice(0, 5)} - {ev.hora_fin?.slice(0, 5)} hs
-                        {esPeriodico && (
-                          <span style={{ display: 'block', fontSize: '12px', color: '#92400e', fontWeight: 600 }}>
-                            (Periódica)
-                          </span>
-                        )}
+                    <tr key={idx} style={{ opacity: esCancelado ? 0.75 : 1 }}>
+                      <td>
+                        <strong>{ev.hora_inicio?.slice(0, 5)} - {ev.hora_fin?.slice(0, 5)} hs</strong>
                       </td>
-                      <td
-                        style={{
-                          padding: '14px 18px',
-                          fontWeight: 600,
-                          color: esCancelado ? '#64748b' : '#0f172a',
-                          textDecoration: esCancelado ? 'line-through' : 'none',
-                        }}
-                      >
-                        {ev.materia_nombre || ev.actividad_nombre || 'Clase'}
+                      <td>
+                        <strong>{ev.materia_nombre || ev.actividad_nombre || 'Clase'}</strong>
                       </td>
-                      <td style={{ padding: '14px 18px', color: '#334155' }}>
+                      <td style={{ color: '#334155' }}>
                         {ev.profesor_nombre_completo || 'Sin profesor'}
                       </td>
-                      <td style={{ padding: '14px 18px', textAlign: 'center', fontWeight: 700 }}>
+                      <td style={{ textAlign: 'center', fontWeight: 700 }}>
                         {ev.aula_numero || '-'}
                       </td>
-                      <td style={{ padding: '14px 18px', textAlign: 'center' }}>
+                      <td style={{ textAlign: 'center' }}>
                         {esCancelado ? (
-                          <span
-                            style={{
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              fontSize: '13px',
-                              fontWeight: 800,
-                              backgroundColor: '#fee2e2',
-                              color: '#991b1b',
-                              border: '1px solid #fca5a5',
-                            }}
-                          >
-                            CANCELADO
+                          <span className="badge-hu28 badge-hu28-cancelado">
+                            <span>⊘</span> CANCELADO
+                          </span>
+                        ) : lleno ? (
+                          <span className="badge-hu28 badge-hu28-completo">
+                            <span>▲</span> {inscriptos}/{cupo} COMPLETO
                           </span>
                         ) : (
-                          <span
-                            style={{
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              fontSize: '13px',
-                              fontWeight: 700,
-                              backgroundColor: lleno ? '#fee2e2' : '#f0fdf4',
-                              color: lleno ? '#991b1b' : '#15803d',
-                              border: `1px solid ${lleno ? '#fca5a5' : '#bbf7d0'}`,
-                            }}
-                          >
-                            {inscriptos} / {cupo} alumnos
+                          <span className="badge-hu28 badge-hu28-disponible">
+                            <span>✓</span> {inscriptos}/{cupo} DISPONIBLE
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '14px 18px', textAlign: 'center' }}>
+                      <td style={{ textAlign: 'center' }}>
                         <button
                           onClick={() => handleAbrirDetalle(ev)}
-                          style={{
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #94a3b8',
-                            color: '#0b1e33',
-                            borderRadius: '5px',
-                            padding: '6px 12px',
-                            fontSize: '14px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
+                          style={{ padding: '6px 12px', border: '1px solid #94a3b8', borderRadius: '5px', backgroundColor: '#ffffff', color: '#0b1e33', cursor: 'pointer', fontWeight: 700 }}
                         >
                           Ver Nómina
                         </button>
@@ -772,194 +457,55 @@ export default function CalendarioAdminModule() {
         </div>
       )}
 
-      {/* Modal Ficha y Nómina */}
+      {/* MODAL FICHA Y NÓMINA */}
       {turnoSeleccionado && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 120,
-            backdropFilter: 'blur(2px)',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '12px',
-              width: '100%',
-              maxWidth: '560px',
-              padding: '28px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '16px',
-              }}
-            >
+        <div style={{ position: 'fixed', inset: 0, zIndex: 120, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(2px)' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '560px', padding: '28px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div>
-                <span
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    color: turnoSeleccionado.estado === 'cancelado' ? '#dc2626' : '#2563eb',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {turnoSeleccionado.estado === 'cancelado'
-                    ? 'Ficha de Turno (CANCELADO)'
-                    : 'Ficha de Turno Institucional'}
+                <span style={{ fontSize: '12px', fontWeight: 700, color: turnoSeleccionado.estado === 'cancelado' ? '#dc2626' : '#2563eb', textTransform: 'uppercase' }}>
+                  Ficha de Turno
                 </span>
-                <h2
-                  style={{
-                    fontSize: '20px',
-                    fontWeight: 700,
-                    margin: '2px 0 0 0',
-                    color: '#0f172a',
-                    textDecoration:
-                      turnoSeleccionado.estado === 'cancelado' ? 'line-through' : 'none',
-                  }}
-                >
+                <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '2px 0 0 0', color: '#0f172a' }}>
                   {turnoSeleccionado.materia_nombre || turnoSeleccionado.actividad_nombre}
                 </h2>
               </div>
-              <button
-                onClick={() => setTurnoSeleccionado(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '21px',
-                  cursor: 'pointer',
-                  color: '#64748b',
-                }}
-              >
-                &times;
+              <button onClick={() => setTurnoSeleccionado(null)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#64748b' }}>
+                ×
               </button>
             </div>
 
-            <div
-              style={{
-                backgroundColor: turnoSeleccionado.estado === 'cancelado' ? '#fef2f2' : '#f8fafc',
-                border: `1px solid ${
-                  turnoSeleccionado.estado === 'cancelado' ? '#fed7aa' : '#e2e8f0'
-                }`,
-                borderRadius: '8px',
-                padding: '12px 16px',
-                marginBottom: '20px',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '10px',
-                fontSize: '14.5px',
-              }}
-            >
-              <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
-                  FECHA Y HORA
-                </span>
-                <strong style={{ color: '#0f172a' }}>
-                  {turnoSeleccionado.fecha || `Recurrente (${turnoSeleccionado.dia_semana || 'Semanal'})`} ({turnoSeleccionado.hora_inicio?.slice(0, 5)} a{' '}
-                  {turnoSeleccionado.hora_fin?.slice(0, 5)} hs)
-                </strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
-                  AULA
-                </span>
-                <strong style={{ color: '#0f172a' }}>
-                  Aula {turnoSeleccionado.aula_numero || 'Sin asignar'}
-                </strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
-                  PROFESOR
-                </span>
-                <strong style={{ color: '#0f172a' }}>
-                  {turnoSeleccionado.profesor_nombre_completo || 'Sin asignar'}
-                </strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
-                  ESTADO
-                </span>
-                <strong
-                  style={{
-                    color: turnoSeleccionado.estado === 'cancelado' ? '#dc2626' : '#166534',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {turnoSeleccionado.estado || 'activo'}
-                </strong>
-              </div>
+            <div style={{ backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '8px', padding: '14px 16px', marginBottom: '18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px' }}>
+              <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>FECHA Y HORA:</span><br/><strong>{turnoSeleccionado.fecha || `Recurrente (${turnoSeleccionado.dia_semana})`} ({turnoSeleccionado.hora_inicio?.slice(0, 5)} a {turnoSeleccionado.hora_fin?.slice(0, 5)} hs)</strong></div>
+              <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>AULA:</span><br/><strong>Aula {turnoSeleccionado.aula_numero || 'Sin asignar'}</strong></div>
+              <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>PROFESOR:</span><br/><strong>{turnoSeleccionado.profesor_nombre_completo || 'Sin asignar'}</strong></div>
+              <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>ESTADO:</span><br/><strong>{turnoSeleccionado.estado || 'Activo'}</strong></div>
             </div>
 
-            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 10px 0' }}>
-              Alumnos Inscriptos ({inscriptos.length})
-            </h3>
+            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 10px 0' }}>Alumnos Inscriptos ({inscriptos.length})</h3>
 
             {loadingInscriptos ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '14.5px' }}>
-                Cargando alumnos inscriptos...
-              </div>
+              <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Cargando nómina...</div>
             ) : inscriptos.length === 0 ? (
-              <div
-                style={{
-                  padding: '20px',
-                  textAlign: 'center',
-                  color: '#94a3b8',
-                  fontSize: '14.5px',
-                  backgroundColor: '#f8fafc',
-                  borderRadius: '6px',
-                  border: '1px dashed #cbd5e1',
-                }}
-              >
+              <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', backgroundColor: '#f8fafc', borderRadius: '6px' }}>
                 No hay alumnos inscriptos en este turno.
               </div>
             ) : (
-              <div
-                style={{
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '6px',
-                }}
-              >
-                <table
-                  style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                    fontSize: '14px',
-                    textAlign: 'left',
-                  }}
-                >
+              <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+                <table>
                   <thead>
-                    <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '8px 12px', fontWeight: 700 }}>ALUMNO</th>
-                      <th style={{ padding: '8px 12px', fontWeight: 700 }}>DNI</th>
-                      <th style={{ padding: '8px 12px', fontWeight: 700 }}>CONTACTO</th>
+                    <tr>
+                      <th>Alumno</th>
+                      <th>DNI</th>
+                      <th>Contacto</th>
                     </tr>
                   </thead>
                   <tbody>
                     {inscriptos.map((al, aIdx) => (
-                      <tr key={aIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: 600, color: '#0f172a' }}>
-                          {al.apellido}, {al.nombre}
-                        </td>
-                        <td style={{ padding: '8px 12px', color: '#334155' }}>{al.dni}</td>
-                        <td style={{ padding: '8px 12px', color: '#64748b' }}>
-                          {al.telefono || '-'}
-                        </td>
+                      <tr key={aIdx}>
+                        <td><strong>{al.apellido}, {al.nombre}</strong></td>
+                        <td>{al.dni}</td>
+                        <td>{al.telefono || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -969,18 +515,8 @@ export default function CalendarioAdminModule() {
 
             <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
               <button
-                type="button"
                 onClick={() => setTurnoSeleccionado(null)}
-                style={{
-                  backgroundColor: '#0b1e33',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '9px 18px',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                style={{ backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', padding: '9px 18px', cursor: 'pointer', fontWeight: 700 }}
               >
                 Cerrar
               </button>

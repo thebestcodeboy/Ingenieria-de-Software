@@ -90,7 +90,7 @@ export default function DashboardGerenteModule() {
   const maximoInscripciones = Math.max(resumen.inscripcionesMesActual, resumen.inscripcionesMesAnterior, 1);
 
   return (
-    <section aria-labelledby="titulo-dashboard-gerente">
+    <section aria-labelledby="titulo-dashboard-gerente" style={{ width: '100%', boxSizing: 'border-box', fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" }}>
       <header style={styles.cabecera}>
         <div>
           <p style={styles.sobretitulo}>Gerencia · Resumen mensual</p>
@@ -126,8 +126,8 @@ export default function DashboardGerenteModule() {
               valor={`${tendenciaPositiva ? '+' : ''}${resumen.diferenciaInscripciones}`}
               etiqueta="Variación mensual"
               nota={resumen.variacionInscripciones === null ? 'Sin base comparable' : `${resumen.variacionInscripciones}% respecto del mes anterior`}
-              color={tendenciaPositiva ? '#059669' : '#dc2626'}
-              fondo={tendenciaPositiva ? '#ecfdf5' : '#fef2f2'}
+              color={tendenciaPositiva ? '#15803d' : '#991b1b'}
+              fondo={tendenciaPositiva ? '#f0fdf4' : '#fef2f2'}
             />
             <Tarjeta valor={`${resumen.ocupacionPromedio}%`} etiqueta="Ocupación de cursos" nota="Cupos definidos del mes" color="#7c3aed" fondo="#f5f3ff" />
             <Tarjeta valor={resumen.promedioSemanalClases} etiqueta="Clases por semana" nota={`${resumen.clasesProgramadasMes} programadas en el mes`} color="#d97706" fondo="#fffbeb" />
@@ -159,7 +159,7 @@ export default function DashboardGerenteModule() {
                 mayor={resumen.cursoMayorDemanda}
                 menor={resumen.cursoMenorDemanda}
               />
-              <Demanda etiqueta="Mayor demanda" curso={resumen.cursoMayorDemanda} color="#059669" />
+              <Demanda etiqueta="Mayor demanda" curso={resumen.cursoMayorDemanda} color="#15803d" />
               <Demanda etiqueta="Menor demanda" curso={resumen.cursoMenorDemanda} color="#d97706" />
             </article>
           </div>
@@ -214,7 +214,7 @@ function GraficoDemanda({ cursos = [], mayor, menor }: {
         {cursos.map((curso) => {
           const esMayor = curso.nombre === mayor?.nombre;
           const esMenor = !esMayor && curso.nombre === menor?.nombre;
-          const color = esMayor ? '#059669' : esMenor ? '#d97706' : '#2563eb';
+          const color = esMayor ? '#15803d' : esMenor ? '#d97706' : '#2563eb';
           const altura = curso.inscriptos === 0 ? 0 : Math.max(8, (curso.inscriptos / maximo) * 100);
 
           return (
@@ -235,37 +235,37 @@ function GraficoDemanda({ cursos = [], mayor, menor }: {
 const styles: Record<string, CSSProperties> = {
   cabecera: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '24px' },
   sobretitulo: { margin: '0 0 6px', color: '#7c3aed', fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' },
-  titulo: { margin: 0, color: '#0f172a', fontSize: '28px', lineHeight: 1.2 },
-  textoSecundario: { margin: '5px 0 0', color: '#64748b', fontSize: '15px', lineHeight: 1.5 },
-  botonPrimario: { border: 0, borderRadius: '7px', padding: '10px 15px', backgroundColor: '#7c3aed', color: '#fff', fontWeight: 700, cursor: 'pointer' },
-  botonTexto: { border: 0, background: 'transparent', color: '#b91c1c', fontWeight: 700, cursor: 'pointer' },
-  avisoError: { display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '18px', padding: '12px 14px', border: '1px solid #fecaca', borderRadius: '7px', backgroundColor: '#fff7f7', color: '#b91c1c', fontSize: '15px' },
-  estadoCentral: { minHeight: '280px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px', padding: '40px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fff', textAlign: 'center' },
-  restringido: { padding: '32px', border: '1px solid #fca5a5', borderRadius: '8px', backgroundColor: '#fee2e2', color: '#991b1b', textAlign: 'center', fontSize: '15px', fontWeight: 600 },
+  titulo: { margin: 0, color: '#0f172a', fontSize: '28px', fontWeight: 800, lineHeight: 1.2 },
+  textoSecundario: { margin: '5px 0 0', color: '#475569', fontSize: '15.5px', lineHeight: 1.5, fontWeight: 500 },
+  botonPrimario: { border: 0, borderRadius: '7px', padding: '10px 18px', backgroundColor: '#0b1e33', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '14px' },
+  botonTexto: { border: 0, background: 'transparent', color: '#991b1b', fontWeight: 700, cursor: 'pointer' },
+  avisoError: { display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '18px', padding: '12px 14px', border: '1px solid #fecaca', borderRadius: '7px', backgroundColor: '#fff7f7', color: '#991b1b', fontSize: '15px' },
+  estadoCentral: { minHeight: '280px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px', padding: '40px', border: '1px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#fff', textAlign: 'center' },
+  restringido: { padding: '32px', border: '1px solid #fca5a5', borderRadius: '8px', backgroundColor: '#fee2e2', color: '#991b1b', textAlign: 'center', fontSize: '16px', fontWeight: 600 },
   spinner: { width: '28px', height: '28px', border: '3px solid #ede9fe', borderTopColor: '#7c3aed', borderRadius: '50%' },
   grillaTarjetas: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '16px' },
   grillaPaneles: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' },
-  tarjeta: { display: 'flex', gap: '14px', minHeight: '118px', padding: '20px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)', boxSizing: 'border-box' },
+  tarjeta: { display: 'flex', gap: '14px', minHeight: '118px', padding: '20px', border: '1.5px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)', boxSizing: 'border-box' },
   iconoTarjeta: { width: '42px', height: '42px', display: 'grid', placeItems: 'center', flexShrink: 0, borderRadius: '9px', fontSize: '17px' },
-  valorTarjeta: { color: '#0f172a', fontSize: '26px', fontWeight: 800, lineHeight: 1.1 },
-  etiquetaTarjeta: { marginTop: '5px', color: '#475569', fontSize: '15px', fontWeight: 600 },
-  nota: { margin: '7px 0 0', color: '#94a3b8', fontSize: '14px' },
-  panel: { padding: '22px', border: '1px solid #e2e8f0', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)' },
-  tituloPanel: { margin: '0 0 4px', color: '#0f172a', fontSize: '18px' },
-  filaMetrica: { display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '7px', color: '#334155', fontSize: '14px' },
+  valorTarjeta: { color: '#0b1e33', fontSize: '28px', fontWeight: 800, lineHeight: 1.1 },
+  etiquetaTarjeta: { marginTop: '5px', color: '#0f172a', fontSize: '15px', fontWeight: 700 },
+  nota: { margin: '7px 0 0', color: '#64748b', fontSize: '13.5px', fontWeight: 500 },
+  panel: { padding: '24px', border: '1.5px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)' },
+  tituloPanel: { margin: '0 0 4px', color: '#0f172a', fontSize: '18px', fontWeight: 800 },
+  filaMetrica: { display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '7px', color: '#0f172a', fontSize: '15px', fontWeight: 600 },
   pista: { height: '10px', overflow: 'hidden', borderRadius: '999px', backgroundColor: '#e2e8f0' },
   barra: { height: '100%', minWidth: 0, borderRadius: '999px', transition: 'width 250ms ease' },
-  ocupacionValor: { margin: '26px 0 10px', color: '#0f172a', fontSize: '38px', fontWeight: 800 },
-  demandaFila: { display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', color: '#334155', fontSize: '15px' },
-  demandaEtiqueta: { marginBottom: '3px', color: '#64748b', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' },
-  demandaValor: { color: '#475569', fontSize: '14px', whiteSpace: 'nowrap' },
-  punto: { width: '9px', height: '9px', flexShrink: 0, borderRadius: '50%' },
+  ocupacionValor: { margin: '26px 0 10px', color: '#0b1e33', fontSize: '40px', fontWeight: 800 },
+  demandaFila: { display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', color: '#0f172a', fontSize: '15px' },
+  demandaEtiqueta: { marginBottom: '3px', color: '#64748b', fontSize: '12.5px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 },
+  demandaValor: { color: '#475569', fontSize: '14.5px', whiteSpace: 'nowrap', fontWeight: 600 },
+  punto: { width: '10px', height: '10px', flexShrink: 0, borderRadius: '50%' },
   graficoScroll: { marginTop: '24px', overflowX: 'auto', paddingBottom: '8px' },
-  graficoBarras: { height: '250px', display: 'flex', alignItems: 'stretch', gap: '14px', padding: '8px 8px 0', borderBottom: '1px solid #cbd5e1' },
+  graficoBarras: { height: '250px', display: 'flex', alignItems: 'stretch', gap: '14px', padding: '8px 8px 0', borderBottom: '2px solid #cbd5e1' },
   columnaGrafico: { minWidth: '90px', flex: 1, display: 'grid', gridTemplateRows: '22px 170px 48px', justifyItems: 'center', alignItems: 'end' },
-  valorBarra: { color: '#334155', fontSize: '14px' },
+  valorBarra: { color: '#0b1e33', fontSize: '14px', fontWeight: 800 },
   areaBarra: { width: '54px', height: '160px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   barraVertical: { width: '100%', minHeight: 0, borderRadius: '6px 6px 0 0', transition: 'height 250ms ease' },
-  nombreCurso: { maxWidth: '96px', alignSelf: 'start', marginTop: '7px', overflow: 'hidden', color: '#475569', fontSize: '13px', lineHeight: 1.25, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+  nombreCurso: { maxWidth: '96px', alignSelf: 'start', marginTop: '7px', overflow: 'hidden', color: '#0f172a', fontSize: '13px', lineHeight: 1.25, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', fontWeight: 600 },
   graficoVacio: { marginTop: '20px', padding: '34px', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#64748b', fontSize: '15px', textAlign: 'center' },
 };
