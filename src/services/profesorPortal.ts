@@ -98,3 +98,15 @@ export async function cancelarTurnoProfesor(turnoId: string): Promise<void> {
     throw new Error(mensajeError(error));
   }
 }
+
+export type AlumnoCalendarioProfesor = { id: string; nombre: string; apellido: string; estado: string };
+export type TurnoAvanzadoProfesor = {
+  turno_id: string; fecha: string; hora_inicio: string | null; hora_fin: string | null;
+  materia_nombre: string; actividad_nombre: string; aula_numero: string | null;
+  cupo_maximo: number | null; cancelado: boolean; reprogramado: boolean; alumnos: AlumnoCalendarioProfesor[];
+};
+export async function listarCalendarioProfesorAvanzado(desde: string, hasta: string): Promise<TurnoAvanzadoProfesor[]> {
+  const { data, error } = await supabase.rpc('listar_calendario_profesor_avanzado', { p_desde: desde, p_hasta: hasta });
+  if (error) throw new Error(mensajeError(error));
+  return (data ?? []) as TurnoAvanzadoProfesor[];
+}

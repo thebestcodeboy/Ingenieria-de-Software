@@ -1,169 +1,110 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { cancelarTurnoProfesor, listarCalendarioProfesor, type TurnoCalendarioProfesor } from '@/services/profesorPortal';
+import { cancelarTurnoProfesor, listarCalendarioProfesorAvanzado, type TurnoAvanzadoProfesor } from '@/services/profesorPortal';
+import styles from './ProfesorCalendarioAvanzado.module.css';
 
-const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-const DIAS = ['DOM.', 'LUN.', 'MAR.', 'MIÉ.', 'JUE.', 'VIE.', 'SÁB.'];
-
-function fechaSql(anio: number, mes: number, dia: number) {
-  return `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+type Vista = 'dia' | 'semana' | 'mes';
+const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+function fechaLocal(valor: Date) { return `${valor.getFullYear()}-${String(valor.getMonth()+1).padStart(2,'0')}-${String(valor.getDate()).padStart(2,'0')}`; }
+function diaDesdeSql(valor: string) { const [a,m,d] = valor.split('-').map(Number); return new Date(a,m-1,d); }
+function sumarDias(valor: string, cantidad: number) { const fecha=diaDesdeSql(valor); fecha.setDate(fecha.getDate()+cantidad); return fechaLocal(fecha); }
+function fechaLegible(valor: string) { const d=diaDesdeSql(valor); return `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}`; }
+function hora(h: string | null) { return h?.slice(0,5) ?? '--:--'; }
+function estado(t: TurnoAvanzadoProfesor, ahora: Date) {
+  if (t.cancelado) return 'cancelado';
+  if (new Date(`${t.fecha}T${t.hora_fin || '23:59'}`) < ahora) return 'pasado';
+  return 'porDar';
 }
-
-function horaCorta(hora: string | null) {
-  return hora?.slice(0, 5) ?? '--:--';
-}
+const etiquetas: Record<string,string> = { cancelado:'Cancelada', pasado:'Pasada', porDar:'Por dar' };
+function inicioSemana(valor: string) { const d=diaDesdeSql(valor); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return fechaLocal(d); }
 
 export default function ProfesorCalendarioPlaceholder() {
-  const hoy = new Date();
-  const [mesVisible, setMesVisible] = useState(() => new Date(hoy.getFullYear(), hoy.getMonth(), 1));
-  const [turnos, setTurnos] = useState<TurnoCalendarioProfesor[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [mensaje, setMensaje] = useState<string | null>(null);
-  const [turnoParaCancelar, setTurnoParaCancelar] = useState<TurnoCalendarioProfesor | null>(null);
-  const [cancelando, setCancelando] = useState(false);
-  const anio = mesVisible.getFullYear();
-  const mes = mesVisible.getMonth();
-  const ultimoNumero = new Date(anio, mes + 1, 0).getDate();
-  const primerDia = fechaSql(anio, mes, 1);
-  const ultimoDia = fechaSql(anio, mes, ultimoNumero);
-  const fechaHoy = fechaSql(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-
-  const cargar = useCallback(async () => {
-    setCargando(true);
-    setError(null);
-    try {
-      setTurnos(await listarCalendarioProfesor(primerDia, ultimoDia));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo cargar el calendario.');
-    } finally {
-      setCargando(false);
-    }
-  }, [primerDia, ultimoDia]);
-
-  async function confirmarCancelacion() {
-    if (!turnoParaCancelar) return;
-    setCancelando(true);
-    setError(null);
-    try {
-      await cancelarTurnoProfesor(turnoParaCancelar.turno_id);
-      setMensaje('La clase fue cancelada y ya no aparecerá en las agendas de los alumnos.');
-      setTurnoParaCancelar(null);
-      await cargar();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo cancelar la clase.');
-    } finally {
-      setCancelando(false);
-    }
-  }
-
-  useEffect(() => {
-    let vigente = true;
-    listarCalendarioProfesor(primerDia, ultimoDia)
-      .then((resultado) => {
-        if (vigente) setTurnos(resultado);
-      })
-      .catch((cause: unknown) => {
-        if (vigente) setError(cause instanceof Error ? cause.message : 'No se pudo cargar el calendario.');
-      })
-      .finally(() => {
-        if (vigente) setCargando(false);
-      });
-    return () => {
-      vigente = false;
-    };
-  }, [primerDia, ultimoDia]);
-
-  const turnosPorFecha = useMemo(() => {
-    const agrupados = new Map<string, TurnoCalendarioProfesor[]>();
-    turnos.forEach((turno) => agrupados.set(turno.fecha, [...(agrupados.get(turno.fecha) ?? []), turno]));
-    return agrupados;
-  }, [turnos]);
-
-  const celdas = useMemo(() => {
-    const resultado: Array<{ clave: string; dia: number | null; fecha: string | null }> = [];
-    const espaciosIniciales = new Date(anio, mes, 1).getDay();
-    for (let indice = 0; indice < espaciosIniciales; indice += 1) resultado.push({ clave: `inicio-${indice}`, dia: null, fecha: null });
-    for (let dia = 1; dia <= ultimoNumero; dia += 1) {
-      const fecha = fechaSql(anio, mes, dia);
-      resultado.push({ clave: fecha, dia, fecha });
-    }
-    while (resultado.length % 7 !== 0) resultado.push({ clave: `fin-${resultado.length}`, dia: null, fecha: null });
-    return resultado;
-  }, [anio, mes, ultimoNumero]);
-
-  function cambiarMes(diferencia: number) {
-    setCargando(true);
-    setError(null);
-    setMesVisible(new Date(anio, mes + diferencia, 1));
-  }
-
+  const [vista,setVista]=useState<Vista>('mes');
+  const [fecha,setFecha]=useState(()=>fechaLocal(new Date()));
+  const [turnos,setTurnos]=useState<TurnoAvanzadoProfesor[]>([]);
+  const [cargando,setCargando]=useState(true);
+  const [error,setError]=useState('');
+  const [mensaje,setMensaje]=useState('');
+  const [seleccionado,setSeleccionado]=useState<TurnoAvanzadoProfesor|null>(null);
+  const [cancelando,setCancelando]=useState(false);
+  const hoy=fechaLocal(new Date());
+  const mesActual=diaDesdeSql(fecha);
+  const desde=vista==='mes'?fechaLocal(new Date(mesActual.getFullYear(),mesActual.getMonth(),1)):vista==='semana'?inicioSemana(fecha):fecha;
+  const hasta=vista==='mes'?fechaLocal(new Date(mesActual.getFullYear(),mesActual.getMonth()+1,0)):vista==='semana'?sumarDias(desde,6):fecha;
+  const fechas=useMemo(()=>Array.from({length:vista==='semana'?7:1},(_,i)=>sumarDias(desde,i)),[desde,vista]);
+  const cargar=useCallback(async()=>{setCargando(true);setError('');try{setTurnos(await listarCalendarioProfesorAvanzado(desde,hasta));}catch(e){setError(e instanceof Error?e.message:'No se pudo cargar el calendario.');}finally{setCargando(false);}},[desde,hasta]);
+  useEffect(()=>{let vigente=true;listarCalendarioProfesorAvanzado(desde,hasta).then(v=>{if(vigente)setTurnos(v);}).catch(e=>{if(vigente)setError(e instanceof Error?e.message:'No se pudo cargar el calendario.');}).finally(()=>{if(vigente)setCargando(false);});return()=>{vigente=false;};},[desde,hasta]);
+  function navegar(delta:number){setFecha(vista==='mes'?fechaLocal(new Date(mesActual.getFullYear(),mesActual.getMonth()+delta,1)):sumarDias(fecha,delta*(vista==='semana'?7:1)));setCargando(true);setMensaje('');}
   function volverAHoy() {
-    setCargando(true);
-    setError(null);
-    setMesVisible(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+    const destino=fechaLocal(new Date());
+    setFecha(destino);
+    setVista('dia');
+    setMensaje('');
+    if (vista==='dia' && fecha===destino) void cargar();
+    else setCargando(true);
   }
-
-  return (
-    <section aria-labelledby="titulo-calendario-docente">
-      <div style={{ marginBottom: '24px' }}>
-        <span style={{ color: '#2563eb', fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Portal docente</span>
-        <h1 id="titulo-calendario-docente" style={{ color: '#0f172a', fontSize: '25px', margin: '5px 0 4px' }}>Mi calendario</h1>
-        <p style={{ color: '#64748b', fontSize: '15px', margin: 0 }}>Consultá las clases que tenés asignadas.</p>
-      </div>
-
-      <div style={{ backgroundColor: '#ffffff', border: '1px solid #94a3b8', borderRadius: '7px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid #94a3b8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button type="button" onClick={() => cambiarMes(-1)} aria-label="Mes anterior" style={botonNavegacion}>‹</button>
-            <h2 style={{ margin: 0, fontSize: '19px', color: '#0b1e33', minWidth: '190px', textAlign: 'center' }}>{MESES[mes]} de {anio}</h2>
-            <button type="button" onClick={() => cambiarMes(1)} aria-label="Mes siguiente" style={botonNavegacion}>›</button>
-            <button type="button" onClick={volverAHoy} style={{ ...botonNavegacion, width: 'auto', padding: '0 12px', fontSize: '13px' }}>Hoy</button>
-          </div>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: '#2563eb' }}>{turnos.length} {turnos.length === 1 ? 'clase programada' : 'clases programadas'}</span>
-        </div>
-
-        {error && <div role="alert" style={{ margin: '14px', padding: '12px', borderRadius: '7px', backgroundColor: '#fef2f2', color: '#b91c1c', fontSize: '14px', display: 'flex', justifyContent: 'space-between', gap: '12px' }}><span>{error}</span><button type="button" onClick={() => void cargar()} style={{ border: 0, background: 'transparent', color: '#b91c1c', fontWeight: 700, cursor: 'pointer' }}>Reintentar</button></div>}
-        {mensaje && <div role="status" style={{ margin: '14px', padding: '12px', borderRadius: '7px', backgroundColor: '#f0fdf4', color: '#166534', fontSize: '14px' }}>{mensaje}</div>}
-
-        <div style={{ overflowX: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(110px, 1fr))', backgroundColor: '#1e293b', color: '#ffffff', textAlign: 'center', fontSize: '13px', fontWeight: 700, minWidth: '770px' }}>
-            {DIAS.map((dia) => <div key={dia} style={{ padding: '8px 4px', borderRight: '1px solid #334155' }}>{dia}</div>)}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(110px, 1fr))', minWidth: '770px' }}>
-            {celdas.map((celda, indice) => {
-              const clases = celda.fecha ? turnosPorFecha.get(celda.fecha) ?? [] : [];
-              const esHoy = celda.fecha === fechaHoy;
-              const esPasado = Boolean(celda.fecha && celda.fecha < fechaHoy);
-              return (
-                <div key={celda.clave} style={{ backgroundColor: celda.dia === null ? '#f1f5f9' : esPasado ? '#fff1f2' : '#ffffff', borderRight: (indice + 1) % 7 === 0 ? 'none' : '1px solid #cbd5e1', borderBottom: '1px solid #cbd5e1', minHeight: '128px', padding: '6px', boxSizing: 'border-box' }}>
-                  {celda.dia !== null && <><div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: esHoy ? '#2563eb' : esPasado ? '#fee2e2' : 'transparent', color: esHoy ? '#ffffff' : esPasado ? '#b91c1c' : '#334155', display: 'grid', placeItems: 'center', fontSize: '14px', fontWeight: 700, marginBottom: '5px' }}>{celda.dia}</div><div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>{clases.map((turno) => <article key={turno.turno_id} title={`${turno.actividad_nombre} · Aula ${turno.aula_numero ?? 'sin asignar'}`} style={{ backgroundColor: esPasado ? '#dc2626' : '#2563eb', color: '#ffffff', borderRadius: '5px', padding: '6px', fontSize: '12px', lineHeight: 1.3, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }}><strong style={{ display: 'block', fontSize: '12.5px', textTransform: 'uppercase' }}>{turno.materia_nombre}</strong><span style={{ display: 'block', color: esPasado ? '#fee2e2' : '#dbeafe' }}>{turno.actividad_nombre}</span><span style={{ display: 'block', color: esPasado ? '#fee2e2' : '#dbeafe' }}>{horaCorta(turno.hora_inicio)} - {horaCorta(turno.hora_fin)}</span><span style={{ display: 'block', color: esPasado ? '#fecaca' : '#e0e7ff' }}>Aula {turno.aula_numero ?? 'sin asignar'} · {turno.cantidad_alumnos} alumnos</span>{!esPasado && <button type="button" onClick={() => { setMensaje(null); setTurnoParaCancelar(turno); }} style={{ marginTop: '6px', padding: '4px 6px', border: '1px solid rgba(255,255,255,0.65)', borderRadius: '4px', backgroundColor: '#991b1b', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar esta clase</button>}</article>)}</div></>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={{ padding: '9px 12px', backgroundColor: '#f8fafc', color: '#64748b', fontSize: '13px' }}>{cargando ? 'Cargando tus clases...' : turnos.length === 0 && !error ? 'No tenés clases asignadas durante este mes.' : 'Azul: clases próximas. Rojo: clases cuya fecha ya pasó. Solo se muestran turnos asignados por Mesa de Entrada.'}</div>
-      </div>
-      {turnoParaCancelar && (
-        <div role="presentation" onMouseDown={() => !cancelando && setTurnoParaCancelar(null)} style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: '20px', backgroundColor: 'rgba(15, 23, 42, 0.55)' }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="titulo-cancelar-clase-docente" onMouseDown={(event) => event.stopPropagation()} style={{ width: '100%', maxWidth: '420px', padding: '24px', borderRadius: '8px', backgroundColor: '#fff', boxShadow: '0 20px 40px rgba(15, 23, 42, 0.2)' }}>
-            <h2 id="titulo-cancelar-clase-docente" style={{ margin: '0 0 10px', color: '#0f172a', fontSize: '19px' }}>¿Cancelar esta clase?</h2>
-            <p style={{ margin: '0 0 20px', color: '#475569', fontSize: '15px', lineHeight: 1.5 }}>
-              Se cancelará solo la sesión del {turnoParaCancelar.fecha}. Los alumnos dejarán de verla en su agenda; las demás fechas del curso no cambiarán.
-            </p>
-            {error && <div role="alert" style={{ marginBottom: '14px', padding: '10px', borderRadius: '5px', backgroundColor: '#fef2f2', color: '#b91c1c', fontSize: '14px' }}>{error}</div>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button type="button" disabled={cancelando} onClick={() => setTurnoParaCancelar(null)} style={{ padding: '9px 13px', border: '1px solid #cbd5e1', borderRadius: '5px', backgroundColor: '#fff', color: '#334155', cursor: 'pointer' }}>Volver</button>
-              <button type="button" disabled={cancelando} onClick={() => void confirmarCancelacion()} style={{ padding: '9px 13px', border: '0', borderRadius: '5px', backgroundColor: '#b91c1c', color: '#fff', fontWeight: 700, cursor: cancelando ? 'wait' : 'pointer' }}>{cancelando ? 'Cancelando...' : 'Confirmar cancelación'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  );
+  async function cancelar(){if(!seleccionado)return;setCancelando(true);setError('');try{await cancelarTurnoProfesor(seleccionado.turno_id);setSeleccionado(null);setMensaje('La clase quedó cancelada y permanece visible en el calendario.');await cargar();}catch(e){setError(e instanceof Error?e.message:'No se pudo cancelar la clase.');}finally{setCancelando(false);}}
+  const ahora=new Date();
+  return <section className={styles.page}>
+    <header className={styles.header}><div><span className={styles.eyebrow}>Portal docente</span><h1>Mi calendario</h1><p>Clases, materias y espacios libres de tu agenda.</p></div>
+      <div className={styles.controls}><div className={styles.switcher} role="group" aria-label="Vista del calendario">
+        <button type="button" aria-pressed={vista==='semana'} onClick={()=>{if(vista!=='semana'){setVista('semana');setCargando(true);}}}>Semana</button>
+        <button type="button" aria-pressed={vista==='mes'} onClick={()=>{if(vista!=='mes'){setVista('mes');setCargando(true);}}}>Mes</button>
+      </div><button type="button" className={styles.today} aria-pressed={vista==='dia'} onClick={volverAHoy}>Hoy</button></div>
+    </header>
+    <div className={styles.toolbar}>
+      <div className={styles.navigation}><button type="button" onClick={()=>navegar(-1)} aria-label={vista==='mes'?'Mes anterior':vista==='semana'?'Semana anterior':'Día anterior'}>‹</button>
+        <h2>{vista==='mes'?`${meses[mesActual.getMonth()]} de ${mesActual.getFullYear()}`:vista==='dia'?fechaLegible(fecha):`${fechaLegible(desde)} — ${fechaLegible(hasta)}`}</h2>
+        <button type="button" onClick={()=>navegar(1)} aria-label={vista==='mes'?'Mes siguiente':vista==='semana'?'Semana siguiente':'Día siguiente'}>›</button></div>
+      <span className={styles.count}>{turnos.length} {turnos.length===1?'clase':'clases'}</span>
+    </div>
+    <div className={styles.legend} aria-label="Estados de las clases">
+      <span className={styles.legendItem + ' ' + styles.legendPorDar}>Por dar</span>
+      <span className={styles.legendItem + ' ' + styles.legendPasado}>Pasada</span>
+      <span className={styles.legendItem + ' ' + styles.legendCancelado}>Cancelada</span>
+    </div>
+    {error && <div role="alert" className={styles.error}>{error} <button type="button" onClick={()=>void cargar()}>Reintentar</button></div>}
+    {mensaje && <div role="status" className={styles.success}>{mensaje}</div>}
+    {cargando ? <div className={styles.loading} role="status">Cargando clases…</div> :
+    <div className={styles.weekScroll}>{vista==='mes' ? <div className={styles.month}>
+      {['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d=><div key={d} className={styles.monthWeekday}>{d}</div>)}
+      {Array.from({length:Math.ceil((((new Date(mesActual.getFullYear(),mesActual.getMonth(),1).getDay()+6)%7)+new Date(mesActual.getFullYear(),mesActual.getMonth()+1,0).getDate())/7)*7},(_,i)=>{
+        const offset=(new Date(mesActual.getFullYear(),mesActual.getMonth(),1).getDay()+6)%7;
+        const f=fechaLocal(new Date(mesActual.getFullYear(),mesActual.getMonth(),i-offset+1));
+        const enMes=diaDesdeSql(f).getMonth()===mesActual.getMonth();
+        const clases=turnos.filter(t=>t.fecha===f).sort((a,b)=>(a.hora_inicio||'').localeCompare(b.hora_inicio||''));
+        return <div key={f} className={styles.monthCell + ' ' + (!enMes?styles.otherMonth:'') + ' ' + (f===hoy?styles.monthToday:'')}>
+          <button type="button" className={styles.monthDate} onClick={()=>{setFecha(f);setVista('dia');setCargando(true);}} aria-label={'Ver '+fechaLegible(f)}>{diaDesdeSql(f).getDate()}</button>
+          {enMes&&clases.slice(0,3).map(t=>{const e=estado(t,ahora);return <button type="button" key={t.turno_id} className={styles.monthEvent + ' ' + styles[e]} onClick={()=>setSeleccionado(t)}
+            aria-label={t.materia_nombre+', '+hora(t.hora_inicio)+' a '+hora(t.hora_fin)+', aula '+(t.aula_numero||'sin asignar')+', '+etiquetas[e]}>
+            <span>{t.cancelado?'✕ ':t.reprogramado?'↻ ':''}{hora(t.hora_inicio)}</span><strong>{t.materia_nombre}</strong><small>Aula {t.aula_numero??'—'}</small><em>{etiquetas[e]}</em>
+          </button>})}
+          {enMes&&clases.length>3&&<button type="button" className={styles.more} onClick={()=>{setFecha(f);setVista('dia');setCargando(true);}}>+{clases.length-3} clases más</button>}
+        </div>;
+      })}
+    </div> : <div className={vista==='semana'?styles.week:styles.day}>
+      {fechas.map(f=>{const clases=turnos.filter(t=>t.fecha===f).sort((a,b)=>(a.hora_inicio||'').localeCompare(b.hora_inicio||''));return <div key={f} className={styles.column}>
+        <h3 className={f===hoy?styles.currentDay:styles.dayTitle}>{fechaLegible(f)}{f===hoy&&<span>Hoy</span>}</h3>
+        {!clases.length?<div className={styles.free}>Sin clases programadas</div>:clases.map((t,i)=>{
+          const prev=clases[i-1];const gap=prev&&prev.hora_fin&&t.hora_inicio?Math.max(0,Number(t.hora_inicio.slice(0,2))*60+Number(t.hora_inicio.slice(3,5))-Number(prev.hora_fin.slice(0,2))*60-Number(prev.hora_fin.slice(3,5))):0;
+          const e=estado(t,ahora);return <div key={t.turno_id}>{gap>=15&&<div className={styles.gap}>Espacio libre · {gap} min</div>}
+            <button type="button" className={`${styles.event} ${styles[e]}`} onClick={()=>setSeleccionado(t)} aria-label={`${t.materia_nombre}, ${hora(t.hora_inicio)} a ${hora(t.hora_fin)}, aula ${t.aula_numero||'sin asignar'}, ${etiquetas[e]}`}>
+              <span className={styles.eventTop}><span>{hora(t.hora_inicio)} – {hora(t.hora_fin)}</span><span className={styles.badge}>{etiquetas[e]}</span></span>
+              <strong>{t.materia_nombre}</strong><span className={styles.activity}>{t.actividad_nombre}</span>
+              <span className={styles.eventBottom}>Aula {t.aula_numero??'sin asignar'}{t.reprogramado&&<span title="Reprogramada">↻ Reprogramada</span>}{t.cancelado&&<span title="Cancelada">✕</span>}</span>
+            </button></div>;
+        })}</div>;})}
+    </div>}</div>}
+    {seleccionado&&<div className={styles.overlay} role="presentation" onMouseDown={()=>!cancelando&&setSeleccionado(null)}>
+      <div role="dialog" aria-modal="true" aria-labelledby="detalle-clase" className={styles.dialog} onMouseDown={e=>e.stopPropagation()}>
+        <div className={styles.dialogHead}><div><span className={styles.eyebrow}>Detalle de la clase</span><h2 id="detalle-clase">{seleccionado.materia_nombre}</h2></div><button type="button" aria-label="Cerrar detalle" onClick={()=>setSeleccionado(null)}>×</button></div>
+        <p>{seleccionado.actividad_nombre}</p>
+        <dl className={styles.details}><dt>Fecha</dt><dd>{fechaLegible(seleccionado.fecha)}</dd><dt>Horario</dt><dd>{hora(seleccionado.hora_inicio)} – {hora(seleccionado.hora_fin)}</dd><dt>Aula</dt><dd>{seleccionado.aula_numero??'Sin asignar'}</dd><dt>Estado</dt><dd>{etiquetas[estado(seleccionado,ahora)]}{seleccionado.reprogramado?' · Reprogramada':''}</dd><dt>Cupo</dt><dd>{seleccionado.cupo_maximo??'Sin definir'}</dd></dl>
+        <h3>Alumnos inscriptos ({seleccionado.alumnos.length})</h3>
+        {seleccionado.alumnos.length?<ul className={styles.roster}>{seleccionado.alumnos.map(a=><li key={a.id}><span>{a.apellido}, {a.nombre}</span><small>{a.estado==='en_espera'?'En espera':'Confirmado'}</small></li>)}</ul>:<p className={styles.muted}>Todavía no hay alumnos inscriptos.</p>}
+        <div className={styles.dialogActions}>{!seleccionado.cancelado&&seleccionado.fecha>=hoy&&<button type="button" className={styles.danger} disabled={cancelando} onClick={()=>void cancelar()}>{cancelando?'Cancelando…':'Cancelar clase'}</button>}<button type="button" onClick={()=>setSeleccionado(null)}>Cerrar</button></div>
+      </div></div>}
+  </section>;
 }
-
-const botonNavegacion = { border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '18px', display: 'grid', placeItems: 'center' } as const;
