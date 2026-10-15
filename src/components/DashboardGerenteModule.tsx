@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { ResumenGerencial } from '../domain/dashboardGerente';
 import { getDashboardGerenteSummary } from '../services/dashboardGerente';
+import IndicadoresFinancierosModule from './IndicadoresFinancierosModule';
 
 const VACIO: ResumenGerencial = {
   inscripcionesMesActual: 0,
@@ -33,6 +34,7 @@ export default function DashboardGerenteModule() {
   const [actualizando, setActualizando] = useState(false);
   const [error, setError] = useState('');
   const [actualizado, setActualizado] = useState<Date | null>(null);
+  const [vista, setVista] = useState<'economicos' | 'academicos'>('economicos');
 
   const cargar = useCallback(async (esActualizacion = false) => {
     if (esActualizacion) setActualizando(true);
@@ -106,6 +108,14 @@ export default function DashboardGerenteModule() {
         </button>
       </header>
 
+      <nav aria-label="Tipos de indicadores" style={styles.selectorVista}>
+        <button type="button" onClick={() => setVista('economicos')} aria-pressed={vista === 'economicos'} style={{ ...styles.botonVista, ...(vista === 'economicos' ? styles.botonVistaActivo : {}) }}>Económicos</button>
+        <button type="button" onClick={() => setVista('academicos')} aria-pressed={vista === 'academicos'} style={{ ...styles.botonVista, ...(vista === 'academicos' ? styles.botonVistaActivo : {}) }}>Académicos</button>
+      </nav>
+
+      {vista === 'economicos' && <IndicadoresFinancierosModule />}
+
+      {vista === 'academicos' && <>
       {error && (
         <div role="alert" style={styles.avisoError}>
           <span>{error} Se conservan los últimos datos cargados.</span>
@@ -165,6 +175,7 @@ export default function DashboardGerenteModule() {
           </div>
         </>
       )}
+      </>}
     </section>
   );
 }
@@ -236,10 +247,13 @@ const styles: Record<string, CSSProperties> = {
   cabecera: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '24px' },
   sobretitulo: { margin: '0 0 6px', color: '#7c3aed', fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' },
   titulo: { margin: 0, color: '#0f172a', fontSize: '28px', fontWeight: 800, lineHeight: 1.2 },
-  textoSecundario: { margin: '5px 0 0', color: '#475569', fontSize: '15.5px', lineHeight: 1.5, fontWeight: 500 },
+  textoSecundario: { margin: '5px 0 0', color: '#64748b', fontSize: '15px', lineHeight: 1.5, fontWeight: 500 },
   botonPrimario: { border: 0, borderRadius: '7px', padding: '10px 18px', backgroundColor: '#0b1e33', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '14px' },
-  botonTexto: { border: 0, background: 'transparent', color: '#991b1b', fontWeight: 700, cursor: 'pointer' },
-  avisoError: { display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '18px', padding: '12px 14px', border: '1px solid #fecaca', borderRadius: '7px', backgroundColor: '#fff7f7', color: '#991b1b', fontSize: '15px' },
+  selectorVista: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(140px, 1fr))', gap: '6px', marginBottom: '20px', padding: '5px', border: '1px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#f8fafc' },
+  botonVista: { padding: '11px 16px', border: 0, borderRadius: '7px', backgroundColor: 'transparent', color: '#475569', fontWeight: 700, cursor: 'pointer' },
+  botonVistaActivo: { backgroundColor: '#0b1e33', color: '#fff', boxShadow: '0 1px 3px rgba(15, 23, 42, .18)' },
+  botonTexto: { border: 0, background: 'transparent', color: '#b91c1c', fontWeight: 700, cursor: 'pointer' },
+  avisoError: { display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '18px', padding: '12px 14px', border: '1px solid #fecaca', borderRadius: '7px', backgroundColor: '#fff7f7', color: '#b91c1c', fontSize: '15px' },
   estadoCentral: { minHeight: '280px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px', padding: '40px', border: '1px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#fff', textAlign: 'center' },
   restringido: { padding: '32px', border: '1px solid #fca5a5', borderRadius: '8px', backgroundColor: '#fee2e2', color: '#991b1b', textAlign: 'center', fontSize: '16px', fontWeight: 600 },
   spinner: { width: '28px', height: '28px', border: '3px solid #ede9fe', borderTopColor: '#7c3aed', borderRadius: '50%' },

@@ -1,5 +1,6 @@
 'use client';
 
+import AsistenciasModule from './AsistenciasModule';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cancelarTurnoProfesor, listarCalendarioProfesorAvanzado, type TurnoAvanzadoProfesor } from '@/services/profesorPortal';
 import styles from './ProfesorCalendarioAvanzado.module.css';

@@ -141,7 +141,7 @@ function mensajeDeError(error: { code?: string; message?: string }): string {
   }
 
   if (error.code === 'PGRST202') {
-    return 'La función de cupos todavía no fue instalada en Supabase. Aplicá la migración HU09.';
+    return 'La función de cupos todavía no fue instalada en Supabase. Aplicá la migración correspondiente.';
   }
 
   return error.message || 'No se pudo guardar el cupo.';
@@ -457,7 +457,7 @@ export async function inscribirAlumno(turnoId: string, alumnoId: string) {
     if (detalle.includes('TURNO_COMPLETO') || detalle.includes('TURNO_CANCELADO')) throw new Error('Este turno está cancelado y no admite inscripciones.');
     if (detalle.includes('TURNO_PASADO')) throw new Error('No se admiten inscripciones en turnos que ya han pasado.');
     if (error.code === '23505' || detalle.includes('INSCRIPCION_DUPLICADA')) throw new Error('Ya estás registrado en este turno.');
-    if (error.code === 'PGRST202') throw new Error('La función de inscripción HU15 todavía no fue instalada en Supabase. Aplicá la migración HU15.');
+    if (error.code === 'PGRST202') throw new Error('La función de inscripción todavía no fue instalada en Supabase. Aplicá la migración correspondiente.');
     throw new Error(error.message || 'No se pudo registrar la inscripción.');
   }
 

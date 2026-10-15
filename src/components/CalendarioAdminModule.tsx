@@ -1,5 +1,6 @@
 'use client';
 
+import AsistenciasModule from './AsistenciasModule';
 import React, { useState, useEffect, useMemo } from 'react';
 import { getCalendarioAdmin, getInscriptosTurno } from '../services/calendarioAdmin';
 import { eventoEnFecha } from '../domain/calendario';
@@ -475,11 +476,66 @@ export default function CalendarioAdminModule() {
               </button>
             </div>
 
-            <div style={{ backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '8px', padding: '14px 16px', marginBottom: '18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px' }}>
-              <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>FECHA Y HORA:</span><br/><strong>{turnoSeleccionado.fecha || `Recurrente (${turnoSeleccionado.dia_semana})`} ({turnoSeleccionado.hora_inicio?.slice(0, 5)} a {turnoSeleccionado.hora_fin?.slice(0, 5)} hs)</strong></div>
-              <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>AULA:</span><br/><strong>Aula {turnoSeleccionado.aula_numero || 'Sin asignar'}</strong></div>
-              <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>PROFESOR:</span><br/><strong>{turnoSeleccionado.profesor_nombre_completo || 'Sin asignar'}</strong></div>
-              <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>ESTADO:</span><br/><strong>{turnoSeleccionado.estado || 'Activo'}</strong></div>
+            <details style={{ marginBottom: '16px' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700, color: '#2563eb', fontSize: '14px' }}>Asistencias de esta clase</summary>
+              <div style={{ marginTop: '10px' }}>
+                <AsistenciasModule key={String(turnoSeleccionado.turno_id ?? turnoSeleccionado.id)} turnoId={String(turnoSeleccionado.turno_id ?? turnoSeleccionado.id)} />
+              </div>
+            </details>
+
+            <div
+              style={{
+                backgroundColor: turnoSeleccionado.estado === 'cancelado' ? '#fef2f2' : '#f8fafc',
+                border: `1px solid ${
+                  turnoSeleccionado.estado === 'cancelado' ? '#fed7aa' : '#e2e8f0'
+                }`,
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginBottom: '20px',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '10px',
+                fontSize: '14.5px',
+              }}
+            >
+              <div>
+                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
+                  FECHA Y HORA
+                </span>
+                <strong style={{ color: '#0f172a' }}>
+                  {turnoSeleccionado.fecha || `Recurrente (${turnoSeleccionado.dia_semana || 'Semanal'})`} ({turnoSeleccionado.hora_inicio?.slice(0, 5)} a{' '}
+                  {turnoSeleccionado.hora_fin?.slice(0, 5)} hs)
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
+                  AULA
+                </span>
+                <strong style={{ color: '#0f172a' }}>
+                  Aula {turnoSeleccionado.aula_numero || 'Sin asignar'}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
+                  PROFESOR
+                </span>
+                <strong style={{ color: '#0f172a' }}>
+                  {turnoSeleccionado.profesor_nombre_completo || 'Sin asignar'}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', display: 'block', fontSize: '13px', fontWeight: 600 }}>
+                  ESTADO
+                </span>
+                <strong
+                  style={{
+                    color: turnoSeleccionado.estado === 'cancelado' ? '#dc2626' : '#166534',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {turnoSeleccionado.estado || 'activo'}
+                </strong>
+              </div>
             </div>
 
             <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 10px 0' }}>Alumnos Inscriptos ({inscriptos.length})</h3>

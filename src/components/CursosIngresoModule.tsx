@@ -17,6 +17,9 @@ type CursoIngreso = {
   activo?: boolean;
   fecha_inicio?: string | null;
   fecha_fin?: string | null;
+  precio?: number;
+  modalidad_cobro?: 'MES' | 'SEMANA';
+  plazo_vencimiento_dias?: number;
   curso_ingreso_materias?: Array<{
     materia_id?: string | number;
     materias?: { id?: string | number; nombre?: string | null } | null;
@@ -38,6 +41,9 @@ export default function CursosIngresoModule() {
     descripcion: '',
     fechaInicio: '',
     fechaFin: '',
+    precio: 0,
+    modalidadCobro: 'MES' as 'MES' | 'SEMANA',
+    plazoVencimientoDias: 10,
     materiasSeleccionadas: [] as string[],
     activo: true,
   });
@@ -92,7 +98,7 @@ export default function CursosIngresoModule() {
 
   const handleOpenCreate = () => {
     setEditingId(null);
-    setFormData({ nombre: '', descripcion: '', fechaInicio: '', fechaFin: '', materiasSeleccionadas: [], activo: true });
+    setFormData({ nombre: '', descripcion: '', fechaInicio: '', fechaFin: '', precio: 0, modalidadCobro: 'MES', plazoVencimientoDias: 10, materiasSeleccionadas: [], activo: true });
     setErrorMsg('');
     setShowModal(true);
   };
@@ -108,6 +114,9 @@ export default function CursosIngresoModule() {
       descripcion: c.descripcion || '',
       fechaInicio: c.fecha_inicio || '',
       fechaFin: c.fecha_fin || '',
+      precio: Number(c.precio || 0),
+      modalidadCobro: c.modalidad_cobro || 'MES',
+      plazoVencimientoDias: Number(c.plazo_vencimiento_dias ?? 10),
       materiasSeleccionadas: matIds,
       activo: c.activo !== false,
     });
@@ -157,6 +166,9 @@ export default function CursosIngresoModule() {
           descripcion: formData.descripcion,
           fechaInicio: formData.fechaInicio,
           fechaFin: formData.fechaFin,
+          precio: formData.precio,
+          modalidadCobro: formData.modalidadCobro,
+          plazoVencimientoDias: formData.plazoVencimientoDias,
           activo: formData.activo,
           materiasIds: formData.materiasSeleccionadas,
         });
@@ -170,6 +182,9 @@ export default function CursosIngresoModule() {
           descripcion: formData.descripcion,
           fechaInicio: formData.fechaInicio,
           fechaFin: formData.fechaFin,
+          precio: formData.precio,
+          modalidadCobro: formData.modalidadCobro,
+          plazoVencimientoDias: formData.plazoVencimientoDias,
           materiasIds: formData.materiasSeleccionadas,
         });
         setSuccessMsg(`Curso "${formData.nombre.trim().toUpperCase()}" registrado con éxito.`);
@@ -531,7 +546,25 @@ export default function CursosIngresoModule() {
               </div>
               <p style={{ margin: 0, fontSize: '14.5px', color: '#64748b' }}>Duración: {duracionCurso(formData.fechaInicio, formData.fechaFin)}. El período es el mismo para todos los alumnos.</p>
 
-              {/* Selector de Estado al final */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 700 }}>Precio *
+                  <input type="number" min="0.01" step="0.01" required value={formData.precio || ''}
+                    onChange={e => setFormData({ ...formData, precio: Number(e.target.value) })}
+                    style={{ display: 'block', width: '100%', padding: '10px', marginTop: '6px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontSize: '14px', fontWeight: 700 }}>Cobro *
+                  <select value={formData.modalidadCobro} onChange={e => setFormData({ ...formData, modalidadCobro: e.target.value as 'MES' | 'SEMANA' })}
+                    style={{ display: 'block', width: '100%', padding: '10px', marginTop: '6px', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+                    <option value="MES">Mensual</option><option value="SEMANA">Semanal</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: '14px', fontWeight: 700 }}>Días para vencer *
+                  <input type="number" min="0" max="90" required value={formData.plazoVencimientoDias}
+                    onChange={e => setFormData({ ...formData, plazoVencimientoDias: Number(e.target.value) })}
+                    style={{ display: 'block', width: '100%', padding: '10px', marginTop: '6px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+                </label>
+              </div>
+
               {editingId && (
                 <div>
                   <label style={{ display: 'block', fontSize: '15px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>

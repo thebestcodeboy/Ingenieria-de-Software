@@ -18,13 +18,13 @@ export type InscripcionCobro = {
     id: string; fecha: string; hora_inicio: string; hora_fin: string;
     curso_id?: string | null; clase_particular_id?: string | null; materia_id?: string | null;
     profesor_id?: string | null; estado?: string | null; cancelado?: boolean;
-    cursos_ingreso?: { nombre: string } | null;
-    clases_particulares?: { nombre: string } | null;
+    cursos_ingreso?: { nombre: string; precio?: number; modalidad_cobro?: 'MES' | 'SEMANA' } | null;
+    clases_particulares?: { nombre: string; precio?: number } | null;
     materias?: { nombre: string } | null;
     profesores?: { nombre: string; apellido: string } | null;
   } | null;
 };
-export type ActividadCobro = { clave: string; nombre: string; docente: string; materias: string[]; sesiones: InscripcionCobro[] };
+export type ActividadCobro = { clave: string; nombre: string; docente: string; materias: string[]; sesiones: InscripcionCobro[]; precio?: number; modalidadCobro?: ModalidadPago };
 export type DetalleAcademico = { actividad: string; docente: string; materias: string[]; inscripciones: string[] };
 export type VinculoPago = { inscripcion_id: string; periodo_desde: string; periodo_hasta: string; detalle_academico: DetalleAcademico; concepto: string };
 
@@ -37,6 +37,8 @@ export function agruparActividadesCobro(inscripciones: InscripcionCobro[]): Acti
     if (!grupos.has(clave)) grupos.set(clave, {
       clave, nombre: t.cursos_ingreso ? 'Curso de ingreso: ' + t.cursos_ingreso.nombre : 'Clase particular: ' + (t.clases_particulares?.nombre ?? t.materias?.nombre ?? 'Sin nombre'),
       docente: [t.profesores?.apellido, t.profesores?.nombre].filter(Boolean).join(', '),
+      precio: Number(t.cursos_ingreso?.precio ?? t.clases_particulares?.precio ?? 0),
+      modalidadCobro: t.curso_id ? (t.cursos_ingreso?.modalidad_cobro === 'SEMANA' ? 'Semana' : 'Mes') : 'Clase',
       materias: [], sesiones: [],
     });
     const grupo = grupos.get(clave)!;

@@ -10,7 +10,7 @@ import {
 } from '../services/clasesParticulares';
 import { Pagination, usePagination } from './Pagination';
 
-const initialForm = { nombre: '', materiaId: '', nivel: 'universitario', activo: true };
+const initialForm = { nombre: '', materiaId: '', nivel: 'universitario', precio: 0, plazoVencimientoDias: 0, activo: true };
 
 export default function ClasesParticularesModule() {
   const [form, setForm] = useState(initialForm);
@@ -62,6 +62,8 @@ export default function ClasesParticularesModule() {
       nombre: clase.nombre || '',
       materiaId: clase.materia_id || '',
       nivel: (clase.nivel || 'universitario').toLowerCase(),
+      precio: Number(clase.precio || 0),
+      plazoVencimientoDias: Number(clase.plazo_vencimiento_dias ?? 0),
       activo: clase.activo !== false
     });
     setError('');
@@ -92,8 +94,8 @@ export default function ClasesParticularesModule() {
     setError('');
     setSuccess('');
 
-    if (!form.nombre.trim() || !form.materiaId || !form.nivel) {
-      setError('Completá el nombre, la materia y el nivel para guardar la clase.');
+    if (!form.nombre.trim() || !form.materiaId || !form.nivel || Number(form.precio) <= 0) {
+      setError('Completá el nombre, la materia, el nivel y un precio mayor a cero.');
       return;
     }
 
@@ -493,6 +495,17 @@ export default function ClasesParticularesModule() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>Precio por clase *
+                  <input name="precio" type="number" min="0.01" step="0.01" required value={form.precio || ''} onChange={handleChange}
+                    style={{ display: 'block', width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '6px', border: '1.5px solid #cbd5e1', boxSizing: 'border-box' }} />
+                </label>
+                <label style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>Días para vencer *
+                  <input name="plazoVencimientoDias" type="number" min="0" max="90" required value={form.plazoVencimientoDias} onChange={handleChange}
+                    style={{ display: 'block', width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '6px', border: '1.5px solid #cbd5e1', boxSizing: 'border-box' }} />
+                </label>
               </div>
 
               {editingId && (

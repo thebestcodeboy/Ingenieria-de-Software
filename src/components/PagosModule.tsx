@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { listarPagos, generarNumeroComprobante, listarInscripcionesCobro } from '../services/pagos';
-import CierreCajaModule from './CierreCajaModule';
+import { listarPagos, generarNumeroComprobante, listarInscripcionesCobro, listarObligacionesAlumno, type ObligacionPago } from '../services/pagos';
+import RegistrarObligacionModal from './RegistrarObligacionModal';
 
 import { agruparActividadesCobro, calcularSaldosPorAlumno, construirVinculoPago, fechaASemanaIso, type InscripcionCobro, type ModalidadPago, type VinculoPago } from '../domain/pagoAcademico';
 
 export interface PagoConDetalle {
+  obligacion_id?: string | null;
   inscripcion_id?: string | null;
   periodo_desde?: string | null;
   periodo_hasta?: string | null;
@@ -19,8 +20,8 @@ export interface PagoConDetalle {
   modalidad?: ModalidadPago;
   cantidad?: number;
   importe: number;
-  medio_pago: 'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Mercado Pago';  fecha: string;
-
+  medio_pago: 'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Mercado Pago';
+  fecha: string;
   observaciones?: string | null;
   estado: 'CONFIRMADO' | 'BORRADOR' | 'CANCELADO' | 'ANULADO' | 'PENDIENTE' | 'RECHAZADO';
   external_payment_id?: string | null;
@@ -57,7 +58,7 @@ export default function PagosModule() {
   const fechaHoy = useMemo(() => new Date().toISOString().split('T')[0], []);
 
   // Vista principal: Historial
-  const [vistaActual, setVistaActual] = useState<'historial' | 'terminal' | 'caja'>('historial');
+  const [vistaActual, setVistaActual] = useState<'historial' | 'terminal'>('historial');
 
   // Filtros de historial y Paginación
   const [busqueda, setBusqueda] = useState('');
@@ -86,6 +87,7 @@ export default function PagosModule() {
   const [inscripcionesCobro, setInscripcionesCobro] = useState<{ alumnoId: string; filas: InscripcionCobro[]; error: string }>({ alumnoId: '', filas: [], error: '' });
   const alumnoCobroId = alumnoSeleccionado?.id ? String(alumnoSeleccionado.id) : '';
   const cargandoActividades = Boolean(alumnoCobroId && inscripcionesCobro.alumnoId !== alumnoCobroId);
+
   useEffect(() => {
     if (!alumnoCobroId) return;
     let vigente = true;
@@ -96,14 +98,16 @@ export default function PagosModule() {
     });
     return () => { vigente = false; };
   }, [alumnoCobroId]);
+
   const actividades = useMemo(() => agruparActividadesCobro(inscripcionesCobro.alumnoId === alumnoCobroId ? inscripcionesCobro.filas : []), [inscripcionesCobro, alumnoCobroId]);
   const actividadElegida = actividades.find(a => a.sesiones.some(s => s.id === actividadInscripcionId));
   const modalidad: ModalidadPago = actividadElegida?.clave.startsWith('particular:') ? 'Clase' : modalidadCurso;
+  
   const datosCobro = useMemo(() => {
     try { return { vinculo: construirVinculoPago(actividadElegida, modalidad, periodoAbonado, cantidad, sesionId), error: '' }; }
     catch (error: unknown) { return { vinculo: null, error: error instanceof Error ? error.message : 'Revisá el detalle del cobro.' }; }
   }, [actividadElegida, modalidad, periodoAbonado, cantidad, sesionId]);
-  const concepto = datosCobro.vinculo?.concepto ?? '';
+
   const mesesDelAnio = Array.from({ length: 12 }, (_, mes) =>
     new Intl.DateTimeFormat('es-AR', { month: 'long' }).format(new Date(2025, mes, 1))
   );
@@ -128,8 +132,8 @@ export default function PagosModule() {
     setSelectorMesAbierto(false);
   };
 
-
-const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Mercado Pago'>('Efectivo');  const [fechaCobro, setFechaCobro] = useState(fechaHoy);
+  const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Mercado Pago'>('Efectivo');
+  const [fechaCobro, setFechaCobro] = useState(fechaHoy);
   const [montoRecibido, setMontoRecibido] = useState<number>(0);
   const [nroReferencia, setNroReferencia] = useState('');
 
@@ -137,6 +141,9 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
   const [pagoRecienCreado, setPagoRecienCreado] = useState<PagoConDetalle | null>(null);
   const [linkPagoMercadoPago, setLinkPagoMercadoPago] = useState<string | null>(null);
   const [comprobanteSeleccionado, setComprobanteSeleccionado] = useState<PagoConDetalle | null>(null);
+  const [mostrarObligacion, setMostrarObligacion] = useState(false);
+  const [obligacionesAlumno, setObligacionesAlumno] = useState<ObligacionPago[]>([]);
+  const [obligacionId, setObligacionId] = useState('');
 
   // Feedback
   const [mensajeExito, setMensajeExito] = useState('');
@@ -161,6 +168,15 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  useEffect(() => {
+    if (!alumnoCobroId) return;
+    let vigente = true;
+    listarObligacionesAlumno(alumnoCobroId)
+      .then((filas) => { if (vigente) setObligacionesAlumno(filas); })
+      .catch((err: unknown) => { if (vigente) setErrorMsg(err instanceof Error ? err.message : 'No se pudieron cargar las obligaciones.'); });
+    return () => { vigente = false; };
+  }, [alumnoCobroId]);
 
   const totalACobrar = useMemo(() => {
     const unit = Math.max(0, precioUnitario || 0);
@@ -226,7 +242,9 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
   const handleSeleccionarAlumno = (al: any) => {
     setAlumnoSeleccionado(al);
     setModalidadCurso('Mes');
-    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false); setErrorMsg('');
+    setObligacionesAlumno([]);
+    setObligacionId('');
+    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setErrorMsg('');
     setTextoBusquedaAlumno(`${al.apellido}, ${al.nombre} (${al.legajo || 'Sin Legajo'}) - DNI: ${al.dni}`);
     setMostrarDropdownAlumnos(false);
   };
@@ -235,7 +253,8 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
     setPagoBorradorId(null);
     setAlumnoSeleccionado(null);
     setTextoBusquedaAlumno('');
-    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false);
+    setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado('');
+    setObligacionId('');
     setModalidadCurso('Mes');
     setPrecioUnitario(0);
     setMontoRecibido(0);
@@ -246,6 +265,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
   const handleReanudarBorrador = (p: PagoConDetalle) => {
     setPagoBorradorId(p.id);
+    setObligacionId(p.obligacion_id || '');
     if (p.alumnos) {
       setAlumnoSeleccionado(p.alumnos);
       setTextoBusquedaAlumno(`${p.alumnos.apellido}, ${p.alumnos.nombre} (${p.alumnos.legajo || 'Sin Legajo'}) - DNI: ${p.alumnos.dni}`);
@@ -304,6 +324,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           .from('pagos')
           .update({
             alumno_id: alumnoSeleccionado.id,
+            obligacion_id: obligacionId || null,
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
@@ -324,6 +345,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           .insert([{
             comprobante: nuevoComp,
             alumno_id: alumnoSeleccionado.id,
+            obligacion_id: obligacionId || null,
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
@@ -386,7 +408,6 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
       let preferenceId: string | null = null;
       let checkoutUrl: string | null = null;
 
-      // Lógica de integración con Mercado Pago (HU24)
       if (medioPago === 'Mercado Pago') {
         const mpRes = await fetch('/api/pagos/mercadopago', {
           method: 'POST',
@@ -403,7 +424,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
         preferenceId = mpData.preference_id?.toString() || null;
         checkoutUrl = mpData.checkout_url || null;
         if (!checkoutUrl) throw new Error('Mercado Pago no devolvió un enlace de Checkout.');
-        estadoInicial = 'PENDIENTE'; // Criterio de aceptación: queda pendiente hasta su confirmación por webhook
+        estadoInicial = 'PENDIENTE';
       }
 
       let pagoConfirmadoResult: PagoConDetalle;
@@ -418,6 +439,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           .from('pagos')
           .update({
             alumno_id: alumnoSeleccionado.id,
+            obligacion_id: obligacionId || null,
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
@@ -441,6 +463,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           .insert([{
             comprobante: nuevoComp ?? await generarNumeroComprobante(),
             alumno_id: alumnoSeleccionado.id,
+            obligacion_id: obligacionId || null,
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
@@ -470,7 +493,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
       setGuardando(false);
     }
   };
-  // Descarga directa a PDF con nombre dinámico y layout proporcional A4
+
   const handleDescargarPDF = (pago: PagoConDetalle) => {
     const ventanaImpresion = window.open('', '_blank');
     if (!ventanaImpresion) {
@@ -484,7 +507,6 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
     const cantVal = pago.cantidad || 1;
     const totalFormateado = Number(pago.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 });
-    const unitarioFormateado = (Number(pago.importe) / cantVal).toLocaleString('es-AR', { minimumFractionDigits: 2 });
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -493,172 +515,32 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
         <meta charset="utf-8">
         <title>${nombreArchivoPDF}</title>
         <style>
-          @page { 
-            size: A4 portrait; 
-            margin: 12mm; 
-          }
-          * {
-            box-sizing: border-box;
-          }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            color: #0b1e33;
-            background: #ffffff;
-            margin: 0;
-            padding: 0;
-            font-size: 11px;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .recibo-marco {
-            border: 2px solid #0b1e33;
-            padding: 18px 20px;
-          }
-          .tabla-header {
-            width: 100%;
-            border-collapse: collapse;
-            border-bottom: 2px solid #0b1e33;
-            padding-bottom: 12px;
-            margin-bottom: 12px;
-          }
-          .tabla-header td {
-            vertical-align: middle;
-          }
-          .logo-col {
-            width: 48%;
-          }
-          .centro-col {
-            width: 8%;
-            text-align: center;
-            vertical-align: middle;
-            border-left: 2px solid #0b1e33;
-            border-right: 2px solid #0b1e33;
-            padding: 0 4px;
-          }
-          .letra-box {
-            display: inline-block;
-            background: #0b1e33;
-            color: #ffffff;
-            font-weight: 800;
-            font-size: 20px;
-            padding: 4px 10px;
-            margin-bottom: 4px;
-          }
-          .datos-fiscales-col {
-            width: 44%;
-            padding-left: 18px;
-            font-size: 10px;
-            line-height: 1.45;
-            color: #334155;
-          }
-          .marca-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-          }
-          .img-logo {
-            width: 62px;
-            height: 62px;
-            object-fit: contain;
-          }
-          .titulo-instituto {
-            font-size: 19px;
-            font-weight: 800;
-            color: #0b1e33;
-            letter-spacing: 0.8px;
-            margin: 0 0 2px 0;
-            text-transform: uppercase;
-          }
-          .subtitulo-instituto {
-            font-size: 9.5px;
-            color: #2563eb;
-            font-weight: 800;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
-          }
-          .barra-recibo {
-            border: 1.5px solid #0b1e33;
-            background-color: #f8fafc;
-            font-weight: 700;
-            font-size: 11.5px;
-            display: flex;
-            justify-content: space-between;
-            padding: 7px 14px;
-            margin: 12px 0;
-          }
-          .box-alumno {
-            border: 1.5px solid #0b1e33;
-            margin-bottom: 14px;
-          }
-          .barra-alumno-header {
-            background-color: #e2e8f0;
-            border-bottom: 1.5px solid #0b1e33;
-            padding: 6px 12px;
-            font-weight: 800;
-            font-size: 10.5px;
-            display: grid;
-            grid-template-columns: 1.2fr 1.2fr 2fr;
-            gap: 8px;
-          }
-          .cuerpo-alumno {
-            padding: 10px 14px;
-            font-size: 10.5px;
-            line-height: 1.55;
-            background-color: #ffffff;
-          }
-          .cuerpo-alumno table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          .cuerpo-alumno td {
-            padding: 2px 0;
-          }
-          .box-conceptos {
-            border: 1.5px solid #0b1e33;
-            min-height: 380px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            margin-bottom: 14px;
-          }
-          .tabla-conceptos {
-            width: 100%;
-            border-collapse: collapse;
-          }
-          .tabla-conceptos th {
-            background-color: #0b1e33;
-            color: #ffffff;
-            font-size: 10.5px;
-            font-weight: 700;
-            padding: 8px 12px;
-            text-align: left;
-            letter-spacing: 0.5px;
-          }
-          .tabla-conceptos td {
-            padding: 14px 12px;
-            font-size: 11.5px;
-            vertical-align: top;
-            border-bottom: 1px solid #e2e8f0;
-          }
-          .total-barra {
-            background-color: #f8fafc;
-            padding: 12px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 14px;
-            font-weight: 800;
-            border-top: 1.5px solid #0b1e33;
-          }
-          .leyenda-legal {
-            border-top: 1px dashed #94a3b8;
-            margin-top: 14px;
-            padding-top: 8px;
-            font-size: 9px;
-            color: #64748b;
-            text-align: justify;
-            line-height: 1.35;
-          }
+          @page { size: A4 portrait; margin: 12mm; }
+          * { box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0b1e33; background: #ffffff; margin: 0; padding: 0; font-size: 11px; }
+          .recibo-marco { border: 2px solid #0b1e33; padding: 18px 20px; }
+          .tabla-header { width: 100%; border-collapse: collapse; border-bottom: 2px solid #0b1e33; padding-bottom: 12px; margin-bottom: 12px; }
+          .tabla-header td { vertical-align: middle; }
+          .logo-col { width: 48%; }
+          .centro-col { width: 8%; text-align: center; vertical-align: middle; border-left: 2px solid #0b1e33; border-right: 2px solid #0b1e33; padding: 0 4px; }
+          .letra-box { display: inline-block; background: #0b1e33; color: #ffffff; font-weight: 800; font-size: 20px; padding: 4px 10px; margin-bottom: 4px; }
+          .datos-fiscales-col { width: 44%; padding-left: 18px; font-size: 10px; line-height: 1.45; color: #334155; }
+          .marca-header { display: flex; align-items: center; gap: 12px; }
+          .img-logo { width: 62px; height: 62px; object-fit: contain; }
+          .titulo-instituto { font-size: 19px; font-weight: 800; color: #0b1e33; letter-spacing: 0.8px; margin: 0 0 2px 0; text-transform: uppercase; }
+          .subtitulo-instituto { font-size: 9.5px; color: #2563eb; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; }
+          .barra-recibo { border: 1.5px solid #0b1e33; background-color: #f8fafc; font-weight: 700; font-size: 11.5px; display: flex; justify-content: space-between; padding: 7px 14px; margin: 12px 0; }
+          .box-alumno { border: 1.5px solid #0b1e33; margin-bottom: 14px; }
+          .barra-alumno-header { background-color: #e2e8f0; border-bottom: 1.5px solid #0b1e33; padding: 6px 12px; font-weight: 800; font-size: 10.5px; display: grid; grid-template-columns: 1.2fr 1.2fr 2fr; gap: 8px; }
+          .cuerpo-alumno { padding: 10px 14px; font-size: 10.5px; line-height: 1.55; background-color: #ffffff; }
+          .cuerpo-alumno table { width: 100%; border-collapse: collapse; }
+          .cuerpo-alumno td { padding: 2px 0; }
+          .box-conceptos { border: 1.5px solid #0b1e33; min-height: 380px; display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 14px; }
+          .tabla-conceptos { width: 100%; border-collapse: collapse; }
+          .tabla-conceptos th { background-color: #0b1e33; color: #ffffff; font-size: 10.5px; font-weight: 700; padding: 8px 12px; text-align: left; }
+          .tabla-conceptos td { padding: 14px 12px; font-size: 11.5px; vertical-align: top; border-bottom: 1px solid #e2e8f0; }
+          .total-barra { background-color: #f8fafc; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 800; border-top: 1.5px solid #0b1e33; }
+          .leyenda-legal { border-top: 1px dashed #94a3b8; margin-top: 14px; padding-top: 8px; font-size: 9px; color: #64748b; text-align: justify; line-height: 1.35; }
         </style>
       </head>
       <body>
@@ -671,20 +553,15 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                   <div>
                     <h1 class="titulo-instituto">INSTITUTO ATENEO</h1>
                     <div class="subtitulo-instituto">CONOCIMIENTO SIN LÍMITES</div>
-                    <div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Gestión Académica e Integral</div>
                   </div>
                 </div>
               </td>
-
               <td class="centro-col">
                 <div class="letra-box">X</div>
-                <div style="font-size:7px; font-weight:700; color:#0b1e33; line-height: 1.2;">DOC. NO VÁLIDO<br>COMO FACTURA</div>
+                <div style="font-size:7px; font-weight:700; color:#0b1e33;">DOC. NO VÁLIDO</div>
               </td>
-
               <td class="datos-fiscales-col">
                 <div><strong>COMPROBANTE INTERNO DE COBRO</strong></div>
-                <div>Actividad: Enseñanza y Capacitación Académica</div>
-                <div>Condición: Sujeto Exento / Régimen Educativo</div>
                 <div>Fecha de Emisión: <strong>${pago.fecha}</strong></div>
                 <div>Medio de Pago: <strong>${pago.medio_pago}</strong></div>
               </td>
@@ -702,60 +579,32 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
               <div>LEGAJO: <strong>${pago.alumnos?.legajo || 'Sin Legajo'}</strong></div>
               <div>ALUMNO: <strong>${pago.alumnos?.apellido?.toUpperCase() || ''}, ${pago.alumnos?.nombre?.toUpperCase() || ''}</strong></div>
             </div>
-            <div class="cuerpo-alumno">
-              <table>
-                <tr>
-                  <td style="width: 50%;"><strong>Institución:</strong> Instituto Ateneo Presencial</td>
-                  <td style="width: 50%;"><strong>Modalidad:</strong> ${pago.modalidad || 'Regular'}</td>
-                </tr>
-                <tr>
-                  <td><strong>Correo Institucional:</strong> ${pago.alumnos?.email || 'No registrado'}</td>
-                  <td><strong>Terminal de Emisión:</strong> Mesa de Entrada</td>
-                </tr>
-              </table>
-            </div>
           </div>
 
           <div class="box-conceptos">
             <table class="tabla-conceptos">
               <thead>
                 <tr>
-                  <th style="width: 55%;">C O N C E P T O S</th>
-                  <th style="width: 15%; text-align: center;">FECHA APLIC.</th>
-                  <th style="width: 12%; text-align: center;">CANTIDAD</th>
-                  <th style="width: 18%; text-align: right;">IMPORTE</th>
+                  <th>C O N C E P T O S</th>
+                  <th style="text-align: center;">CANTIDAD</th>
+                  <th style="text-align: right;">IMPORTE</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>
-                    <strong style="color: #0f172a; font-size: 12px;">${escaparTextoRecibo(pago.concepto)}</strong>
-                    ${pago.observaciones ? `<div style="font-size:10px; color:#64748b; margin-top:4px;">${pago.observaciones}</div>` : ''}
-                  </td>
-                  <td style="text-align: center; color: #475569;">${pago.periodo_desde ? pago.periodo_desde + ' al ' + pago.periodo_hasta : pago.fecha.slice(0, 7)}</td>
-                  <td style="text-align: center; color: #475569;">${cantVal}</td>
-                  <td style="text-align: right; font-weight: 700; color: #0f172a;">$ ${totalFormateado}</td>
+                  <td><strong>${escaparTextoRecibo(pago.concepto)}</strong></td>
+                  <td style="text-align: center;">${cantVal}</td>
+                  <td style="text-align: right; font-weight: 700;">$ ${totalFormateado}</td>
                 </tr>
               </tbody>
             </table>
-
             <div class="total-barra">
               <span>TOTAL ACREDITADO:</span>
-              <span style="font-size: 18px; color: #15803d; font-weight: 800;">$ ${totalFormateado}</span>
+              <span style="font-size: 18px; color: #15803d;">$ ${totalFormateado}</span>
             </div>
           </div>
-
-          <div class="leyenda-legal">
-            Imputación formal de cobro en legajo del Alumno. Para el caso de registrarse más de un concepto asociado a una misma liquidación, dicho comprobante interno será archivado y conservado digitalmente en el sistema institucional conforme a la normativa de aranceles y cuotas del establecimiento.
-          </div>
         </div>
-
-        <script>
-          window.onload = function() {
-            document.title = "${nombreArchivoPDF}";
-            window.print();
-          };
-        </script>
+        <script>window.onload = function() { window.print(); };</script>
       </body>
       </html>
     `;
@@ -765,12 +614,19 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
     ventanaImpresion.document.close();
   };
 
-  if (vistaActual === 'caja') {
-    return <CierreCajaModule onVolver={() => setVistaActual('historial')} />;
-  }
-
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }}>
+      {mostrarObligacion && (
+        <RegistrarObligacionModal
+          alumnos={alumnos}
+          onClose={() => setMostrarObligacion(false)}
+          onSuccess={() => {
+            setMostrarObligacion(false);
+            setMensajeExito('Obligación registrada correctamente.');
+            setTimeout(() => setMensajeExito(''), 3500);
+          }}
+        />
+      )}
       
       {/* 1. TERMINAL DE FACTURACIÓN Y COBRO */}
       {vistaActual === 'terminal' ? (
@@ -788,34 +644,14 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                 type="button"
                 onClick={handleSuspenderBorrador}
                 disabled={guardando || !alumnoSeleccionado}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '7px',
-                  padding: '9px 16px',
-                  backgroundColor: (!alumnoSeleccionado || guardando) ? '#94a3b8' : '#2563eb',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  cursor: (!alumnoSeleccionado || guardando) ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 2px 4px rgba(37,99,235,0.2)'
-                }}
+                style={{ padding: '9px 16px', backgroundColor: (!alumnoSeleccionado || guardando) ? '#94a3b8' : '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="4" width="4" height="16" rx="1" />
-                  <rect x="14" y="4" width="4" height="16" rx="1" />
-                </svg>
                 <span>Suspender</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => {
-                  if (pagoBorradorId) {
-                    handleMarcarCancelado(pagoBorradorId);
-                  }
+                  if (pagoBorradorId) handleMarcarCancelado(pagoBorradorId);
                   limpiarFormulario();
                   setVistaActual('historial');
                 }}
@@ -827,12 +663,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           </div>
 
           <div style={{ marginBottom: '22px' }}>
-            <h1 style={{ margin: 0, color: '#0f172a', fontSize: '25px', fontWeight: 700, letterSpacing: '-0.025em' }}>
-              Terminal de Facturación y Cobro
-            </h1>
-            <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '15px' }}>
-              Mesa de Entrada · Registro formal de ingresos académicos.
-            </p>
+            <h1 style={{ margin: 0, color: '#0f172a', fontSize: '25px', fontWeight: 700 }}>Terminal de Facturación y Cobro</h1>
           </div>
 
           {errorMsg && (
@@ -844,16 +675,12 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: '24px', alignItems: 'start' }}>
             
             {/* PANEL IZQUIERDO */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '28px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-              
-              <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '28px' }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase' }}>
                 1. Selección del Estudiante
               </h2>
 
               <div style={{ position: 'relative', marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                  Buscar por Apellido, Nombre, Legajo o DNI *
-                </label>
                 <input
                   type="text"
                   placeholder="Escribe para buscar alumno..."
@@ -862,41 +689,24 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                   onChange={(e) => {
                     setTextoBusquedaAlumno(e.target.value);
                     setAlumnoSeleccionado(null);
+                    setObligacionesAlumno([]);
+                    setObligacionId('');
                     setActividadInscripcionId(''); setSesionId('');
                     setMostrarDropdownAlumnos(true);
                   }}
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box', outline: 'none' }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box' }}
                 />
 
                 {mostrarDropdownAlumnos && alumnosSugeridos.length > 0 && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                    zIndex: 20,
-                    maxHeight: '220px',
-                    overflowY: 'auto',
-                    marginTop: '4px'
-                  }}>
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', zIndex: 20, maxHeight: '220px', overflowY: 'auto', marginTop: '4px' }}>
                     {alumnosSugeridos.map(al => (
                       <div
                         key={al.id}
                         onClick={() => handleSeleccionarAlumno(al)}
                         style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
-                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
-                          {al.apellido}, {al.nombre}
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#64748b' }}>
-                          DNI: {al.dni} | Legajo: <strong>{al.legajo || 'Sin Legajo'}</strong>
-                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>{al.apellido}, {al.nombre}</div>
+                        <div style={{ fontSize: '13px', color: '#64748b' }}>DNI: {al.dni} | Legajo: <strong>{al.legajo || 'Sin Legajo'}</strong></div>
                       </div>
                     ))}
                   </div>
@@ -905,145 +715,113 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
               {alumnoSeleccionado && (
                 <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '14px', marginBottom: '22px' }}>
-                  <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Alumno Vinculado
-                  </span>
-                  <div style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: '4px 0 2px 0' }}>
-                    {alumnoSeleccionado.apellido}, {alumnoSeleccionado.nombre}
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#334155' }}>
-                    DNI: {alumnoSeleccionado.dni} | Legajo: {alumnoSeleccionado.legajo || 'S/L'} | Email: {alumnoSeleccionado.email || '—'}
-                  </div>
+                  <div style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a' }}>{alumnoSeleccionado.apellido}, {alumnoSeleccionado.nombre}</div>
+                  <div style={{ fontSize: '14px', color: '#334155' }}>DNI: {alumnoSeleccionado.dni} | Legajo: {alumnoSeleccionado.legajo || 'S/L'}</div>
                 </div>
               )}
 
-              <h2 style={{ margin: '24px 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <h2 style={{ margin: '24px 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase' }}>
                 2. Detalle del Cobro
               </h2>
 
               <div style={{ display: 'grid', gap: '12px', marginBottom: '18px' }}>
                 <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
+                  Obligación asociada
+                  <select
+                    value={obligacionId}
+                    disabled={!alumnoSeleccionado}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setObligacionId(id);
+                      const obligacion = obligacionesAlumno.find((item) => item.id === id);
+                      if (obligacion) setPrecioUnitario(Number(obligacion.saldo_pendiente));
+                    }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}
+                  >
+                    <option value="">Cobro sin obligación asociada</option>
+                    {obligacionesAlumno.map((obligacion) => (
+                      <option key={obligacion.id} value={obligacion.id}>
+                        {obligacion.concepto} · saldo ${Number(obligacion.saldo_pendiente).toLocaleString('es-AR')}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
                   Actividad que abona *
-                  <select value={actividadElegida?.sesiones[0].id || ''} disabled={!alumnoSeleccionado || cargandoActividades}
-                    onChange={(e) => { setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false); setModalidadCurso('Mes'); setPrecioUnitario(0); }}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}>
-                    <option value="">{cargandoActividades ? 'Cargando inscripciones...' : 'Seleccioná un curso o una clase particular'}</option>
+                  <select
+                    value={actividadElegida?.sesiones[0].id || ''}
+                    disabled={!alumnoSeleccionado || cargandoActividades}
+                    onChange={(e) => {
+                      setActividadInscripcionId(e.target.value);
+                      setSesionId('');
+                      setPeriodoAbonado('');
+                      const elegida = actividades.find((item) => item.sesiones.some((sesion) => sesion.id === e.target.value));
+                      setModalidadCurso(elegida?.modalidadCobro === 'Semana' ? 'Semana' : 'Mes');
+                      const obligacion = obligacionesAlumno.find((item) => item.id === obligacionId);
+                      setPrecioUnitario(obligacion ? Number(obligacion.saldo_pendiente) : Number(elegida?.precio || 0));
+                    }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}
+                  >
+                    <option value="">{cargandoActividades ? 'Cargando inscripciones...' : 'Seleccioná un curso o clase particular'}</option>
                     {actividades.map(a => <option key={a.clave} value={a.sesiones[0].id}>{a.nombre} · {a.materias.join(', ')} · {a.docente}</option>)}
                   </select>
                 </label>
-                {inscripcionesCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{inscripcionesCobro.error}</p>}
-                {alumnoSeleccionado && !cargandoActividades && !actividades.length && !inscripcionesCobro.error && <p style={{ color: '#64748b', margin: 0 }}>Este alumno no tiene inscripciones confirmadas disponibles para cobrar.</p>}
+
                 {actividadElegida && modalidad !== 'Clase' && (
                   <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Modalidad de cobro *
-                    <select value={modalidadCurso} onChange={e => { setModalidadCurso(e.target.value as 'Semana' | 'Mes'); setPeriodoAbonado(''); setSelectorMesAbierto(false); setPrecioUnitario(0); }}
+                    <select value={modalidadCurso} onChange={e => { setModalidadCurso(e.target.value as 'Semana' | 'Mes'); setPeriodoAbonado(''); setPrecioUnitario(0); }}
                       style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
                       <option value="Semana">Semana</option>
                       <option value="Mes">Mes</option>
                     </select>
                   </label>
                 )}
-                {actividadElegida && (modalidad === 'Clase' ? (
-                  <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Clase que abona *
-                    <select value={sesionId} onChange={e => setSesionId(e.target.value)} disabled={!actividadElegida}
-                      style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                      <option value="">Seleccioná una sesión</option>
-                      {actividadElegida?.sesiones.map(s => <option key={s.id} value={s.id}>{s.turnos_clase?.fecha} · {s.turnos_clase?.hora_inicio.slice(0,5)} a {s.turnos_clase?.hora_fin.slice(0,5)} · {s.turnos_clase?.materias?.nombre}</option>)}
-                    </select>
-                  </label>
-                ) : (
-                  <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>{modalidad === 'Semana' ? 'Semana abonada *' : 'Mes abonado *'}
-                    {modalidad === 'Semana' ? (
-                      <input type="week" value={periodoAbonado}
-                        onChange={e => setPeriodoAbonado(e.target.value)}
-                        style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
-                    ) : (
-                      <div style={{ position: 'relative', marginTop: '6px' }}>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <input type="text" required readOnly value={mesAbonadoVisible} placeholder="Seleccioná un mes y año"
-                            aria-label="Mes y año abonado" aria-haspopup="dialog" aria-expanded={selectorMesAbierto}
-                            onClick={abrirSelectorMes}
-                            style={{ flex: 1, minWidth: 0, width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box', background: '#fff', cursor: 'pointer' }} />
-                          <button type="button" onClick={abrirSelectorMes} aria-label="Abrir selector de meses" title="Abrir selector de meses" aria-haspopup="dialog" aria-expanded={selectorMesAbierto}
-                            style={{ width: 44, minWidth: 44, display: 'grid', placeItems: 'center', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#fff', color: '#31504f', cursor: 'pointer' }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <rect x="3" y="5" width="18" height="16" rx="2" />
-                              <path d="M16 3v4M8 3v4M3 10h18" />
-                            </svg>
-                          </button>
-                        </div>
-                        {selectorMesAbierto && (
-                          <div role="dialog" aria-label="Seleccionar mes abonado"
-                            style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 30, width: 'min(320px, 100%)', padding: 14, border: '1px solid #b8cbc7', borderRadius: 8, background: '#fff', boxShadow: '0 12px 28px rgba(18, 48, 45, .18)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                              <button type="button" onClick={() => setAnioSelectorMes(anio => anio - 1)} aria-label="Año anterior"
-                                style={{ width: 34, height: 34, border: '1px solid #d4e0dd', borderRadius: 5, background: '#f6faf8', color: '#31504f', fontSize: 20, cursor: 'pointer' }}>‹</button>
-                              <strong aria-live="polite" style={{ color: '#183238', fontSize: 16 }}>{anioSelectorMes}</strong>
-                              <button type="button" onClick={() => setAnioSelectorMes(anio => anio + 1)} aria-label="Año siguiente"
-                                style={{ width: 34, height: 34, border: '1px solid #d4e0dd', borderRadius: 5, background: '#f6faf8', color: '#31504f', fontSize: 20, cursor: 'pointer' }}>›</button>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
-                              {mesesDelAnio.map((mes, indice) => {
-                                const elegido = periodoAbonado === `${anioSelectorMes}-${String(indice + 1).padStart(2, '0')}`;
-                                return <button key={mes} type="button" aria-pressed={elegido} onClick={() => seleccionarMesAbonado(indice)}
-                                  style={{ minHeight: 40, padding: '6px 4px', border: elegido ? '1px solid #147d70' : '1px solid #d4e0dd', borderRadius: 5, background: elegido ? '#147d70' : '#f7faf9', color: elegido ? '#fff' : '#31504f', fontWeight: elegido ? 800 : 600, cursor: 'pointer', textTransform: 'capitalize' }}>
-                                  {mes}
-                                </button>;
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </label>
-                ))}
-                {actividadElegida && (periodoAbonado || sesionId) && datosCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{datosCobro.error}</p>}
-                {datosCobro.vinculo && <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '8px', color: '#1e3a8a', fontSize: '15px' }}>{datosCobro.vinculo.concepto}</div>}
               </div>
 
-              {datosCobro.vinculo && <div style={{ marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                  {modalidad === 'Semana' ? 'Precio de la semana ($)' : modalidad === 'Mes' ? 'Precio del mes ($)' : 'Precio de la clase ($)'} *
-                </label>
-                <input type="number" min="0.01" step="0.01" required value={precioUnitario || ''}
-                  onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                  onChange={e => setPrecioUnitario(Math.max(0, parseFloat(e.target.value) || 0))}
-                  placeholder={modalidad === 'Semana' ? 'Ingresá el importe de la semana seleccionada' : modalidad === 'Mes' ? 'Ingresá el importe del mes seleccionado' : 'Ingresá el importe de esta clase'}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '16px', boxSizing: 'border-box' }} />
-              </div>}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
-                <div>
+              {datosCobro.vinculo && (
+                <div style={{ marginBottom: '18px' }}>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    Fecha de Operación *
+                    Precio unitario ($) *
                   </label>
                   <input
-                    type="date"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
                     required
-                    min={fechaHoy}
-                    value={fechaCobro}
-                    onChange={(e) => setFechaCobro(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box' }}
+                    value={precioUnitario || ''}
+                    onChange={e => setPrecioUnitario(Math.max(0, parseFloat(e.target.value) || 0))}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '16px', boxSizing: 'border-box' }}
                   />
                 </div>
-              </div>
+              )}
 
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Fecha de Operación *</label>
+                <input
+                  type="date"
+                  required
+                  min={fechaHoy}
+                  value={fechaCobro}
+                  onChange={(e) => setFechaCobro(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box' }}
+                />
+              </div>
             </div>
 
             {/* PANEL DERECHO */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '28px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-              <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '28px' }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#0f172a', textTransform: 'uppercase' }}>
                 3. Forma de Cobro
               </h2>
 
               <form onSubmit={handleConfirmarCobro} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    Medio de Pago *
-                  </label>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Medio de Pago *</label>
                   <select
                     value={medioPago}
                     onChange={(e: any) => setMedioPago(e.target.value)}
-                    style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', backgroundColor: '#ffffff', fontWeight: 600, color: '#0f172a' }}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '15px', fontWeight: 600 }}
                   >
                     <option value="Efectivo">Efectivo</option>
                     <option value="Transferencia">Transferencia bancaria</option>
@@ -1055,55 +833,40 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
                 {medioPago === 'Efectivo' ? (
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                      Monto Recibido en Mano ($) *
-                    </label>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Monto Recibido ($) *</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       required
                       value={montoRecibido || ''}
-                      onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
                       onChange={(e) => setMontoRecibido(Math.max(0, parseFloat(e.target.value) || 0))}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '18px', fontWeight: 700, boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '18px', fontWeight: 700 }}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
-                      <span style={{ fontSize: '15px', fontWeight: 700, color: '#475569' }}>Vuelto a entregar:</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '15px', fontWeight: 700, color: '#475569' }}>Vuelto:</span>
                       <span style={{ fontSize: '19px', fontWeight: 800, color: vuelto > 0 ? '#15803d' : '#64748b' }}>
                         ${vuelto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>
-                ) : medioPago === 'Mercado Pago' ? (
-                  <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '16px', color: '#1e40af', fontSize: '14px' }}>
-                    <strong>Pasarela Mercado Pago:</strong> Al confirmar la operación, el sistema generará de forma automática la preferencia de cobro y dejará el registro en estado <strong>PENDIENTE</strong> hasta que la pasarela confirme el pago.
-                  </div>
                 ) : (
                   <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                      Nº de Referencia / Comprobante de Operación *
-                    </label>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Nº de Referencia *</label>
                     <input
                       type="text"
                       required
-                      placeholder="Ej: Op. #981240 / Lote 412"
+                      placeholder="Ej: Op. #981240"
                       value={nroReferencia}
                       onChange={(e) => setNroReferencia(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #cbd5e1', fontSize: '15px' }}
                     />
                   </div>
                 )}
 
                 <div style={{ padding: '14px 0', borderTop: '2px dashed #e2e8f0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#64748b', marginBottom: '6px' }}>
-                    <span>{modalidad === 'Semana' ? 'Importe de la semana:' : modalidad === 'Mes' ? 'Importe del mes:' : 'Importe de la clase:'}</span>
-                    <span>${totalACobrar.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
-                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase' }}>
-                      Total Operación:
-                    </span>
+                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>TOTAL:</span>
                     <span style={{ fontSize: '25px', fontWeight: 800, color: '#15803d' }}>
                       ${totalACobrar.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                     </span>
@@ -1112,73 +875,56 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
                 <button
                   type="submit"
-                  disabled={guardando || !alumnoSeleccionado || totalACobrar <= 0 || !datosCobro.vinculo}
-                  style={{
-                    width: '100%',
-                    padding: '13px',
-                    backgroundColor: (!alumnoSeleccionado || totalACobrar <= 0) ? '#94a3b8' : '#0b1e33',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    fontWeight: 700,
-                    cursor: (!alumnoSeleccionado || totalACobrar <= 0 || guardando) ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 6px -1px rgba(11,30,51,0.2)'
-                  }}
-                    >
-                  {guardando ? 'Generando Recibo...' : 'Confirmar Cobro y Generar Recibo'}
+                  disabled={guardando || !alumnoSeleccionado || totalACobrar <= 0}
+                  style={{ width: '100%', padding: '13px', backgroundColor: (!alumnoSeleccionado || totalACobrar <= 0) ? '#94a3b8' : '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {guardando ? 'Generando...' : 'Confirmar Cobro y Generar Recibo'}
                 </button>
               </form>
             </div>
-                  
           </div>
         </div>
       ) : (
         /* 2. HISTORIAL DE PAGOS */
         <div>
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <div>
-              <h1 style={{ margin: 0, color: '#0f172a', fontSize: '25px', fontWeight: 800, letterSpacing: '-0.025em' }}>
-                Gestión Inicial de Pagos y Cobros
-              </h1>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
+            <h1 style={{ margin: 0, color: '#0f172a', fontSize: '25px', fontWeight: 800 }}>Gestión Inicial de Pagos y Cobros</h1>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button
-                onClick={() => setVistaActual('caja')}
-                style={{ padding: '10px 14px', backgroundColor: '#e9f3f0', color: '#17675e', border: '1px solid #9cbab4', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
+                type="button"
+                onClick={() => setMostrarObligacion(true)}
+                style={{ padding: '10px 18px', backgroundColor: '#ffffff', color: '#0b1e33', border: '1px solid #0b1e33', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
               >
-                Cierre de caja
+                Registrar ajuste manual
               </button>
               <button
                 onClick={() => { limpiarFormulario(); setVistaActual('terminal'); }}
                 style={{ padding: '10px 18px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
               >
-                + Registrar Nuevo Cobro
+                Registrar nuevo cobro
               </button>
             </div>
           </header>
 
           {mensajeExito && (
-            <div style={{ padding: '12px 16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '7px', marginBottom: '16px', fontSize: '15px', fontWeight: 600 }}>
+            <div style={{ padding: '12px 16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '7px', marginBottom: '16px', fontWeight: 600 }}>
               {mensajeExito}
             </div>
           )}
 
-          {/* BARRA DE FILTROS Y ESTADOS */}
+          {/* FILTROS */}
           <div style={{ display: 'flex', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
             <input
               type="search"
               placeholder="Buscar por comprobante, concepto, alumno o legajo..."
               value={busqueda}
               onChange={(e) => { setBusqueda(e.target.value); setPaginaActual(1); }}
-              style={{ flex: 1, minWidth: '280px', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '15px', outline: 'none' }}
+              style={{ flex: 1, minWidth: '280px', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '15px' }}
             />
-
             <select
               value={filtroEstado}
               onChange={(e) => { setFiltroEstado(e.target.value); setPaginaActual(1); }}
-              style={{ padding: '0 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '15px', color: '#0f172a', fontWeight: 600 }}
+              style={{ padding: '0 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', fontWeight: 600 }}
             >
               <option value="todos">Todos los Estados</option>
               <option value="CONFIRMADO">Confirmados</option>
@@ -1186,64 +932,13 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
               <option value="RECHAZADO">Rechazados</option>
               <option value="BORRADOR">Pendientes (Borrador)</option>
               <option value="CANCELADO">Cancelados</option>
-              <option value="ANULADO">Anulados</option>
-            </select>
-
-            <select
-              value={filtroMedio}
-              onChange={(e) => { setFiltroMedio(e.target.value); setPaginaActual(1); }}
-              style={{ padding: '0 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '15px', color: '#0f172a', fontWeight: 600 }}
-            >
-              <option value="todos">Todos los medios de pago</option>
-              <option value="Efectivo">Efectivo</option>
-              <option value="Transferencia">Transferencia</option>
-              <option value="Tarjeta de Débito">Tarjeta de Débito</option>
-              <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
-              <option value="Mercado Pago">Mercado Pago</option>
             </select>
           </div>
 
-          <details style={{ marginBottom: '18px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff' }}>
-            <summary style={{ padding: '14px 16px', cursor: 'pointer', fontWeight: 700, color: '#0f172a' }}>
-              Deuda registrada por alumno · ${totalDeudaRegistrada.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-            </summary>
-            <div style={{ padding: '0 16px 16px' }}>
-              <p style={{ margin: '0 0 12px', color: '#64748b', fontSize: '13px' }}>
-                Suma cobros pendientes o rechazados; excluye borradores y operaciones canceladas. No incluye períodos sin un cobro registrado.
-              </p>
-              <div style={{ maxHeight: '320px', overflow: 'auto' }}>
-                <table style={{ width: '100%', minWidth: '620px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-                  <thead>
-                    <tr style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', color: '#334155' }}>
-                      <th style={{ padding: '9px 10px' }}>Alumno</th>
-                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>Cobrado</th>
-                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>Pendiente</th>
-                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>Rechazado</th>
-                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>Saldo adeudado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {saldosVisibles.length ? saldosVisibles.map(saldo => (
-                      <tr key={saldo.id} style={{ borderTop: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '9px 10px' }}>{saldo.apellido}, {saldo.nombre} · {saldo.legajo || 'Sin legajo'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'right' }}>${saldo.totalCobrado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'right', color: '#92400e' }}>${saldo.montoPendiente.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'right', color: '#991b1b' }}>${saldo.montoRechazado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 800, color: saldo.saldoAdeudado ? '#991b1b' : '#166534' }}>${saldo.saldoAdeudado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
-                      </tr>
-                    )) : (
-                      <tr><td colSpan={5} style={{ padding: '16px 10px', textAlign: 'center', color: '#64748b' }}>No hay saldos registrados para esta búsqueda.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </details>
-
-          <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+          <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff' }}>
             <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
               <thead>
-                <tr style={{ borderBottom: '1.5px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <tr style={{ borderBottom: '1.5px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13.5px', fontWeight: 800, textTransform: 'uppercase' }}>
                   <th style={{ padding: '14px 16px' }}>Comprobante</th>
                   <th style={{ padding: '14px 16px' }}>Fecha</th>
                   <th style={{ padding: '14px 16px' }}>Alumno / Legajo</th>
@@ -1256,84 +951,43 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>Cargando registros contables...</td>
-                  </tr>
+                  <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>Cargando registros contables...</td></tr>
                 ) : pagosPaginados.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>No se encontraron comprobantes registrados.</td>
-                  </tr>
+                  <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>No se encontraron comprobantes registrados.</td></tr>
                 ) : (
                   pagosPaginados.map((p) => {
                     const esBorrador = p.estado === 'BORRADOR';
                     const esCancelado = p.estado === 'CANCELADO' || p.estado === 'ANULADO';
                     const presentacionEstado = PRESENTACION_ESTADO[p.estado];
-                    const esNoAcreditado = p.estado === 'PENDIENTE' || p.estado === 'RECHAZADO';
 
                     return (
-                      <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: esBorrador || p.estado === 'PENDIENTE' ? '#fffbeb' : esCancelado || p.estado === 'RECHAZADO' ? '#fef2f2' : 'transparent', opacity: esCancelado ? 0.75 : 1 }}>
-                        <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{p.comprobante}</td>
+                      <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 700 }}>{p.comprobante}</td>
                         <td style={{ padding: '12px 16px', color: '#475569' }}>{p.fecha}</td>
                         <td style={{ padding: '12px 16px' }}>
-                          <strong style={{ color: '#0f172a', display: 'block' }}>{p.alumnos?.apellido}, {p.alumnos?.nombre}</strong>
-                          <span style={{ fontSize: '13px', color: '#64748b' }}>DNI: {p.alumnos?.dni || '—'} | Leg: {p.alumnos?.legajo || 'S/L'}</span>
+                          <strong style={{ display: 'block' }}>{p.alumnos?.apellido}, {p.alumnos?.nombre}</strong>
+                          <span style={{ fontSize: '13px', color: '#64748b' }}>Leg: {p.alumnos?.legajo || 'S/L'}</span>
                         </td>
                         <td style={{ padding: '12px 16px', color: '#334155' }}>{p.concepto}</td>
                         <td style={{ padding: '12px 16px', color: '#475569' }}>{p.medio_pago}</td>
-                        <td style={{ padding: '12px 16px', fontWeight: 700, color: esBorrador || p.estado === 'PENDIENTE' ? '#b45309' : esCancelado || p.estado === 'RECHAZADO' ? '#991b1b' : '#15803d', fontSize: '16px' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 700, color: '#15803d' }}>
                           ${Number(p.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                         </td>
                         <td style={{ padding: '12px 16px' }}>
-                          <span style={{
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            fontSize: '12.5px',
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            backgroundColor: presentacionEstado.fondo,
-                            color: presentacionEstado.color,
-                            border: `1px solid ${presentacionEstado.borde}`
-                          }}>
-                            <span aria-hidden="true">{presentacionEstado.icono}</span>
+                          <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '12.5px', fontWeight: 700, backgroundColor: presentacionEstado.fondo, color: presentacionEstado.color, border: `1px solid ${presentacionEstado.borde}` }}>
                             {esBorrador ? 'PENDIENTE (BORRADOR)' : p.estado}
                           </span>
                         </td>
                         <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                          <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
-                            {esBorrador ? (
-                              <>
-                                <button
-                                  onClick={() => handleReanudarBorrador(p)}
-                                  style={{ padding: '6px 10px', backgroundColor: '#2563eb', border: 'none', borderRadius: '5px', fontSize: '13px', fontWeight: 700, color: '#ffffff', cursor: 'pointer' }}
-                                >
-                                  Reanudar Cobro
-                                </button>
-                                <button
-                                  onClick={() => handleMarcarCancelado(p.id)}
-                                  style={{ padding: '6px 10px', backgroundColor: '#fff', border: '1px solid #fca5a5', borderRadius: '5px', fontSize: '13px', fontWeight: 700, color: '#dc2626', cursor: 'pointer' }}
-                                >
-                                  Cancelar
-                                </button>
-                              </>
-                            ) : esCancelado ? (
-                              <span title="Operación anulada e inmutable" style={{ fontSize: '15px', color: '#dc2626', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 8px' }}>
-                                ⊘ Cancelado
-                              </span>
-                            ) : esCancelado || esNoAcreditado ? (
-                              <span title={p.estado === 'RECHAZADO' ? 'El pago no fue acreditado' : p.estado === 'PENDIENTE' ? 'A la espera de acreditación' : 'Operación anulada e inmutable'} style={{ fontSize: '13px', color: presentacionEstado.color, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 8px' }}>
-                                <span aria-hidden="true">{presentacionEstado.icono}</span>{p.estado === 'CANCELADO' || p.estado === 'ANULADO' ? 'Cancelado' : p.estado}
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => setComprobanteSeleccionado(p)}
-                                style={{ padding: '6px 12px', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '5px', fontSize: '13px', fontWeight: 700, color: '#0b1e33', cursor: 'pointer' }}
-                              >
-                                Ver Recibo Oficial
-                              </button>
-                            )}
-                          </div>
+                          {esBorrador ? (
+                            <button onClick={() => handleReanudarBorrador(p)} style={{ padding: '6px 10px', backgroundColor: '#2563eb', border: 'none', borderRadius: '5px', color: '#ffffff', fontWeight: 700, cursor: 'pointer' }}>
+                              Reanudar Cobro
+                            </button>
+                          ) : !esCancelado && (
+                            <button onClick={() => setComprobanteSeleccionado(p)} style={{ padding: '6px 12px', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '5px', fontWeight: 700, cursor: 'pointer' }}>
+                              Ver Recibo Oficial
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1342,97 +996,20 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
               </tbody>
             </table>
           </div>
-
-          {/* BARRA DE PAGINACIÓN */}
-          {totalPaginas > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '14px', marginTop: '20px', paddingBottom: '20px' }}>
-              <button
-                onClick={() => setPaginaActual(p => Math.max(p - 1, 1))}
-                disabled={paginaActual === 1}
-                style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === 1 ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '14px', fontWeight: 700, cursor: paginaActual === 1 ? 'not-allowed' : 'pointer' }}
-              >
-                Anterior
-              </button>
-              <span style={{ fontSize: '15px', fontWeight: 600, color: '#334155' }}>
-                Página {paginaActual} de {totalPaginas}
-              </span>
-              <button
-                onClick={() => setPaginaActual(p => Math.min(p + 1, totalPaginas))}
-                disabled={paginaActual === totalPaginas}
-                style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #cbd5e1', backgroundColor: paginaActual === totalPaginas ? '#f1f5f9' : '#ffffff', color: '#0f172a', fontSize: '14px', fontWeight: 700, cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer' }}
-              >
-                Siguiente
-              </button>
-            </div>
-          )}
         </div>
       )}
 
-      {/* MODAL COBRO REGISTRADO CON ÉXITO */}
+      {/* MODAL PAGO CREADO */}
       {pagoRecienCreado && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 120, backgroundColor: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', width: '100%', maxWidth: '460px', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', padding: '36px 32px', textAlign: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)', border: '1px solid #e2e8f0' }}>
-            <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: pagoRecienCreado.estado === 'PENDIENTE' ? '#fffbeb' : '#f0fdf4', color: pagoRecienCreado.estado === 'PENDIENTE' ? '#b45309' : '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', border: `2px solid ${pagoRecienCreado.estado === 'PENDIENTE' ? '#fde68a' : '#bbf7d0'}`, fontSize: '30px', fontWeight: 800 }}>
-              {pagoRecienCreado.estado === 'PENDIENTE' ? '◷' : (
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-            </div>
-            
-            <h2 style={{ fontSize: '21px', fontWeight: 800, color: '#0f172a', margin: '0 0 6px 0' }}>
-              {pagoRecienCreado.estado === 'PENDIENTE' ? 'Pago pendiente de acreditación' : '¡Cobro registrado con éxito!'}
-            </h2>
-            <p style={{ fontSize: '15px', color: '#64748b', margin: '0 0 20px 0' }}>
-              {pagoRecienCreado.estado === 'PENDIENTE' ? 'Comprobante pendiente ' : 'Comprobante '}
-              <strong>{pagoRecienCreado.comprobante}</strong>
-              {pagoRecienCreado.estado === 'PENDIENTE' ? ' registrado en el sistema.' : ' generado en el sistema.'}
-            </p>
-
-            <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', marginBottom: '24px', textAlign: 'left', fontSize: '14.5px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#64748b' }}>DNI:</span>
-                <strong>{pagoRecienCreado.alumnos?.dni || '—'}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#64748b' }}>Legajo:</span>
-                <strong>{pagoRecienCreado.alumnos?.legajo || 'Sin Legajo'}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#64748b' }}>Alumno:</span>
-                <strong>{pagoRecienCreado.alumnos?.apellido}, {pagoRecienCreado.alumnos?.nombre}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '4px' }}>
-                <span style={{ color: '#0f172a', fontWeight: 700 }}>{pagoRecienCreado.estado === 'PENDIENTE' ? 'Importe de la operación:' : 'Total abonado:'}</span>
-                <strong style={{ color: '#15803d', fontSize: '16px' }}>${Number(pagoRecienCreado.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong>
-              </div>
-            </div>
-
+        <div style={{ position: 'fixed', inset: 0, zIndex: 120, backgroundColor: 'rgba(15,23,42,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', width: '100%', maxWidth: '460px', padding: '36px 32px', textAlign: 'center' }}>
+            <h2 style={{ fontSize: '21px', fontWeight: 800, margin: '0 0 6px 0' }}>¡Cobro registrado con éxito!</h2>
+            <p style={{ fontSize: '15px', color: '#64748b', margin: '0 0 20px 0' }}>Comprobante <strong>{pagoRecienCreado.comprobante}</strong> generado.</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {linkPagoMercadoPago && (
-                <a href={linkPagoMercadoPago} target="_blank" rel="noopener noreferrer" style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: '#ffffff', borderRadius: '8px', fontSize: '15px', fontWeight: 700, textDecoration: 'none', boxSizing: 'border-box' }}>
-                  Abrir Checkout de Mercado Pago
-                </a>
-              )}
-
-              {pagoRecienCreado.estado === 'CONFIRMADO' && (
-                <button
-                  onClick={() => handleDescargarPDF(pagoRecienCreado)}
-                  style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(37,99,235,0.2)' }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>Descargar PDF</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => { setPagoRecienCreado(null); setLinkPagoMercadoPago(null); }}
-                style={{ width: '100%', padding: '11px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
-              >
+              <button onClick={() => handleDescargarPDF(pagoRecienCreado)} style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
+                Descargar PDF
+              </button>
+              <button onClick={() => { setPagoRecienCreado(null); setLinkPagoMercadoPago(null); }} style={{ width: '100%', padding: '11px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>
                 Volver al Menú Principal
               </button>
             </div>
@@ -1440,99 +1017,25 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
         </div>
       )}
 
-      {/* MODAL DETALLE DE RECIBO OFICIAL (DESDE EL HISTORIAL) */}
+      {/* MODAL RECIBO OFICIAL */}
       {comprobanteSeleccionado && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 110, backgroundColor: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', width: '100%', maxWidth: '620px', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', padding: '36px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', border: '2px solid #0b1e33' }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0b1e33', paddingBottom: '16px', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img 
-                  src="/logo.png" 
-                  alt="Ateneo" 
-                  style={{ width: '52px', height: '52px', objectFit: 'contain' }} 
-                  onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }} 
-                />
-                <div>
-                  <div style={{ fontSize: '19px', fontWeight: 800, color: '#0b1e33', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                    INSTITUTO ATENEO
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#2563eb', fontWeight: 700 }}>CONOCIMIENTO SIN LÍMITES</div>
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase' }}>RECIBO OFICIAL DE COBRO</div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>{comprobanteSeleccionado.comprobante}</div>
-                <div style={{ fontSize: '13px', color: '#64748b' }}>Fecha: {comprobanteSeleccionado.fecha}</div>
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#f8fafc', border: '1.5px solid #0b1e33', borderRadius: '8px', padding: '14px 18px', marginBottom: '18px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '8px', fontSize: '14.5px' }}>
-                <div><span style={{ color: '#64748b' }}>Comprobante:</span> <strong>{comprobanteSeleccionado.comprobante}</strong></div>
-                <div><span style={{ color: '#64748b' }}>Fecha:</span> <strong>{comprobanteSeleccionado.fecha}</strong></div>
-                <div><span style={{ color: '#64748b' }}>DNI:</span> <strong>{comprobanteSeleccionado.alumnos?.dni || '—'}</strong></div>
-                <div><span style={{ color: '#64748b' }}>Legajo:</span> <strong>{comprobanteSeleccionado.alumnos?.legajo || 'Sin Legajo'}</strong></div>
-                <div><span style={{ color: '#64748b' }}>Alumno:</span> <strong>{comprobanteSeleccionado.alumnos?.apellido}, {comprobanteSeleccionado.alumnos?.nombre}</strong></div>
-                <div><span style={{ color: '#64748b' }}>Medio de Pago:</span> <strong>{comprobanteSeleccionado.medio_pago}</strong></div>
-              </div>
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginBottom: '20px', border: '1.5px solid #0b1e33' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#0b1e33', color: '#ffffff', fontSize: '13px', fontWeight: 700, textTransform: 'uppercase' }}>
-                  <th style={{ padding: '8px 12px' }}>CONCEPTO / DESCRIPCIÓN</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'center' }}>CANTIDAD</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>PRECIO UNITARIO</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>SUBTOTAL</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: '1px solid #e2e8f0', fontSize: '14.5px' }}>
-                  <td style={{ padding: '12px' }}>
-                    <strong>{comprobanteSeleccionado.concepto}</strong>
-                    {comprobanteSeleccionado.observaciones && <div style={{ fontSize: '13px', color: '#64748b' }}>{comprobanteSeleccionado.observaciones}</div>}
-                  </td>
-                  <td style={{ padding: '12px', textAlign: 'center' }}>{comprobanteSeleccionado.cantidad || 1}</td>
-                  <td style={{ padding: '12px', textAlign: 'right' }}>
-                    ${(Number(comprobanteSeleccionado.importe) / (comprobanteSeleccionado.cantidad || 1)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td style={{ padding: '12px', textAlign: 'right', fontWeight: 700 }}>
-                    ${Number(comprobanteSeleccionado.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', backgroundColor: '#f8fafc', padding: '14px 18px', borderRadius: '8px', border: '1.5px solid #0b1e33' }}>
-              <span style={{ fontSize: '16px', fontWeight: 800, color: '#0b1e33', textTransform: 'uppercase' }}>TOTAL COBRADO:</span>
-              <span style={{ fontSize: '23px', fontWeight: 800, color: '#15803d' }}>
-                ${Number(comprobanteSeleccionado.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-              <span style={{ fontSize: '13px', color: '#94a3b8' }}>Operación procesada en Mesa de Entrada</span>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  onClick={() => handleDescargarPDF(comprobanteSeleccionado)}
-                  style={{ padding: '9px 16px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Descargar PDF
-                </button>
-                <button
-                  onClick={() => setComprobanteSeleccionado(null)}
-                  style={{ padding: '9px 16px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Cerrar
-                </button>
-              </div>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 110, backgroundColor: 'rgba(15,23,42,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', width: '100%', maxWidth: '620px', padding: '36px', border: '2px solid #0b1e33' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0b1e33' }}>RECIBO OFICIAL: {comprobanteSeleccionado.comprobante}</h2>
+            <p style={{ fontSize: '15px', margin: '10px 0' }}><strong>Alumno:</strong> {comprobanteSeleccionado.alumnos?.apellido}, {comprobanteSeleccionado.alumnos?.nombre}</p>
+            <p style={{ fontSize: '15px', margin: '10px 0' }}><strong>Concepto:</strong> {comprobanteSeleccionado.concepto}</p>
+            <p style={{ fontSize: '18px', fontWeight: 800, color: '#15803d', margin: '15px 0' }}>Total: ${Number(comprobanteSeleccionado.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <button onClick={() => handleDescargarPDF(comprobanteSeleccionado)} style={{ padding: '9px 16px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}>
+                Descargar PDF
+              </button>
+              <button onClick={() => setComprobanteSeleccionado(null)} style={{ padding: '9px 16px', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: 700, cursor: 'pointer' }}>
+                Cerrar
+              </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
