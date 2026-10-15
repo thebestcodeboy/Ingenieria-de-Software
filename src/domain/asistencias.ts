@@ -1,6 +1,6 @@
 ﻿export const etiquetasAsistencia = { asistio: 'Asistió', falto: 'Faltó', cancelada: 'Clase cancelada', sin_registrar: 'Sin registrar' };
 export type EstadoAsistencia = keyof typeof etiquetasAsistencia;
-export type VersionAsistencia = { id: string; version: number; estado: EstadoAsistencia; nota: string | null; observacion: string | null; motivo: string | null; autor_id: string; cargado_en: string };
+export type VersionAsistencia = { id: string; version: number; estado: EstadoAsistencia; nota: string | null; observacion: string | null; motivo: string | null; autor_id: string; autor_nombre?: string | null; cargado_en: string };
 export type FilaAsistencia = { inscripcion_id: string; turno_id: string; alumno_id: string; alumno: string; inscripcion_estado: string; fecha: string; hora_inicio: string | null; materia_id: string; materia: string; actividad: string; editable: boolean; cancelada: boolean; versiones: VersionAsistencia[] };
 export function estadoVigente(fila: FilaAsistencia): EstadoAsistencia { return fila.versiones[0]?.estado ?? (fila.cancelada ? 'cancelada' : 'sin_registrar'); }
 export function filtrarAsistencias(filas: FilaAsistencia[], filtros: { alumno?: string; materia?: string; desde?: string; hasta?: string; estado?: string; turno?: string }) {

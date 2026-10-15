@@ -26,3 +26,9 @@ Si el menú muestra Mesa de Entrada pero `raw_app_meta_data` no contiene su rol,
 4. Antes de habilitar la cuenta debe mostrarse el error de permisos. Después, probar guardado y correcciones. Comprobar que alumno y profesor conservan su alcance y no acceden a la función interna.
 
 La consulta en SQL Editor sin simular una sesión autenticada no representa los permisos del usuario del portal.
+
+## Nombre del autor en el historial
+
+Aplicar `20261014200000_hu26_nombre_autor.sql` después de las migraciones HU26 anteriores. La consulta agrega `autor_nombre` desde los metadatos de la cuenta (`nombre`, `full_name` o `name`) y conserva `autor_id`. No devuelve emails ni habilita acceso a `auth.users` desde el navegador.
+
+Recargar la bitácora y abrir el historial de un registro existente: debe mostrar el nombre disponible y el ID de cuenta debajo. Si la cuenta no tiene nombre, indica “Nombre no disponible”; completar el nombre de esa cuenta en Supabase para que se muestre. El nombre se resuelve al consultar y puede cambiar con el perfil; la identidad persistida de cada versión sigue siendo el ID autenticado. No se modifica ningún registro histórico.
