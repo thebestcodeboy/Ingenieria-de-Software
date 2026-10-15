@@ -52,6 +52,9 @@ export async function getCursosIngreso() {
       activo,
       fecha_inicio,
       fecha_fin,
+      precio,
+      modalidad_cobro,
+      plazo_vencimiento_dias,
       curso_ingreso_materias (
         materia_id,
         materias (
@@ -67,7 +70,13 @@ export async function getCursosIngreso() {
     console.error('Error al obtener cursos de ingreso:', error);
     throw error;
   }
-  return data || [];
+  return (data || []).map(curso => ({
+    ...curso,
+    curso_ingreso_materias: (curso.curso_ingreso_materias || []).map(relacion => ({
+      ...relacion,
+      materias: Array.isArray(relacion.materias) ? relacion.materias[0] ?? null : relacion.materias,
+    })),
+  }));
 }
 
 export async function getMateriasDisponibles() {
@@ -84,7 +93,7 @@ export async function getMateriasDisponibles() {
   return data || [];
 }
 
-export async function createCursoIngreso({ nombre, descripcion, fechaInicio, fechaFin, materiasIds }) {
+export async function createCursoIngreso({ nombre, descripcion, fechaInicio, fechaFin, materiasIds, precio, modalidadCobro, plazoVencimientoDias }) {
   await asegurarPermisoAdministrativo();
 
   const cleanNombre = nombre?.trim();
@@ -104,6 +113,9 @@ export async function createCursoIngreso({ nombre, descripcion, fechaInicio, fec
         descripcion: descripcion?.trim() || null,
         fecha_inicio: fechaInicio || null,
         fecha_fin: fechaFin || null,
+        precio: Number(precio),
+        modalidad_cobro: modalidadCobro,
+        plazo_vencimiento_dias: Number(plazoVencimientoDias),
         activo: true
       }
     ])
@@ -136,7 +148,7 @@ export async function createCursoIngreso({ nombre, descripcion, fechaInicio, fec
   return cursoCreado;
 }
 
-export async function updateCursoIngreso(id, { nombre, descripcion, fechaInicio, fechaFin, activo, materiasIds }) {
+export async function updateCursoIngreso(id, { nombre, descripcion, fechaInicio, fechaFin, activo, materiasIds, precio, modalidadCobro, plazoVencimientoDias }) {
   await asegurarPermisoAdministrativo();
 
   const cleanNombre = nombre?.trim();
@@ -149,6 +161,9 @@ export async function updateCursoIngreso(id, { nombre, descripcion, fechaInicio,
     descripcion: descripcion?.trim() || null,
     fecha_inicio: fechaInicio || null,
     fecha_fin: fechaFin || null,
+    precio: Number(precio),
+    modalidad_cobro: modalidadCobro,
+    plazo_vencimiento_dias: Number(plazoVencimientoDias),
     activo: Boolean(activo)
   };
 

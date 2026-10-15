@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { listarPagos, generarNumeroComprobante, listarInscripcionesCobro } from '../services/pagos';
+import { listarPagos, generarNumeroComprobante, listarInscripcionesCobro, listarObligacionesAlumno, type ObligacionPago } from '../services/pagos';
+import RegistrarObligacionModal from './RegistrarObligacionModal';
 import CierreCajaModule from './CierreCajaModule';
 
 import { agruparActividadesCobro, calcularSaldosPorAlumno, construirVinculoPago, fechaASemanaIso, type InscripcionCobro, type ModalidadPago, type VinculoPago } from '../domain/pagoAcademico';
 
 export interface PagoConDetalle {
+  obligacion_id?: string | null;
   inscripcion_id?: string | null;
   periodo_desde?: string | null;
   periodo_hasta?: string | null;
@@ -137,6 +139,9 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
   const [pagoRecienCreado, setPagoRecienCreado] = useState<PagoConDetalle | null>(null);
   const [linkPagoMercadoPago, setLinkPagoMercadoPago] = useState<string | null>(null);
   const [comprobanteSeleccionado, setComprobanteSeleccionado] = useState<PagoConDetalle | null>(null);
+  const [mostrarObligacion, setMostrarObligacion] = useState(false);
+  const [obligacionesAlumno, setObligacionesAlumno] = useState<ObligacionPago[]>([]);
+  const [obligacionId, setObligacionId] = useState('');
 
   // Feedback
   const [mensajeExito, setMensajeExito] = useState('');
@@ -161,6 +166,15 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  useEffect(() => {
+    if (!alumnoCobroId) return;
+    let vigente = true;
+    listarObligacionesAlumno(alumnoCobroId)
+      .then((filas) => { if (vigente) setObligacionesAlumno(filas); })
+      .catch((err: unknown) => { if (vigente) setErrorMsg(err instanceof Error ? err.message : 'No se pudieron cargar las obligaciones.'); });
+    return () => { vigente = false; };
+  }, [alumnoCobroId]);
 
   const totalACobrar = useMemo(() => {
     const unit = Math.max(0, precioUnitario || 0);
@@ -226,6 +240,8 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
   const handleSeleccionarAlumno = (al: any) => {
     setAlumnoSeleccionado(al);
     setModalidadCurso('Mes');
+    setObligacionesAlumno([]);
+    setObligacionId('');
     setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false); setErrorMsg('');
     setTextoBusquedaAlumno(`${al.apellido}, ${al.nombre} (${al.legajo || 'Sin Legajo'}) - DNI: ${al.dni}`);
     setMostrarDropdownAlumnos(false);
@@ -236,6 +252,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
     setAlumnoSeleccionado(null);
     setTextoBusquedaAlumno('');
     setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false);
+    setObligacionId('');
     setModalidadCurso('Mes');
     setPrecioUnitario(0);
     setMontoRecibido(0);
@@ -246,6 +263,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
   const handleReanudarBorrador = (p: PagoConDetalle) => {
     setPagoBorradorId(p.id);
+    setObligacionId(p.obligacion_id || '');
     if (p.alumnos) {
       setAlumnoSeleccionado(p.alumnos);
       setTextoBusquedaAlumno(`${p.alumnos.apellido}, ${p.alumnos.nombre} (${p.alumnos.legajo || 'Sin Legajo'}) - DNI: ${p.alumnos.dni}`);
@@ -304,6 +322,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           .from('pagos')
           .update({
             alumno_id: alumnoSeleccionado.id,
+            obligacion_id: obligacionId || null,
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
@@ -324,6 +343,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           .insert([{
             comprobante: nuevoComp,
             alumno_id: alumnoSeleccionado.id,
+            obligacion_id: obligacionId || null,
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
@@ -418,6 +438,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           .from('pagos')
           .update({
             alumno_id: alumnoSeleccionado.id,
+            obligacion_id: obligacionId || null,
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
@@ -441,6 +462,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           .insert([{
             comprobante: nuevoComp ?? await generarNumeroComprobante(),
             alumno_id: alumnoSeleccionado.id,
+            obligacion_id: obligacionId || null,
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
@@ -771,6 +793,17 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }}>
+      {mostrarObligacion && (
+        <RegistrarObligacionModal
+          alumnos={alumnos}
+          onClose={() => setMostrarObligacion(false)}
+          onSuccess={() => {
+            setMostrarObligacion(false);
+            setMensajeExito('Obligación registrada correctamente.');
+            setTimeout(() => setMensajeExito(''), 3500);
+          }}
+        />
+      )}
       
       {/* 1. TERMINAL DE FACTURACIÓN Y COBRO */}
       {vistaActual === 'terminal' ? (
@@ -862,6 +895,8 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                   onChange={(e) => {
                     setTextoBusquedaAlumno(e.target.value);
                     setAlumnoSeleccionado(null);
+                    setObligacionesAlumno([]);
+                    setObligacionId('');
                     setActividadInscripcionId(''); setSesionId('');
                     setMostrarDropdownAlumnos(true);
                   }}
@@ -923,9 +958,36 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
               <div style={{ display: 'grid', gap: '12px', marginBottom: '18px' }}>
                 <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
+                  Obligación asociada
+                  <select
+                    value={obligacionId}
+                    disabled={!alumnoSeleccionado}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setObligacionId(id);
+                      const obligacion = obligacionesAlumno.find((item) => item.id === id);
+                      if (obligacion) setPrecioUnitario(Number(obligacion.saldo_pendiente));
+                    }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}
+                  >
+                    <option value="">Cobro sin obligación asociada</option>
+                    {obligacionesAlumno.map((obligacion) => (
+                      <option key={obligacion.id} value={obligacion.id}>
+                        {obligacion.concepto} · saldo ${Number(obligacion.saldo_pendiente).toLocaleString('es-AR')}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
                   Actividad que abona *
                   <select value={actividadElegida?.sesiones[0].id || ''} disabled={!alumnoSeleccionado || cargandoActividades}
-                    onChange={(e) => { setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false); setModalidadCurso('Mes'); setPrecioUnitario(0); }}
+                    onChange={(e) => {
+                      setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false);
+                      const elegida = actividades.find((item) => item.sesiones.some((sesion) => sesion.id === e.target.value));
+                      setModalidadCurso(elegida?.modalidadCobro === 'Semana' ? 'Semana' : 'Mes');
+                      const obligacion = obligacionesAlumno.find((item) => item.id === obligacionId);
+                      setPrecioUnitario(obligacion ? Number(obligacion.saldo_pendiente) : Number(elegida?.precio || 0));
+                    }}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}>
                     <option value="">{cargandoActividades ? 'Cargando inscripciones...' : 'Seleccioná un curso o una clase particular'}</option>
                     {actividades.map(a => <option key={a.clave} value={a.sesiones[0].id}>{a.nombre} · {a.materias.join(', ')} · {a.docente}</option>)}
@@ -1151,6 +1213,13 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                 Cierre de caja
               </button>
               <button
+                type="button"
+                onClick={() => setMostrarObligacion(true)}
+                style={{ padding: '10px 18px', backgroundColor: '#ffffff', color: '#0b1e33', border: '1px solid #0b1e33', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Registrar ajuste manual
+              </button>
+              <button
                 onClick={() => { limpiarFormulario(); setVistaActual('terminal'); }}
                 style={{ padding: '10px 18px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
               >
@@ -1205,7 +1274,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
           <details style={{ marginBottom: '18px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff' }}>
             <summary style={{ padding: '14px 16px', cursor: 'pointer', fontWeight: 700, color: '#0f172a' }}>
-              Deuda registrada por alumno · ${totalDeudaRegistrada.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+              Operaciones no acreditadas por alumno · ${totalDeudaRegistrada.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
             </summary>
             <div style={{ padding: '0 16px 16px' }}>
               <p style={{ margin: '0 0 12px', color: '#64748b', fontSize: '13px' }}>
@@ -1219,7 +1288,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                       <th style={{ padding: '9px 10px', textAlign: 'right' }}>Cobrado</th>
                       <th style={{ padding: '9px 10px', textAlign: 'right' }}>Pendiente</th>
                       <th style={{ padding: '9px 10px', textAlign: 'right' }}>Rechazado</th>
-                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>Saldo adeudado</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'right' }}>No acreditado</th>
                     </tr>
                   </thead>
                   <tbody>

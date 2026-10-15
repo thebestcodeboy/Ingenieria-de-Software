@@ -1,5 +1,6 @@
 'use client';
 
+import AsistenciasModule from './AsistenciasModule';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cancelarTurnoProfesor, listarCalendarioProfesorAvanzado, type TurnoAvanzadoProfesor } from '@/services/profesorPortal';
 import styles from './ProfesorCalendarioAvanzado.module.css';
@@ -102,6 +103,7 @@ export default function ProfesorCalendarioPlaceholder() {
         <div className={styles.dialogHead}><div><span className={styles.eyebrow}>Detalle de la clase</span><h2 id="detalle-clase">{seleccionado.materia_nombre}</h2></div><button type="button" aria-label="Cerrar detalle" onClick={()=>setSeleccionado(null)}>×</button></div>
         <p>{seleccionado.actividad_nombre}</p>
         <dl className={styles.details}><dt>Fecha</dt><dd>{fechaLegible(seleccionado.fecha)}</dd><dt>Horario</dt><dd>{hora(seleccionado.hora_inicio)} – {hora(seleccionado.hora_fin)}</dd><dt>Aula</dt><dd>{seleccionado.aula_numero??'Sin asignar'}</dd><dt>Estado</dt><dd>{etiquetas[estado(seleccionado,ahora)]}{seleccionado.reprogramado?' · Reprogramada':''}</dd><dt>Cupo</dt><dd>{seleccionado.cupo_maximo??'Sin definir'}</dd></dl>
+        <details><summary>Asistencias de esta clase</summary><AsistenciasModule key={seleccionado.turno_id} turnoId={seleccionado.turno_id} /></details>
         <h3>Alumnos inscriptos ({seleccionado.alumnos.length})</h3>
         {seleccionado.alumnos.length?<ul className={styles.roster}>{seleccionado.alumnos.map(a=><li key={a.id}><span>{a.apellido}, {a.nombre}</span><small>{a.estado==='en_espera'?'En espera':'Confirmado'}</small></li>)}</ul>:<p className={styles.muted}>Todavía no hay alumnos inscriptos.</p>}
         <div className={styles.dialogActions}>{!seleccionado.cancelado&&seleccionado.fecha>=hoy&&<button type="button" className={styles.danger} disabled={cancelando} onClick={()=>void cancelar()}>{cancelando?'Cancelando…':'Cancelar clase'}</button>}<button type="button" onClick={()=>setSeleccionado(null)}>Cerrar</button></div>

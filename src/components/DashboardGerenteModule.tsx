@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { ResumenGerencial } from '../domain/dashboardGerente';
 import { getDashboardGerenteSummary } from '../services/dashboardGerente';
+import IndicadoresFinancierosModule from './IndicadoresFinancierosModule';
 
 const VACIO: ResumenGerencial = {
   inscripcionesMesActual: 0,
@@ -33,6 +34,7 @@ export default function DashboardGerenteModule() {
   const [actualizando, setActualizando] = useState(false);
   const [error, setError] = useState('');
   const [actualizado, setActualizado] = useState<Date | null>(null);
+  const [vista, setVista] = useState<'economicos' | 'academicos'>('economicos');
 
   const cargar = useCallback(async (esActualizacion = false) => {
     if (esActualizacion) setActualizando(true);
@@ -106,6 +108,14 @@ export default function DashboardGerenteModule() {
         </button>
       </header>
 
+      <nav aria-label="Tipos de indicadores" style={styles.selectorVista}>
+        <button type="button" onClick={() => setVista('economicos')} aria-pressed={vista === 'economicos'} style={{ ...styles.botonVista, ...(vista === 'economicos' ? styles.botonVistaActivo : {}) }}>Económicos</button>
+        <button type="button" onClick={() => setVista('academicos')} aria-pressed={vista === 'academicos'} style={{ ...styles.botonVista, ...(vista === 'academicos' ? styles.botonVistaActivo : {}) }}>Académicos</button>
+      </nav>
+
+      {vista === 'economicos' && <IndicadoresFinancierosModule />}
+
+      {vista === 'academicos' && <>
       {error && (
         <div role="alert" style={styles.avisoError}>
           <span>{error} Se conservan los últimos datos cargados.</span>
@@ -165,6 +175,7 @@ export default function DashboardGerenteModule() {
           </div>
         </>
       )}
+      </>}
     </section>
   );
 }
@@ -243,6 +254,9 @@ const styles: Record<string, CSSProperties> = {
   estadoCentral: { minHeight: '280px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px', padding: '40px', border: '1px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#fff', textAlign: 'center' },
   restringido: { padding: '32px', border: '1px solid #fca5a5', borderRadius: '8px', backgroundColor: '#fee2e2', color: '#991b1b', textAlign: 'center', fontSize: '16px', fontWeight: 600 },
   spinner: { width: '28px', height: '28px', border: '3px solid #ede9fe', borderTopColor: '#7c3aed', borderRadius: '50%' },
+  selectorVista: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(140px, 1fr))', gap: '6px', marginBottom: '20px', padding: '5px', border: '1px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#f8fafc' },
+  botonVista: { padding: '11px 16px', border: 0, borderRadius: '7px', backgroundColor: 'transparent', color: '#475569', fontWeight: 700, cursor: 'pointer' },
+  botonVistaActivo: { backgroundColor: '#0b1e33', color: '#fff', boxShadow: '0 1px 3px rgba(15, 23, 42, .18)' },
   grillaTarjetas: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '16px' },
   grillaPaneles: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' },
   tarjeta: { display: 'flex', gap: '14px', minHeight: '118px', padding: '20px', border: '1.5px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#fff', boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)', boxSizing: 'border-box' },

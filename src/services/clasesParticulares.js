@@ -13,14 +13,14 @@ export const obtenerMaterias = async () => {
 export const obtenerClasesParticulares = async () => {
   const { data, error } = await supabase
     .from('clases_particulares')
-    .select('id, nombre, materia_id, nivel, activo, created_at, materias ( id, nombre )')
+    .select('id, nombre, materia_id, nivel, activo, precio, plazo_vencimiento_dias, created_at, materias ( id, nombre )')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data || [];
 };
 
-export const registrarClaseParticular = async ({ nombre, materiaId, nivel }) => {
+export const registrarClaseParticular = async ({ nombre, materiaId, nivel, precio, plazoVencimientoDias }) => {
   const limpio = nombre.trim().replace(/\s+/g, ' ');
 
   if (!limpio || limpio.length < 4) {
@@ -37,16 +37,18 @@ export const registrarClaseParticular = async ({ nombre, materiaId, nivel }) => 
       nombre: limpio.toUpperCase(),
       materia_id: materiaId,
       nivel: nivel.toLowerCase(),
+      precio: Number(precio),
+      plazo_vencimiento_dias: Number(plazoVencimientoDias),
       activo: true
     })
-    .select('id, nombre, materia_id, nivel, activo, created_at, materias ( id, nombre )')
+    .select('id, nombre, materia_id, nivel, activo, precio, plazo_vencimiento_dias, created_at, materias ( id, nombre )')
     .single();
 
   if (error) throw error;
   return data;
 };
 
-export const actualizarClaseParticular = async (id, { nombre, materiaId, nivel, activo }) => {
+export const actualizarClaseParticular = async (id, { nombre, materiaId, nivel, activo, precio, plazoVencimientoDias }) => {
   const limpio = nombre.trim().replace(/\s+/g, ' ');
 
   if (!limpio || limpio.length < 4) {
@@ -63,10 +65,12 @@ export const actualizarClaseParticular = async (id, { nombre, materiaId, nivel, 
       nombre: limpio.toUpperCase(),
       materia_id: materiaId,
       nivel: nivel.toLowerCase(),
+      precio: Number(precio),
+      plazo_vencimiento_dias: Number(plazoVencimientoDias),
       activo: activo
     })
     .eq('id', id)
-    .select('id, nombre, materia_id, nivel, activo, created_at, materias ( id, nombre )')
+    .select('id, nombre, materia_id, nivel, activo, precio, plazo_vencimiento_dias, created_at, materias ( id, nombre )')
     .single();
 
   if (error) throw error;

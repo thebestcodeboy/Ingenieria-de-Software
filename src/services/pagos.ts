@@ -2,6 +2,7 @@ import type { InscripcionCobro, ModalidadPago, VinculoPago } from '../domain/pag
 import { supabase } from '../lib/supabaseClient';
 
 export interface Pago {
+  obligacion_id?: string | null;
   inscripcion_id?: string | null;
   periodo_desde?: string | null;
   periodo_hasta?: string | null;
@@ -30,6 +31,7 @@ export interface Pago {
 }
 
 export interface FormNuevoPago extends VinculoPago {
+  obligacion_id?: string | null;
   alumno_id: string;
   modalidad?: ModalidadPago;
   concepto: string;
@@ -37,6 +39,47 @@ export interface FormNuevoPago extends VinculoPago {
   medio_pago: string;
   fecha: string;
   observaciones?: string;
+}
+
+export interface ObligacionPago {
+  id: string;
+  alumno_id: string;
+  inscripcion_id?: string | null;
+  curso_id?: string | null;
+  materia_id?: string | null;
+  periodo_desde?: string | null;
+  periodo_hasta?: string | null;
+  actividad_nombre: string;
+  concepto: string;
+  importe_original: number;
+  saldo_pendiente: number;
+  fecha_emision: string;
+  fecha_vencimiento: string;
+  estado: 'PENDIENTE' | 'PARCIAL' | 'PAGADA' | 'ANULADA';
+}
+
+export type NuevaObligacionPago = Omit<ObligacionPago, 'id' | 'saldo_pendiente' | 'estado'>;
+
+export async function listarObligacionesAlumno(alumnoId: string): Promise<ObligacionPago[]> {
+  const { data, error } = await supabase
+    .from('obligaciones_pago')
+    .select('id, alumno_id, inscripcion_id, curso_id, materia_id, periodo_desde, periodo_hasta, actividad_nombre, concepto, importe_original, saldo_pendiente, fecha_emision, fecha_vencimiento, estado')
+    .eq('alumno_id', alumnoId)
+    .in('estado', ['PENDIENTE', 'PARCIAL'])
+    .gt('saldo_pendiente', 0)
+    .order('fecha_vencimiento', { ascending: true });
+  if (error) throw new Error(`No se pudieron consultar las obligaciones: ${error.message}`);
+  return (data ?? []) as ObligacionPago[];
+}
+
+export async function registrarObligacionPago(nueva: NuevaObligacionPago): Promise<ObligacionPago> {
+  const { data, error } = await supabase
+    .from('obligaciones_pago')
+    .insert([{ ...nueva, saldo_pendiente: nueva.importe_original, estado: 'PENDIENTE' }])
+    .select('id, alumno_id, inscripcion_id, curso_id, materia_id, periodo_desde, periodo_hasta, actividad_nombre, concepto, importe_original, saldo_pendiente, fecha_emision, fecha_vencimiento, estado')
+    .single();
+  if (error) throw new Error(`No se pudo registrar la obligación: ${error.message}`);
+  return data as ObligacionPago;
 }
 
 // Genera un comprobante secuencial: REC-2026-0001
@@ -87,6 +130,7 @@ export async function registrarPago(form: FormNuevoPago): Promise<Pago> {
   const comprobante = await generarNumeroComprobante();
 
   const payload = {
+    obligacion_id: form.obligacion_id || null,
     comprobante,
     alumno_id: form.alumno_id,
     inscripcion_id: form.inscripcion_id,
@@ -123,7 +167,7 @@ export async function anularPago(pagoId: string): Promise<void> {
 
 export async function listarInscripcionesCobro(alumnoId: string): Promise<InscripcionCobro[]> {
   const { data, error } = await supabase.from('inscripciones')
-    .select('id, estado, turnos_clase(id, fecha, hora_inicio, hora_fin, curso_id, clase_particular_id, materia_id, profesor_id, estado, cancelado, materias(nombre), cursos_ingreso(nombre), clases_particulares(nombre), profesores(nombre, apellido))')
+    .select('id, estado, turnos_clase(id, fecha, hora_inicio, hora_fin, curso_id, clase_particular_id, materia_id, profesor_id, estado, cancelado, materias(nombre), cursos_ingreso(nombre, precio, modalidad_cobro), clases_particulares(nombre, precio), profesores(nombre, apellido))')
     .eq('alumno_id', alumnoId).eq('estado', 'confirmado');
   if (error) throw new Error('No se pudieron consultar las inscripciones del alumno: ' + error.message);
   return (data ?? []) as unknown as InscripcionCobro[];

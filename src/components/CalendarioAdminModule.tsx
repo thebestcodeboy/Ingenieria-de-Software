@@ -1,5 +1,6 @@
 'use client';
 
+import AsistenciasModule from './AsistenciasModule';
 import React, { useState, useEffect, useMemo } from 'react';
 import { getCalendarioAdmin, getInscriptosTurno } from '../services/calendarioAdmin';
 import { eventoEnFecha } from '../domain/calendario';
@@ -475,6 +476,7 @@ export default function CalendarioAdminModule() {
               </button>
             </div>
 
+            <details><summary>Asistencias de esta clase</summary><AsistenciasModule key={String(turnoSeleccionado.turno_id ?? turnoSeleccionado.id)} turnoId={String(turnoSeleccionado.turno_id ?? turnoSeleccionado.id)}/></details>
             <div style={{ backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', borderRadius: '8px', padding: '14px 16px', marginBottom: '18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px' }}>
               <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>FECHA Y HORA:</span><br/><strong>{turnoSeleccionado.fecha || `Recurrente (${turnoSeleccionado.dia_semana})`} ({turnoSeleccionado.hora_inicio?.slice(0, 5)} a {turnoSeleccionado.hora_fin?.slice(0, 5)} hs)</strong></div>
               <div><span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700 }}>AULA:</span><br/><strong>Aula {turnoSeleccionado.aula_numero || 'Sin asignar'}</strong></div>

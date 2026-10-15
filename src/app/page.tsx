@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import AsistenciasModule from '../components/AsistenciasModule';
 import LoginView from '../components/LoginView';
 import AlumnosModule from '../components/AlumnosModule';
 import ProfesoresModule from '../components/ProfesoresModule';
@@ -122,6 +123,7 @@ const Icons = {
 
 // Mesa de Entrada: gestión operativa (SIN Reportes)
 const MESA_ENTRADA_MENU_ITEMS = [
+  { id: 'asistencias', label: 'Asistencias', Icon: Icons.Inscripciones },
   { id: 'inicio', label: 'Inicio', Icon: Icons.Inicio },
   { id: 'alumnos', label: 'Alumnos', Icon: Icons.Alumnos },
   { id: 'profesores', label: 'Profesores', Icon: Icons.Profesores },
@@ -146,9 +148,11 @@ const ALUMNO_MENU_ITEMS = [
   { id: 'cursos', label: 'Inscribirme', Icon: Icons.Inscripciones },
   { id: 'pagos', label: 'Mis pagos', Icon: Icons.Pagos },
   { id: 'bitacora', label: 'Bitácora', Icon: Icons.Particulares },
+  { id: 'asistencias', label: 'Mis asistencias', Icon: Icons.Inscripciones },
 ];
 
 const PROFESOR_MENU_ITEMS = [
+  { id: 'asistencias', label: 'Asistencias', Icon: Icons.Inscripciones },
   { id: 'calendario', label: 'Mis clases', Icon: Icons.Calendario },
   { id: 'cursos-docente', label: 'Mis cursos', Icon: Icons.Cursos },
 ];
@@ -325,7 +329,7 @@ export default function AteneoLayout() {
 
       {/* CONTENIDO PRINCIPAL */}
       <main style={{ minWidth: 0, flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
-        {role === 'profesor' ? (
+        {activeTabForRole === 'asistencias' ? <AsistenciasModule /> : role === 'profesor' ? (
           activeTabForRole === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder />
         ) : role === 'alumno' ? (
           <PortalAlumnoModule activeTab={activeTabForRole} />
