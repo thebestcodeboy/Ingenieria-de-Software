@@ -1213,13 +1213,6 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                 Cierre de caja
               </button>
               <button
-                type="button"
-                onClick={() => setMostrarObligacion(true)}
-                style={{ padding: '10px 18px', backgroundColor: '#ffffff', color: '#0b1e33', border: '1px solid #0b1e33', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
-              >
-                Registrar ajuste manual
-              </button>
-              <button
                 onClick={() => { limpiarFormulario(); setVistaActual('terminal'); }}
                 style={{ padding: '10px 18px', backgroundColor: '#0b1e33', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}
               >
