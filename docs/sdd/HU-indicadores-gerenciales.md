@@ -17,7 +17,7 @@
 
 ## Alcance
 
-Incluye nuevas inscripciones del mes, comparacion con el mes anterior, ocupacion de cursos, cursos con mayor y menor demanda, promedio semanal de clases, actualizacion manual y estados de carga, vacio y error.
+Incluye nuevas inscripciones del mes, comparacion con el mes anterior, ocupacion de cursos de ingreso, demanda de cursos de ingreso y clases particulares, promedio semanal de clases, actualizacion manual y estados de carga, vacio y error.
 
 No incluye exportacion, filtros de fechas, proyecciones, indicadores economicos ni modificacion de datos.
 
@@ -29,10 +29,10 @@ No incluye exportacion, filtros de fechas, proyecciones, indicadores economicos 
 | RN-GER-02 | Una inscripcion pertenece al mes de su `created_at`; se admite `fecha_inscripcion` como compatibilidad. |
 | RN-GER-03 | Las inscripciones con estado `cancelado`, `cancelada` o `cancelled` no se contabilizan. |
 | RN-GER-04 | Ocupacion, demanda y actividad mensual excluyen turnos cancelados. |
-| RN-GER-05 | Ocupacion y demanda consideran solo turnos identificados como cursos de ingreso. |
+| RN-GER-05 | La ocupacion considera cursos de ingreso; la demanda incluye cursos de ingreso y clases particulares, identificados por separado. |
 | RN-GER-06 | La ocupacion promedio es ponderada: suma de inscriptos / suma de cupos definidos y positivos. |
-| RN-GER-07 | La demanda de un curso es la suma de sus inscriptos en turnos vigentes del mes. |
-| RN-GER-08 | Ante empate de demanda se usa el nombre del curso en orden alfabetico. |
+| RN-GER-07 | La demanda de una actividad es la cantidad de alumnos unicos inscriptos en sus turnos vigentes del mes. |
+| RN-GER-08 | Ante empate de demanda se ordena por nombre y tipo de actividad. |
 | RN-GER-09 | El promedio semanal divide las clases vigentes del mes por `ceil(diasDelMes / 7)`. |
 | RN-GER-10 | Actualizar vuelve a consultar Supabase y conserva los ultimos datos si falla una recarga. |
 | RN-GER-11 | El servicio rechaza la consulta si la sesion no pertenece al rol `gerente`; la interfaz tambien restringe el modulo. |
@@ -42,7 +42,7 @@ No incluye exportacion, filtros de fechas, proyecciones, indicadores economicos 
 Entrada del calculo:
 
 - inscripciones con fecha y estado;
-- turnos consolidados de `vista_calendario`;
+- turnos de `turnos_clase` con su curso o clase particular asociado;
 - fecha local de referencia en formato `YYYY-MM-DD`.
 
 Salida:
@@ -54,7 +54,7 @@ Salida:
 | `diferenciaInscripciones` | Diferencia absoluta entre ambos meses. |
 | `variacionInscripciones` | Variacion porcentual respecto del mes anterior; `null` si no existe base comparable. |
 | `ocupacionPromedio` | Porcentaje agregado de ocupacion de cursos del mes. |
-| `demandaCursos` | Cursos del mes ordenados por cantidad de inscriptos para el grafico de barras. |
+| `demandaActividades` | Cursos de ingreso y clases particulares del mes, separados por tipo y ordenados por cantidad de alumnos unicos. |
 | `cursoMayorDemanda` | Curso con mas inscriptos del mes. |
 | `cursoMenorDemanda` | Curso con menos inscriptos del mes. |
 | `clasesProgramadasMes` | Turnos vigentes programados durante el mes. |
@@ -73,8 +73,8 @@ Dados turnos de cursos con cupos definidos, cuando carga el panel, entonces mues
 
 ### CA-03 - Demanda
 
-Dados cursos con actividad durante el mes, cuando carga el panel, entonces identifica el de mayor y el de menor demanda.
-La comparacion se presenta mediante barras verticales, con desplazamiento horizontal cuando la cantidad de cursos excede el ancho disponible.
+Dadas actividades con inscripciones durante el mes, cuando carga el panel, entonces identifica por separado cursos de ingreso y clases particulares, cuenta alumnos unicos por actividad e identifica la de mayor y menor demanda.
+La comparacion se presenta mediante barras verticales, con desplazamiento horizontal cuando la cantidad de actividades excede el ancho disponible.
 
 ### CA-04 - Actividad academica
 
@@ -102,7 +102,7 @@ Dado un usuario sin rol `gerente`, cuando intenta consultar el modulo, entonces 
 |---|---|
 | CA-01 | Prueba de comparacion mensual + tarjetas del panel |
 | CA-02 | Prueba de ocupacion y cancelaciones + barra de ocupacion |
-| CA-03 | Prueba de demanda + panel de cursos destacados |
+| CA-03 | Prueba de demanda + panel de actividades destacadas |
 | CA-04 | Prueba de promedio semanal + tarjeta de actividad |
 | CA-05 | Estados y boton del componente |
 | CA-06 | Guardia del servicio + proteccion en `page.tsx` |

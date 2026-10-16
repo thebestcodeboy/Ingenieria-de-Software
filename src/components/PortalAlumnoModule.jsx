@@ -7,10 +7,16 @@ import { cancelarInscripcion, inscribirAlumno, inscribirAlumnoCurso, inscribirAl
 import { validarAlumnoActivoParaInscripcion } from '../utils/alumnoInscripcion';
 import CalendarioAlumno from './CalendarioAlumno';
 
+const esTurnoParticular = (turno) => Boolean(
+  turno?.clase_particular_id
+  || ['clase_particular', 'particular'].includes(String(turno?.tipo_actividad || '').toLowerCase()),
+);
+
 export default function PortalAlumnoModule({ activeTab }) {
   const { user } = useAuth();
   const [materias, setMaterias] = useState([]);
   const [cursos, setCursos] = useState([]);
+  const [clasesParticulares, setClasesParticulares] = useState([]);
   const [profesores, setProfesores] = useState([]);
   const [todosLosTurnos, setTodosLosTurnos] = useState([]);
   const [misInscripciones, setMisInscripciones] = useState([]);
@@ -27,7 +33,8 @@ export default function PortalAlumnoModule({ activeTab }) {
   const [filtroNivel, setFiltroNivel] = useState('todos');
   const [paginaActual, setPaginaActual] = useState(1);
   const [vistaCursos, setVistaCursos] = useState('oferta');
-  const elementosPorPagina = 8;
+  const [vistaMisInscripciones, setVistaMisInscripciones] = useState('cursos');
+  const elementosPorPagina = 18;
 
   // Inscripción en materia
   const [itemSeleccionado, setItemSeleccionado] = useState(null);
@@ -113,9 +120,10 @@ export default function PortalAlumnoModule({ activeTab }) {
 
       setAlumnoActual(alumnoData);
 
-      const [matRes, curRes, profRes, turnosRes, inscRes, pagosRes, bitacoraRes] = await Promise.all([
+      const [matRes, curRes, particularesRes, profRes, turnosRes, inscRes, pagosRes, bitacoraRes] = await Promise.all([
         supabase.from('materias').select('*').order('nombre', { ascending: true }),
         supabase.from('cursos_ingreso').select('*').order('nombre', { ascending: true }),
+        supabase.from('clases_particulares').select('id, nombre, materia_id, nivel, activo').eq('activo', true).order('nombre', { ascending: true }),
         supabase.from('profesores').select('*').order('nombre', { ascending: true }),
         supabase
           .from('turnos_clase')
@@ -123,7 +131,7 @@ export default function PortalAlumnoModule({ activeTab }) {
           .order('fecha', { ascending: true }),
         supabase
           .from('inscripciones')
-          .select('*, turnos_clase(*, materias(nombre, nivel), cursos_ingreso(nombre), profesores(id, nombre, apellido, email))'),
+          .select('*, turnos_clase(*, materias(nombre, nivel), cursos_ingreso(nombre), clases_particulares(nombre, nivel), profesores(id, nombre, apellido, email))'),
         supabase.rpc('listar_pagos_portal_alumno'),
         supabase.from('bitacora_alumno')
           .select('id, tipo, titulo, detalle, ocurrido_en')
@@ -133,12 +141,14 @@ export default function PortalAlumnoModule({ activeTab }) {
 
       if (matRes.error) throw matRes.error;
       if (curRes.error) throw curRes.error;
+      if (particularesRes.error) throw particularesRes.error;
       if (profRes.error) throw profRes.error;
       if (turnosRes.error) throw turnosRes.error;
       if (inscRes.error) throw inscRes.error;
 
       setMaterias(matRes.data || []);
       setCursos(curRes.data || []);
+      setClasesParticulares(particularesRes.data || []);
       setProfesores(profRes.data || []);
       setTodosLosTurnos(turnosRes.data || []);
       setPagosAlumno(pagosRes.error ? [] : pagosRes.data || []);
@@ -166,7 +176,9 @@ export default function PortalAlumnoModule({ activeTab }) {
   }, [user]);
 
   const misInscripcionesVisibles = useMemo(
-    () => misInscripciones.filter((ins) => ins.estado !== 'cancelado' && ins.turnos_clase?.estado !== 'cancelado'),
+    // Mantener el historial de bajas del alumno y turnos cancelados para que
+    // sigan visibles en Mis cursos y en el calendario.
+    () => misInscripciones.filter((ins) => Boolean(ins.turnos_clase?.fecha && ins.turnos_clase?.hora_inicio)),
     [misInscripciones],
   );
   const misCursosAgrupados = useMemo(() => {
@@ -174,10 +186,10 @@ export default function PortalAlumnoModule({ activeTab }) {
     for (const inscripcion of misInscripcionesVisibles) {
       const turno = inscripcion.turnos_clase || {};
       const docenteId = turno.profesor_id || turno.profesores?.id || '';
-      const actividadId = turno.curso_id
-        ? `curso:${turno.curso_id}`
-        : turno.clase_particular_id
-          ? `particular:${turno.clase_particular_id}`
+      const actividadId = esTurnoParticular(turno)
+        ? `particular:${turno.clase_particular_id || turno.materia_id || turno.id}`
+        : turno.curso_id
+          ? `curso:${turno.curso_id}`
           : `materia:${turno.materia_id || turno.id}`;
       const clave = `${actividadId}:docente:${docenteId}`;
 
@@ -193,22 +205,43 @@ export default function PortalAlumnoModule({ activeTab }) {
       return fechaA.localeCompare(fechaB);
     });
   }, [misInscripcionesVisibles]);
+  const gruposMisCursos = useMemo(() => ({
+    cursos: misCursosAgrupados.filter((grupo) => !grupo.inscripciones.some((ins) => esTurnoParticular(ins.turnos_clase))),
+    particulares: misCursosAgrupados.filter((grupo) => grupo.inscripciones.some((ins) => esTurnoParticular(ins.turnos_clase))),
+  }), [misCursosAgrupados]);
+  const tarjetasCursosIngreso = useMemo(() => gruposMisCursos.cursos.flatMap((grupo) => {
+    const porMateria = new Map();
+    for (const inscripcion of grupo.inscripciones) {
+      const turno = inscripcion.turnos_clase || {};
+      const materiaId = turno.materia_id || turno.id;
+      if (!porMateria.has(materiaId)) porMateria.set(materiaId, { ...grupo, clave: `${grupo.clave}:materia:${materiaId}`, inscripciones: [] });
+      porMateria.get(materiaId).inscripciones.push(inscripcion);
+    }
+    return Array.from(porMateria.values());
+  }), [gruposMisCursos.cursos]);
 
   const itemsFiltrados = useMemo(() => {
     if (filtroNivel === 'Universitario') {
-      return materias.filter((m) => (m.nivel || '').toLowerCase().includes('universitario'));
+      return [
+        ...materias.filter((m) => (m.nivel || '').toLowerCase().includes('universitario')).map((m) => ({ ...m, tipoOrigen: 'materia' })),
+        ...clasesParticulares.filter((c) => (c.nivel || '').toLowerCase().includes('universitario')).map((c) => ({ ...c, tipoOrigen: 'particular' })),
+      ];
     }
     if (filtroNivel === 'Secundario') {
-      return materias.filter((m) => (m.nivel || '').toLowerCase().includes('secundario'));
+      return [
+        ...materias.filter((m) => (m.nivel || '').toLowerCase().includes('secundario')).map((m) => ({ ...m, tipoOrigen: 'materia' })),
+        ...clasesParticulares.filter((c) => (c.nivel || '').toLowerCase().includes('secundario')).map((c) => ({ ...c, tipoOrigen: 'particular' })),
+      ];
     }
     if (filtroNivel === 'curso') {
       return cursos.map((c) => ({ ...c, nivel: 'Curso de Ingreso', tipoOrigen: 'curso' }));
     }
     return [
       ...materias.map((m) => ({ ...m, tipoOrigen: 'materia' })),
+      ...clasesParticulares.map((c) => ({ ...c, tipoOrigen: 'particular' })),
       ...cursos.map((c) => ({ ...c, nivel: 'Curso de Ingreso', tipoOrigen: 'curso' })),
     ];
-  }, [materias, cursos, filtroNivel]);
+  }, [materias, cursos, clasesParticulares, filtroNivel]);
 
   const totalPaginas = Math.ceil(itemsFiltrados.length / elementosPorPagina) || 1;
   const itemsPaginados = useMemo(() => {
@@ -231,6 +264,14 @@ export default function PortalAlumnoModule({ activeTab }) {
           .rpc('listar_docentes_curso_alumno', { p_curso_id: item.id });
         if (error) throw error;
         listaProfs = data || [];
+      } else if (tipo === 'particular') {
+        const { data, error } = await supabase
+          .from('turnos_clase')
+          .select('profesores(id, nombre, apellido)')
+          .eq('clase_particular_id', item.id)
+          .neq('estado', 'cancelado');
+        if (error) throw error;
+        listaProfs = (data || []).map((turno) => turno.profesores).filter(Boolean);
       } else {
         const { data, error } = await supabase
           .from('profesor_materia')
@@ -265,10 +306,10 @@ export default function PortalAlumnoModule({ activeTab }) {
     if (!profId || !itemSeleccionado) return;
 
     try {
-      const columnaFiltro = tipoItem === 'curso' ? 'curso_id' : 'materia_id';
+      const columnaFiltro = tipoItem === 'curso' ? 'curso_id' : tipoItem === 'particular' ? 'clase_particular_id' : 'materia_id';
       const { data, error } = await supabase
         .from('turnos_clase')
-        .select('*, materias(nombre), cursos_ingreso(nombre)')
+        .select('*, materias(nombre), cursos_ingreso(nombre), clases_particulares(nombre)')
         .eq(columnaFiltro, itemSeleccionado.id)
         .eq('profesor_id', profId);
 
@@ -430,6 +471,13 @@ export default function PortalAlumnoModule({ activeTab }) {
   finSemanaActual.setDate(inicioSemanaActual.getDate() + 6);
   const fechaInicioSemana = `${inicioSemanaActual.getFullYear()}-${String(inicioSemanaActual.getMonth() + 1).padStart(2, '0')}-${String(inicioSemanaActual.getDate()).padStart(2, '0')}`;
   const fechaFinSemana = `${finSemanaActual.getFullYear()}-${String(finSemanaActual.getMonth() + 1).padStart(2, '0')}-${String(finSemanaActual.getDate()).padStart(2, '0')}`;
+  const gruposMisCursosVisibles = vistaMisInscripciones === 'particulares' ? gruposMisCursos.particulares : tarjetasCursosIngreso;
+  const pagosConfirmados = pagosAlumno.filter((pago) => pago.estado === 'CONFIRMADO');
+  const pagosPendientes = pagosAlumno.filter((pago) => pago.estado === 'PENDIENTE');
+  const totalPagado = pagosConfirmados.reduce((total, pago) => total + Number(pago.importe || 0), 0);
+  const totalPendiente = pagosPendientes.reduce((total, pago) => total + Number(pago.importe || 0), 0);
+  const formatoImporte = (importe) => `$${Number(importe || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatoFechaPago = (fecha) => new Date(`${fecha}T12:00:00-03:00`).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 
   if (loading) {
     return (
@@ -457,7 +505,7 @@ export default function PortalAlumnoModule({ activeTab }) {
             </div>
             <div>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#3730a3', backgroundColor: '#e0e7ff', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                {tipoItem === 'materia' ? itemSeleccionado.nivel || 'Universitario' : 'Curso de Ingreso'}
+                {tipoItem === 'particular' ? `Clase particular · ${itemSeleccionado.nivel || 'Universitario'}` : tipoItem === 'materia' ? itemSeleccionado.nivel || 'Universitario' : 'Curso de Ingreso'}
               </span>
               <h2 style={{ fontSize: '21px', fontWeight: 700, color: '#0f172a', margin: '6px 0 2px 0', textTransform: 'uppercase' }}>
                 {itemSeleccionado.nombre}
@@ -627,7 +675,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                             const turnoCancelado = Boolean(t.cancelado);
                             const yaInscripto = misInscripciones.some((ins) => ins.turno_id === t.id && ins.estado !== 'cancelado' && ins.turnos_clase?.estado !== 'cancelado');
                             const esCancelado = t.estado === 'cancelado';
-                            const nombreCurso = (tipoItem === 'curso' ? itemSeleccionado?.nombre : t.cursos_ingreso?.nombre) || t.materias?.nombre || 'Clase';
+                            const nombreCurso = (tipoItem === 'curso' || tipoItem === 'particular' ? itemSeleccionado?.nombre : t.cursos_ingreso?.nombre) || t.clases_particulares?.nombre || t.materias?.nombre || 'Clase';
                             const nombreMateria = t.materias?.nombre && nombreCurso !== t.materias.nombre ? t.materias.nombre : null;
 
                             let bgColor = '#10b981';
@@ -715,7 +763,7 @@ export default function PortalAlumnoModule({ activeTab }) {
 
           <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
             {[
-              { id: 'todos', label: 'Todos los Cursos' },
+              { id: 'todos', label: 'Todos' },
               { id: 'Universitario', label: 'Nivel Universitario' },
               { id: 'Secundario', label: 'Nivel Secundario' },
               { id: 'curso', label: 'Cursos de Ingreso' },
@@ -746,7 +794,7 @@ export default function PortalAlumnoModule({ activeTab }) {
               </div>
             ) : (
               itemsPaginados.map((item, idx) => {
-                const esCurso = item.tipoOrigen === 'curso' || !item.nivel;
+                const tipoOferta = item.tipoOrigen || (item.nivel ? 'materia' : 'curso');
                 const gradients = [
                   'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
                   'linear-gradient(135deg, #065f46 0%, #10b981 100%)',
@@ -755,7 +803,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                 ];
                 return (
                   <div
-                    key={item.id}
+                    key={`${tipoOferta}:${item.id}`}
                     style={{
                       backgroundColor: '#ffffff',
                       border: '1px solid #e2e8f0',
@@ -770,7 +818,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                   >
                     <div style={{ height: '80px', background: gradients[idx % gradients.length], display: 'flex', alignItems: 'flex-end', padding: '12px' }}>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.35)', padding: '3px 7px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                        {item.nivel || 'Curso de Ingreso'}
+                        {tipoOferta === 'particular' ? `Clase particular · ${item.nivel || 'Universitario'}` : item.nivel || 'Curso de Ingreso'}
                       </span>
                     </div>
                     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
@@ -780,7 +828,7 @@ export default function PortalAlumnoModule({ activeTab }) {
                         </h3>
                       </div>
                       <button
-                        onClick={() => handleSeleccionarItem(item, esCurso ? 'curso' : 'materia')}
+                        onClick={() => handleSeleccionarItem(item, tipoOferta)}
                         style={{ marginTop: '16px', backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', color: '#0b1e33', borderRadius: '6px', padding: '8px 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
                       >
                         Elegir oferta
@@ -818,10 +866,23 @@ export default function PortalAlumnoModule({ activeTab }) {
         /* 3. MIS CURSOS ANOTADOS */
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-            <h1 style={{ margin: 0, fontSize: 25, color: '#0f172a' }}>Mis cursos</h1>
-            <button type="button" onClick={() => { setVistaCursos('oferta'); setCursoDetalleActivo(null); }}
+            <h1 style={{ margin: 0, fontSize: 25, color: '#0f172a' }}>{vistaMisInscripciones === 'particulares' ? 'Mis clases particulares' : 'Mis cursos'}</h1>
+            <button type="button" onClick={() => { setVistaCursos('oferta'); setCursoDetalleActivo(null); setFiltroNivel('todos'); setPaginaActual(1); }}
               style={{ padding: '9px 13px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', color: '#334155', fontWeight: 700, cursor: 'pointer' }}>Ver oferta</button>
           </div>
+          {!cursoDetalleActivo && <div role="group" aria-label="Mis inscripciones" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+            {[
+              { id: 'cursos', label: 'Mis cursos' },
+              { id: 'particulares', label: 'Mis clases particulares' },
+            ].map((tab) => <button key={tab.id} type="button" aria-pressed={vistaMisInscripciones === tab.id}
+              onClick={() => setVistaMisInscripciones(tab.id)}
+              style={{ padding: '9px 14px', border: '1px solid #cbd5e1', borderRadius: 7, background: vistaMisInscripciones === tab.id ? '#0b1e33' : '#fff', color: vistaMisInscripciones === tab.id ? '#fff' : '#334155', fontWeight: 700, cursor: 'pointer' }}>
+              {tab.label}
+            </button>)}
+          </div>}
+          {!cursoDetalleActivo && <p style={{ margin: '-12px 0 18px', color: '#64748b', fontSize: 13 }}>
+            En “Mis cursos” aparecen tus inscripciones. Para explorar otros cursos o clases particulares, abrí “Oferta”.
+          </p>}
           {cursoDetalleActivo ? (
             <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               <button
@@ -833,7 +894,7 @@ export default function PortalAlumnoModule({ activeTab }) {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '20px' }}>
                 <div style={{ width: '56px', height: '56px', borderRadius: '8px', background: 'linear-gradient(135deg, #0b1e33 0%, #2563eb 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: 700, fontSize: '19px' }}>
-                  {(cursoDetalleActivo.turnos_clase?.materias?.nombre || cursoDetalleActivo.turnos_clase?.cursos_ingreso?.nombre || 'CU').slice(0, 2).toUpperCase()}
+                  {(cursoDetalleActivo.turnos_clase?.clases_particulares?.nombre || cursoDetalleActivo.turnos_clase?.cursos_ingreso?.nombre || cursoDetalleActivo.turnos_clase?.materias?.nombre || 'CU').slice(0, 2).toUpperCase()}
                 </div>
                 <div>
                   <span
@@ -847,7 +908,9 @@ export default function PortalAlumnoModule({ activeTab }) {
                       textTransform: 'uppercase',
                     }}
                   >
-                    {cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? 'CLASE CANCELADA' : 'Matriculado Activo'}
+                    {cursoDetalleActivo.turnos_clase?.estado === 'cancelado'
+                      ? 'CLASE CANCELADA'
+                      : cursoDetalleActivo.estado === 'cancelado' ? 'DADO DE BAJA' : 'Matriculado Activo'}
                   </span>
                   <h2
                     style={{
@@ -859,10 +922,10 @@ export default function PortalAlumnoModule({ activeTab }) {
                       textDecoration: cursoDetalleActivo.turnos_clase?.estado === 'cancelado' ? 'line-through' : 'none',
                     }}
                   >
-                    {cursoDetalleActivo.turnos_clase?.materias?.nombre || cursoDetalleActivo.turnos_clase?.cursos_ingreso?.nombre}
+                    {cursoDetalleActivo.turnos_clase?.clases_particulares?.nombre || cursoDetalleActivo.turnos_clase?.cursos_ingreso?.nombre || cursoDetalleActivo.turnos_clase?.materias?.nombre}
                   </h2>
                   <p style={{ color: '#64748b', fontSize: '15px', margin: 0 }}>
-                    Nivel: {cursoDetalleActivo.turnos_clase?.materias?.nivel || 'Institucional'} | Aula: {cursoDetalleActivo.turnos_clase?.aula_numero || 'Presencial'}
+                    {esTurnoParticular(cursoDetalleActivo.turnos_clase) ? 'Clase particular' : `Nivel: ${cursoDetalleActivo.turnos_clase?.materias?.nivel || 'Institucional'}`} | Aula: {cursoDetalleActivo.turnos_clase?.aula_numero || 'Presencial'}
                   </p>
                 </div>
               </div>
@@ -942,18 +1005,28 @@ export default function PortalAlumnoModule({ activeTab }) {
             </div>
           ) : (
             <div>
-              {misInscripcionesVisibles.length === 0 ? (
+              {gruposMisCursosVisibles.length === 0 ? (
                 <div style={{ display: 'grid', justifyItems: 'center', gap: 12, padding: 30, border: '1px solid #dbe4e8', background: '#fff', textAlign: 'center', color: '#64748b' }}>
-                  <p style={{ margin: 0 }}>Aún no tenés inscripciones.</p>
+                  <p style={{ margin: 0 }}>{vistaMisInscripciones === 'particulares' ? 'Todavía no tenés clases particulares asignadas.' : 'Todavía no tenés cursos de ingreso asignados.'}</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-                  {misCursosAgrupados.map((grupo, idx) => {
+                <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '0 0 12px', color: '#64748b', fontSize: 14 }}>
+                  <span>{vistaMisInscripciones === 'particulares' ? 'Tus clases particulares y sus próximas fechas.' : 'Materias incluidas en tus cursos de ingreso.'}</span>
+                  <strong style={{ color: '#334155' }}>{gruposMisCursosVisibles.length} {vistaMisInscripciones === 'particulares' ? (gruposMisCursosVisibles.length === 1 ? 'clase particular' : 'clases particulares') : (gruposMisCursosVisibles.length === 1 ? 'materia' : 'materias')}</strong>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '16px', alignItems: 'stretch' }}>
+                  {gruposMisCursosVisibles.map((grupo, idx) => {
                     const ins = grupo.inscripciones[0];
                     const turno = ins.turnos_clase;
-                    const nombre = turno?.cursos_ingreso?.nombre || turno?.materias?.nombre || 'Clase Institucional';
-                    const materia = turno?.curso_id ? turno?.materias?.nombre : null;
-                    const nivel = turno?.materias?.nivel || (turno?.curso_id ? 'Curso de ingreso' : 'Curso Activo');
+                    const nombre = turno?.clases_particulares?.nombre || turno?.materias?.nombre || turno?.cursos_ingreso?.nombre || 'Clase Institucional';
+                    const esParticular = esTurnoParticular(turno);
+                    const cursoNombre = !esParticular ? turno?.cursos_ingreso?.nombre : null;
+                    const materiasDelCurso = [...new Set(grupo.inscripciones
+                      .map((sesion) => sesion.turnos_clase?.materias?.nombre)
+                      .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+                    const materias = turno?.curso_id ? materiasDelCurso : esParticular && turno?.materias?.nombre ? [turno.materias.nombre] : [];
+                    const nivel = esParticular ? turno?.clases_particulares?.nivel || 'Clase particular' : turno?.materias?.nivel || (turno?.curso_id ? 'Curso de ingreso' : 'Curso');
                     const fechas = grupo.inscripciones
                       .map((sesion) => sesion.turnos_clase)
                       .filter(Boolean)
@@ -986,7 +1059,13 @@ export default function PortalAlumnoModule({ activeTab }) {
                             {nivel}
                           </span>
                           <span style={{ fontSize: '12px', fontWeight: 700, color: '#ffffff', backgroundColor: '#16a34a', padding: '3px 7px', borderRadius: '4px' }}>
-                            INSCRIPTO
+                            {grupo.inscripciones.every((sesion) => sesion.turnos_clase?.estado === 'cancelado')
+                              ? 'CLASE CANCELADA'
+                              : grupo.inscripciones.every((sesion) => sesion.estado === 'cancelado')
+                                ? 'DADO DE BAJA'
+                                : grupo.inscripciones.some((sesion) => sesion.estado === 'cancelado')
+                                  ? 'BAJA PARCIAL'
+                                  : esParticular ? 'ANOTADO' : 'INSCRIPTO'}
                           </span>
                         </div>
                         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
@@ -994,9 +1073,12 @@ export default function PortalAlumnoModule({ activeTab }) {
                             <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', textTransform: 'uppercase', lineHeight: 1.35 }}>
                               {nombre}
                             </h3>
-                            {materia && <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 6px' }}>Materia: {materia}</p>}
+                            {cursoNombre && <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 6px', lineHeight: 1.45 }}>Curso de ingreso: {cursoNombre}</p>}
+                            {materias.length > 0 && <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 6px', lineHeight: 1.45 }}>
+                              {esParticular ? 'Materia' : materias.length === 1 ? 'Materia' : 'Materias'}: {materias.join(', ')}
+                            </p>}
                             <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 8px 0' }}>
-                              Titular: {turno?.profesores?.apellido ? `${turno.profesores.apellido}, ${turno.profesores.nombre}` : turno?.profesores?.nombre}
+                            Docente: {turno?.profesores?.apellido ? `${turno.profesores.apellido}, ${turno.profesores.nombre}` : turno?.profesores?.nombre || 'A confirmar'}
                             </p>
                             <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
                               {proximaFecha ? `Próxima clase: ${proximaFecha.fecha} (${proximaFecha.hora_inicio?.slice(0, 5)} hs)` : 'Sin fechas próximas'}
@@ -1007,57 +1089,90 @@ export default function PortalAlumnoModule({ activeTab }) {
                             onClick={() => handleVerDetalleCursoAnotado(ins)}
                             style={{ marginTop: '16px', backgroundColor: '#0b1e33', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '9px 12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
                           >
-                            Ver Comisión y Alumnos
+                            {esParticular ? 'Ver clase y compañeros' : 'Ver Comisión y Alumnos'}
                           </button>
                         </div>
                       </div>
                     );
                   })}
                 </div>
+                </>
               )}
             </div>
           )}
         </div>
       ) : activeTab === 'pagos' ? (
-        <section style={{ maxWidth: 1100 }}>
-          <header style={{ marginBottom: 20 }}>
-            <h1 style={{ margin: 0, color: '#0f172a', fontSize: 25 }}>Mis pagos</h1>
-            <p style={{ margin: '4px 0 0', color: '#64748b' }}>Comprobantes y estado de tus pagos registrados.</p>
+        <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+          <header style={{ marginBottom: 22 }}>
+            <h1 style={{ margin: 0, color: '#0f172a', fontSize: 27 }}>Mis pagos</h1>
+            <p style={{ margin: '5px 0 0', color: '#64748b' }}>Consultá tus comprobantes, importes y períodos abonados.</p>
           </header>
           {errorPagos ? <div role="alert" style={{ padding: 14, border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b' }}>{errorPagos}</div>
             : pagosAlumno.length === 0 ? <div style={{ padding: 22, border: '1px solid #dbe4e8', background: '#fff', color: '#64748b' }}>Todavía no hay pagos registrados.</div>
-              : <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 250px)', overflowY: 'auto', border: '1px solid #dbe4e8', background: '#fff' }}>
-                <table style={{ width: '100%', minWidth: 700, borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: '#edf3f4', color: '#334155' }}><tr>
-                    {['Fecha', 'Comprobante', 'Concepto', 'Medio', 'Importe', 'Estado'].map(titulo => <th key={titulo} style={{ padding: '11px 12px' }}>{titulo}</th>)}
+              : <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, marginBottom: 20 }}>
+                  {[
+                    { label: 'Pagos registrados', value: pagosAlumno.length, color: '#1d4ed8', background: '#eff6ff' },
+                    { label: 'Total confirmado', value: formatoImporte(totalPagado), color: '#166534', background: '#f0fdf4' },
+                    { label: 'Saldo pendiente', value: formatoImporte(totalPendiente), color: '#92400e', background: '#fffbeb' },
+                  ].map((resumen) => <article key={resumen.label} style={{ padding: '18px 20px', border: '1px solid #e2e8f0', borderRadius: 10, background: resumen.background }}>
+                    <div style={{ color: '#64748b', fontSize: 13, fontWeight: 650 }}>{resumen.label}</div>
+                    <strong style={{ display: 'block', marginTop: 6, color: resumen.color, fontSize: 24, lineHeight: 1.25 }}>{resumen.value}</strong>
+                  </article>)}
+                </div>
+                <div style={{ overflowX: 'auto', border: '1px solid #dbe4e8', borderRadius: 10, background: '#fff', boxShadow: '0 2px 10px rgba(16,36,59,.04)' }}>
+                <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead style={{ background: '#edf3f4', color: '#334155' }}><tr>
+                    {['Fecha', 'Comprobante', 'Detalle del pago', 'Medio', 'Importe', 'Estado'].map(titulo => <th key={titulo} scope="col" style={{ padding: '13px 15px', fontSize: 13 }}>{titulo}</th>)}
                   </tr></thead>
                   <tbody>{pagosAlumno.map(pago => <tr key={pago.id} style={{ borderTop: '1px solid #e8edef' }}>
-                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>{pago.fecha}</td>
-                    <td style={{ padding: '10px 12px', fontWeight: 700 }}>{pago.comprobante}</td>
-                    <td style={{ padding: '10px 12px' }}>{pago.concepto}</td>
-                    <td style={{ padding: '10px 12px' }}>{pago.medio_pago}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>${Number(pago.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: '10px 12px', fontWeight: 700, color: pago.estado === 'CONFIRMADO' ? '#166534' : pago.estado === 'PENDIENTE' ? '#92400e' : '#475569' }}>{pago.estado === 'CONFIRMADO' ? 'Confirmado' : pago.estado === 'PENDIENTE' ? 'Pendiente' : pago.estado}</td>
+                    <td style={{ padding: '14px 15px', whiteSpace: 'nowrap', color: '#475569' }}>{formatoFechaPago(pago.fecha)}</td>
+                    <td style={{ padding: '14px 15px', fontWeight: 750, color: '#183756', whiteSpace: 'nowrap' }}>{pago.comprobante}</td>
+                    <td style={{ padding: '14px 15px', minWidth: 260, color: '#334155' }}>{pago.concepto}</td>
+                    <td style={{ padding: '14px 15px', color: '#475569' }}>{pago.medio_pago || '—'}</td>
+                    <td style={{ padding: '14px 15px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 700, color: '#0f172a' }}>{formatoImporte(pago.importe)}</td>
+                    <td style={{ padding: '14px 15px' }}><span style={{ display: 'inline-flex', padding: '5px 9px', borderRadius: 999, fontSize: 12, fontWeight: 750, color: pago.estado === 'CONFIRMADO' ? '#166534' : pago.estado === 'PENDIENTE' ? '#92400e' : '#475569', background: pago.estado === 'CONFIRMADO' ? '#dcfce7' : pago.estado === 'PENDIENTE' ? '#fef3c7' : '#f1f5f9' }}>{pago.estado === 'CONFIRMADO' ? 'Confirmado' : pago.estado === 'PENDIENTE' ? 'Pendiente' : pago.estado}</span></td>
                   </tr>)}</tbody>
                 </table>
-              </div>}
+                </div>
+              </>}
         </section>
       ) : activeTab === 'bitacora' ? (
-        <section style={{ maxWidth: 900 }}>
-          <header style={{ marginBottom: 20 }}>
-            <h1 style={{ margin: 0, color: '#0f172a', fontSize: 25 }}>Bitácora</h1>
-            <p style={{ margin: '4px 0 0', color: '#64748b' }}>Actividad reciente de tus inscripciones y pagos.</p>
+        <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
+          <header style={{ marginBottom: 22 }}>
+            <h1 style={{ margin: 0, color: '#0f172a', fontSize: 27 }}>Bitácora</h1>
+            <p style={{ margin: '5px 0 0', color: '#64748b' }}>Historial de movimientos de tus cursos, clases y pagos.</p>
           </header>
           {errorBitacora ? <div role="alert" style={{ padding: 14, border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b' }}>{errorBitacora}</div>
             : bitacoraAlumno.length === 0 ? <div style={{ padding: 22, border: '1px solid #dbe4e8', background: '#fff', color: '#64748b' }}>Todavía no hay movimientos en tu bitácora.</div>
-              : <ol aria-label="Movimientos recientes" style={{ position: 'relative', display: 'grid', gap: 0, maxHeight: 'calc(100vh - 250px)', overflowY: 'auto', margin: 0, padding: '0 0 0 22px', listStyle: 'none', borderLeft: '2px solid #cbd8dc' }}>
-                {bitacoraAlumno.map(evento => <li key={evento.id} style={{ position: 'relative', padding: '0 0 20px 14px' }}>
-                  <span aria-hidden="true" style={{ position: 'absolute', left: -29, top: 4, width: 12, height: 12, border: '2px solid #fff', borderRadius: '50%', background: evento.tipo.startsWith('pago') ? '#c27b32' : '#168275', boxShadow: '0 0 0 1px #b9c9ca' }} />
-                  <time dateTime={evento.ocurrido_en} style={{ color: '#64748b', fontSize: 13 }}>{new Date(evento.ocurrido_en).toLocaleString('es-AR')}</time>
-                  <h2 style={{ margin: '3px 0', fontSize: 16, color: '#183238' }}>{evento.titulo}</h2>
-                  <p style={{ margin: 0, color: '#475569' }}>{evento.detalle}</p>
-                </li>)}
-              </ol>}
+              : <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, marginBottom: 20 }}>
+                  {[
+                    { label: 'Movimientos', value: bitacoraAlumno.length, color: '#1d4ed8', background: '#eff6ff' },
+                    { label: 'Inscripciones', value: bitacoraAlumno.filter((evento) => evento.tipo.startsWith('inscripcion')).length, color: '#0f766e', background: '#f0fdfa' },
+                    { label: 'Pagos', value: bitacoraAlumno.filter((evento) => evento.tipo.startsWith('pago')).length, color: '#a16207', background: '#fffbeb' },
+                  ].map((resumen) => <article key={resumen.label} style={{ padding: '18px 20px', border: '1px solid #e2e8f0', borderRadius: 10, background: resumen.background }}>
+                    <div style={{ color: '#64748b', fontSize: 13, fontWeight: 650 }}>{resumen.label}</div>
+                    <strong style={{ display: 'block', marginTop: 6, color: resumen.color, fontSize: 24, lineHeight: 1.25 }}>{resumen.value}</strong>
+                  </article>)}
+                </div>
+                <ol aria-label="Movimientos recientes" style={{ position: 'relative', display: 'grid', gap: 12, margin: 0, padding: '2px 0 2px 24px', listStyle: 'none', borderLeft: '2px solid #cbd8dc' }}>
+                  {bitacoraAlumno.map((evento) => {
+                    const esPago = evento.tipo.startsWith('pago');
+                    return <li key={evento.id} style={{ position: 'relative', padding: '16px 20px', border: '1px solid #e2e8f0', borderRadius: 10, background: '#fff', boxShadow: '0 2px 10px rgba(16,36,59,.035)' }}>
+                      <span aria-hidden="true" style={{ position: 'absolute', left: -32, top: 21, width: 12, height: 12, border: '2px solid #fff', borderRadius: '50%', background: esPago ? '#c27b32' : '#168275', boxShadow: '0 0 0 1px #b9c9ca' }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+                        <div>
+                          <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: 999, background: esPago ? '#fffbeb' : '#f0fdfa', color: esPago ? '#92400e' : '#0f766e', fontSize: 11, fontWeight: 750, textTransform: 'uppercase' }}>{esPago ? 'Pago' : 'Inscripción'}</span>
+                          <h2 style={{ margin: '8px 0 3px', fontSize: 16, color: '#183238' }}>{evento.titulo}</h2>
+                          <p style={{ margin: 0, color: '#475569', lineHeight: 1.5 }}>{evento.detalle}</p>
+                        </div>
+                        <time dateTime={evento.ocurrido_en} style={{ color: '#64748b', fontSize: 13, whiteSpace: 'nowrap' }}>{new Date(evento.ocurrido_en).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', dateStyle: 'medium', timeStyle: 'short' })}</time>
+                      </div>
+                    </li>;
+                  })}
+                </ol>
+              </>}
         </section>
       ) : (
         /* 4. CALENDARIO PERSONAL DEL ALUMNO (mismo diseño que los demás roles) */

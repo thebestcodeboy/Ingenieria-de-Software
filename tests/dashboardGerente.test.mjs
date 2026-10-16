@@ -66,3 +66,26 @@ test('informa variacion no comparable y estado vacio sin actividad', () => {
   assert.deepEqual(vacio.demandaCursos, []);
   assert.equal(vacio.cursoMayorDemanda, null);
 });
+
+test('incluye clases particulares en demanda de actividades sin mezclarlas con ocupacion de cursos', () => {
+  const resumen = calcularResumenGerencial({
+    inscripciones: [
+      { turno_id: 'curso-1', alumno_id: 'alumno-1', estado: 'confirmado' },
+      { turno_id: 'particular-1', alumno_id: 'alumno-1', estado: 'confirmado' },
+      { turno_id: 'particular-2', alumno_id: 'alumno-2', estado: 'confirmado' },
+      { turno_id: 'particular-2', alumno_id: 'alumno-2', estado: 'confirmado' },
+    ],
+    turnos: [
+      { id: 'curso-1', curso_id: 'curso-a', fecha: '2026-10-05', cursos_ingreso: { nombre: 'Ingeniería UNC' }, cupo_maximo: 10 },
+      { id: 'particular-1', clase_particular_id: 'clase-fisica', fecha: '2026-10-06', clases_particulares: { nombre: 'Apoyo de Física' } },
+      { id: 'particular-2', clase_particular_id: 'clase-fisica', fecha: '2026-10-13', clases_particulares: { nombre: 'Apoyo de Física' } },
+    ],
+  }, '2026-10-15');
+
+  assert.deepEqual(resumen.demandaActividades, [
+    { clave: 'Clase particular:clase-fisica', tipo: 'Clase particular', nombre: 'Apoyo de Física', inscriptos: 2 },
+    { clave: 'curso-a', tipo: 'Curso de ingreso', nombre: 'Ingeniería UNC', inscriptos: 1 },
+  ]);
+  assert.equal(resumen.ocupacionPromedio, 10);
+  assert.equal(resumen.actividadMayorDemanda?.tipo, 'Clase particular');
+});

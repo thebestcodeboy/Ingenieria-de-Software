@@ -32,7 +32,7 @@ export default function CalendarioAlumno({ inscripciones, onCancelarFecha }: {
         subtitulo: [materia && `Materia: ${materia}`, `Prof. ${profesor}`].filter(Boolean).join(' · '),
         pie: t.aula_numero ? `Aula ${t.aula_numero}` : undefined,
         marca: [ins.estado === 'en_espera' ? 'En espera' : '', t.reprogramado ? '↻ Reprogramada' : ''].filter(Boolean).join(' · ') || undefined,
-        cancelado: Boolean(t.cancelado) || t.estado === 'cancelado',
+        cancelado: ins.estado === 'cancelado' || Boolean(t.cancelado) || t.estado === 'cancelado',
         datos: ins,
       };
     }), [inscripciones]);
@@ -40,13 +40,19 @@ export default function CalendarioAlumno({ inscripciones, onCancelarFecha }: {
   const t = seleccionada?.turnos_clase;
   const evSel = seleccionada && eventos.find((e) => e.datos === seleccionada);
   const tipoSel = evSel && t ? estadoEvento(evSel, t.fecha, new Date(), true) : 'porDar';
-  const esFutura = Boolean(t?.fecha && t?.hora_inicio && new Date(`${t.fecha}T${t.hora_inicio}`) > new Date());
+  const esFutura = Boolean(
+    seleccionada?.estado !== 'cancelado'
+      && t?.estado !== 'cancelado'
+      && t?.fecha
+      && t?.hora_inicio
+      && new Date(`${t.fecha}T${t.hora_inicio}`) > new Date(),
+  );
 
   return (
     <CalendarioBase<Inscripcion>
       eyebrow="Portal del alumno"
       titulo="Mi calendario"
-      descripcion="Tus clases confirmadas. Las clases pasadas se ven en gris."
+      descripcion="Tus clases y fechas dadas de baja. Las clases pasadas se ven en gris."
       eventos={eventos}
       cargando={false}
       atenuarPasadas
@@ -59,12 +65,13 @@ export default function CalendarioAlumno({ inscripciones, onCancelarFecha }: {
         <DialogoClase
           titulo={evSel.titulo}
           subtitulo={evSel.subtitulo}
-          estado={{ tipo: tipoSel, texto: ETIQUETAS_ALUMNO[tipoSel] }}
+          estado={{ tipo: tipoSel, texto: seleccionada.estado === 'cancelado' && t.estado !== 'cancelado' ? 'Dado de baja' : ETIQUETAS_ALUMNO[tipoSel] }}
           reprogramada={Boolean(t.reprogramado)}
           detalles={[
             ['Fecha', fechaLegible(t.fecha)],
             ['Horario', `${hora(t.hora_inicio)} – ${hora(t.hora_fin)}`],
             ['Aula', String(t.aula_numero ?? 'Sin asignar')],
+            ...(seleccionada.estado === 'cancelado' ? [['Inscripción', 'Dado de baja por vos'] as [string, string]] : []),
             ...(seleccionada.estado === 'en_espera' ? [['Inscripción', 'En lista de espera'] as [string, string]] : []),
           ]}
           onCerrar={() => setSeleccionada(null)}

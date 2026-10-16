@@ -85,6 +85,7 @@ export default function PagosModule() {
   const [selectorMesAbierto, setSelectorMesAbierto] = useState(false);
   const [anioSelectorMes, setAnioSelectorMes] = useState(() => new Date().getFullYear());
   const [modalidadCurso, setModalidadCurso] = useState<'Semana' | 'Mes'>('Mes');
+  const [modalidadParticular, setModalidadParticular] = useState<ModalidadPago>('Clase');
   const [inscripcionesCobro, setInscripcionesCobro] = useState<{ alumnoId: string; filas: InscripcionCobro[]; error: string }>({ alumnoId: '', filas: [], error: '' });
   const alumnoCobroId = alumnoSeleccionado?.id ? String(alumnoSeleccionado.id) : '';
   const cargandoActividades = Boolean(alumnoCobroId && inscripcionesCobro.alumnoId !== alumnoCobroId);
@@ -100,7 +101,8 @@ export default function PagosModule() {
   }, [alumnoCobroId]);
   const actividades = useMemo(() => agruparActividadesCobro(inscripcionesCobro.alumnoId === alumnoCobroId ? inscripcionesCobro.filas : []), [inscripcionesCobro, alumnoCobroId]);
   const actividadElegida = actividades.find(a => a.sesiones.some(s => s.id === actividadInscripcionId));
-  const modalidad: ModalidadPago = actividadElegida?.clave.startsWith('particular:') ? 'Clase' : modalidadCurso;
+  const esClaseParticular = Boolean(actividadElegida?.clave.startsWith('particular:'));
+  const modalidad: ModalidadPago = esClaseParticular ? modalidadParticular : modalidadCurso;
   const datosCobro = useMemo(() => {
     try { return { vinculo: construirVinculoPago(actividadElegida, modalidad, periodoAbonado, cantidad, sesionId), error: '' }; }
     catch (error: unknown) { return { vinculo: null, error: error instanceof Error ? error.message : 'Revisá el detalle del cobro.' }; }
@@ -176,11 +178,13 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
     return () => { vigente = false; };
   }, [alumnoCobroId]);
 
+  const cantidadCobro = esClaseParticular && modalidad !== 'Clase'
+    ? datosCobro.vinculo?.detalle_academico.inscripciones.length || 0
+    : Math.max(1, cantidad || 1);
   const totalACobrar = useMemo(() => {
     const unit = Math.max(0, precioUnitario || 0);
-    const cant = Math.max(1, cantidad || 1);
-    return unit * cant;
-  }, [precioUnitario, cantidad]);
+    return unit * cantidadCobro;
+  }, [precioUnitario, cantidadCobro]);
 
   const vuelto = useMemo(() => {
     if (medioPago !== 'Efectivo') return 0;
@@ -243,6 +247,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
   const handleSeleccionarAlumno = (al: any) => {
     setAlumnoSeleccionado(al);
     setModalidadCurso('Mes');
+    setModalidadParticular('Clase');
     setObligacionesAlumno([]);
     setObligacionId('');
     setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false); setErrorMsg('');
@@ -257,6 +262,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
     setActividadInscripcionId(''); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false);
     setObligacionId('');
     setModalidadCurso('Mes');
+    setModalidadParticular('Clase');
     setPrecioUnitario(0);
     setMontoRecibido(0);
     setNroReferencia('');
@@ -274,6 +280,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
     setActividadInscripcionId(p.inscripcion_id || '');
     setSesionId(p.modalidad === 'Clase' ? p.inscripcion_id || '' : '');
     setModalidadCurso(p.modalidad === 'Semana' ? 'Semana' : 'Mes');
+    setModalidadParticular(p.modalidad || 'Clase');
     const requiereRevision = (p.cantidad || 1) !== 1;
     const periodoReanudado = p.modalidad === 'Semana'
       ? p.periodo_desde ? fechaASemanaIso(p.periodo_desde) : ''
@@ -329,7 +336,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
-            cantidad,
+            cantidad: cantidadCobro,
             importe: totalACobrar,
             medio_pago: medioPago,
             fecha: fechaCobro,
@@ -350,7 +357,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
-            cantidad,
+            cantidad: cantidadCobro,
             importe: totalACobrar,
             medio_pago: medioPago,
             fecha: fechaCobro,
@@ -361,7 +368,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
         if (error) throw error;
       }
 
-      setMensajeExito('Operación suspendida con éxito. Ha quedado guardada como PENDIENTE (BORRADOR).');
+      setMensajeExito('Operación suspendida y guardada como pendiente.');
       limpiarFormulario();
       await cargarDatos();
       setVistaActual('historial');
@@ -445,7 +452,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
-            cantidad,
+            cantidad: cantidadCobro,
             importe: totalACobrar,
             medio_pago: medioPago,
             fecha: fechaCobro,
@@ -469,7 +476,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
             ...datosCobro.vinculo,
             concepto: conceptoCompleto,
             modalidad,
-            cantidad,
+            cantidad: cantidadCobro,
             importe: totalACobrar,
             medio_pago: medioPago,
             fecha: fechaCobro,
@@ -987,9 +994,13 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                     onChange={(e) => {
                       setActividadInscripcionId(e.target.value); setSesionId(''); setPeriodoAbonado(''); setSelectorMesAbierto(false);
                       const elegida = actividades.find((item) => item.sesiones.some((sesion) => sesion.id === e.target.value));
-                      setModalidadCurso(elegida?.modalidadCobro === 'Semana' ? 'Semana' : 'Mes');
                       const obligacion = obligacionesAlumno.find((item) => item.id === obligacionId);
+                      setModalidadParticular('Clase');
+                      setModalidadCurso(elegida?.modalidadCobro === 'Semana' ? 'Semana' : 'Mes');
                       setPrecioUnitario(obligacion ? Number(obligacion.saldo_pendiente) : Number(elegida?.precio || 0));
+                      if (obligacion?.inscripcion_id && elegida?.clave.startsWith('particular:')) {
+                        setSesionId(elegida.sesiones.find((sesion) => sesion.id === obligacion.inscripcion_id)?.id || '');
+                      }
                     }}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', marginTop: '6px' }}>
                     <option value="">{cargandoActividades ? 'Cargando inscripciones...' : 'Seleccioná un curso o una clase particular'}</option>
@@ -998,10 +1009,16 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                 </label>
                 {inscripcionesCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{inscripcionesCobro.error}</p>}
                 {alumnoSeleccionado && !cargandoActividades && !actividades.length && !inscripcionesCobro.error && <p style={{ color: '#64748b', margin: 0 }}>Este alumno no tiene inscripciones confirmadas disponibles para cobrar.</p>}
-                {actividadElegida && modalidad !== 'Clase' && (
+                {actividadElegida && (esClaseParticular || modalidad !== 'Clase') && (
                   <label style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>Modalidad de cobro *
-                    <select value={modalidadCurso} onChange={e => { setModalidadCurso(e.target.value as 'Semana' | 'Mes'); setPeriodoAbonado(''); setSelectorMesAbierto(false); setPrecioUnitario(0); }}
+                    <select value={modalidad} onChange={e => {
+                      const nueva = e.target.value as ModalidadPago;
+                      if (esClaseParticular) setModalidadParticular(nueva);
+                      else { setModalidadCurso(nueva as 'Semana' | 'Mes'); setPrecioUnitario(0); }
+                      setPeriodoAbonado(''); setSesionId(''); setSelectorMesAbierto(false);
+                    }}
                       style={{ width: '100%', padding: '10px 12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                      {esClaseParticular && <option value="Clase">Por clase</option>}
                       <option value="Semana">Semana</option>
                       <option value="Mes">Mes</option>
                     </select>
@@ -1062,17 +1079,27 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                   </label>
                 ))}
                 {actividadElegida && (periodoAbonado || sesionId) && datosCobro.error && <p role="alert" style={{ color: '#b91c1c', margin: 0 }}>{datosCobro.error}</p>}
-                {datosCobro.vinculo && <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '8px', color: '#1e3a8a', fontSize: '15px' }}>{datosCobro.vinculo.concepto}</div>}
+                {datosCobro.vinculo && <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '8px', color: '#1e3a8a', fontSize: '15px' }}>
+                  <div>{datosCobro.vinculo.concepto}</div>
+                  {esClaseParticular && modalidad !== 'Clase' && (
+                    <div style={{ marginTop: 6, fontSize: 13 }}>
+                      {cantidadCobro} {cantidadCobro === 1 ? 'clase incluida' : 'clases incluidas'}: {actividadElegida?.sesiones
+                        .filter(sesion => datosCobro.vinculo?.detalle_academico.inscripciones.includes(sesion.id))
+                        .map(sesion => `${sesion.turnos_clase!.fecha} ${sesion.turnos_clase!.hora_inicio.slice(0, 5)}`)
+                        .join(' · ')}
+                    </div>
+                  )}
+                </div>}
               </div>
 
               {datosCobro.vinculo && <div style={{ marginBottom: '18px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                  {modalidad === 'Semana' ? 'Precio de la semana ($)' : modalidad === 'Mes' ? 'Precio del mes ($)' : 'Precio de la clase ($)'} *
+                  {esClaseParticular ? 'Precio por clase ($)' : modalidad === 'Semana' ? 'Precio de la semana ($)' : modalidad === 'Mes' ? 'Precio del mes ($)' : 'Precio de la clase ($)'} *
                 </label>
                 <input type="number" min="0.01" step="0.01" required value={precioUnitario || ''}
                   onKeyDown={e => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
                   onChange={e => setPrecioUnitario(Math.max(0, parseFloat(e.target.value) || 0))}
-                  placeholder={modalidad === 'Semana' ? 'Ingresá el importe de la semana seleccionada' : modalidad === 'Mes' ? 'Ingresá el importe del mes seleccionado' : 'Ingresá el importe de esta clase'}
+                  placeholder={esClaseParticular ? 'Importe unitario de cada clase' : modalidad === 'Semana' ? 'Ingresá el importe de la semana seleccionada' : modalidad === 'Mes' ? 'Ingresá el importe del mes seleccionado' : 'Ingresá el importe de esta clase'}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '16px', boxSizing: 'border-box' }} />
               </div>}
 
@@ -1162,7 +1189,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
                 <div style={{ padding: '14px 0', borderTop: '2px dashed #e2e8f0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#64748b', marginBottom: '6px' }}>
-                    <span>{modalidad === 'Semana' ? 'Importe de la semana:' : modalidad === 'Mes' ? 'Importe del mes:' : 'Importe de la clase:'}</span>
+                    <span>{esClaseParticular && modalidad !== 'Clase' ? `${cantidadCobro} ${cantidadCobro === 1 ? 'clase' : 'clases'} × $${precioUnitario.toLocaleString('es-AR', { minimumFractionDigits: 2 })}` : modalidad === 'Semana' ? 'Importe de la semana:' : modalidad === 'Mes' ? 'Importe del mes:' : 'Importe de la clase:'}</span>
                     <span>${totalACobrar.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1249,7 +1276,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
               <option value="CONFIRMADO">Confirmados</option>
               <option value="PENDIENTE">Pendientes de acreditación</option>
               <option value="RECHAZADO">Rechazados</option>
-              <option value="BORRADOR">Pendientes (Borrador)</option>
+              <option value="BORRADOR">Pendientes</option>
               <option value="CANCELADO">Cancelados</option>
               <option value="ANULADO">Anulados</option>
             </select>
@@ -1274,7 +1301,7 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
             </summary>
             <div style={{ padding: '0 16px 16px' }}>
               <p style={{ margin: '0 0 12px', color: '#64748b', fontSize: '13px' }}>
-                Suma cobros pendientes o rechazados; excluye borradores y operaciones canceladas. No incluye períodos sin un cobro registrado.
+                Suma cobros pendientes o rechazados; excluye operaciones suspendidas y canceladas. No incluye períodos sin un cobro registrado.
               </p>
               <div style={{ maxHeight: '320px', overflow: 'auto' }}>
                 <table style={{ width: '100%', minWidth: '620px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
@@ -1306,17 +1333,27 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
           </details>
 
           <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '15px' }}>
+            <table style={{ width: '100%', minWidth: '1120px', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'center', fontSize: '15px' }}>
+              <colgroup>
+                <col style={{ width: '9%' }} />
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '27%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '11%' }} />
+              </colgroup>
               <thead>
                 <tr style={{ borderBottom: '1.5px solid #cbd5e1', backgroundColor: '#f8fafc', color: '#0f172a', fontSize: '13.5px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <th style={{ padding: '14px 16px' }}>Comprobante</th>
-                  <th style={{ padding: '14px 16px' }}>Fecha</th>
-                  <th style={{ padding: '14px 16px' }}>Alumno / Legajo</th>
-                  <th style={{ padding: '14px 16px' }}>Concepto</th>
-                  <th style={{ padding: '14px 16px' }}>Medio de Pago</th>
-                  <th style={{ padding: '14px 16px' }}>Importe</th>
-                  <th style={{ padding: '14px 16px' }}>Estado</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'right' }}>Acciones</th>
+                  <th style={{ padding: '14px 10px', textAlign: 'center' }}>Comprobante</th>
+                  <th style={{ padding: '14px 10px', textAlign: 'center' }}>Fecha</th>
+                  <th style={{ padding: '14px 10px', textAlign: 'center' }}>Alumno / Legajo</th>
+                  <th style={{ padding: '14px 10px', textAlign: 'center' }}>Concepto</th>
+                  <th style={{ padding: '14px 10px', textAlign: 'center' }}>Medio de Pago</th>
+                  <th style={{ padding: '14px 10px', textAlign: 'center' }}>Importe</th>
+                  <th style={{ padding: '14px 10px', textAlign: 'center' }}>Estado</th>
+                  <th style={{ padding: '14px 10px', textAlign: 'center' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -1337,20 +1374,20 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
 
                     return (
                       <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: esBorrador || p.estado === 'PENDIENTE' ? '#fffbeb' : esCancelado || p.estado === 'RECHAZADO' ? '#fef2f2' : 'transparent', opacity: esCancelado ? 0.75 : 1 }}>
-                        <td style={{ padding: '12px 16px', fontWeight: 700, color: '#0f172a' }}>{p.comprobante}</td>
-                        <td style={{ padding: '12px 16px', color: '#475569' }}>{p.fecha}</td>
-                        <td style={{ padding: '12px 16px' }}>
+                        <td style={{ padding: '12px 8px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>{p.comprobante}</td>
+                        <td style={{ padding: '12px 8px', color: '#475569' }}>{p.fecha}</td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center', overflowWrap: 'anywhere' }}>
                           <strong style={{ color: '#0f172a', display: 'block' }}>{p.alumnos?.apellido}, {p.alumnos?.nombre}</strong>
                           <span style={{ fontSize: '13px', color: '#64748b' }}>DNI: {p.alumnos?.dni || '—'} | Leg: {p.alumnos?.legajo || 'S/L'}</span>
                         </td>
-                        <td style={{ padding: '12px 16px', color: '#334155' }}>{p.concepto}</td>
-                        <td style={{ padding: '12px 16px', color: '#475569' }}>{p.medio_pago}</td>
-                        <td style={{ padding: '12px 16px', fontWeight: 700, color: esBorrador || p.estado === 'PENDIENTE' ? '#b45309' : esCancelado || p.estado === 'RECHAZADO' ? '#991b1b' : '#15803d', fontSize: '16px' }}>
+                        <td style={{ padding: '12px 10px', color: '#334155', textAlign: 'center', overflowWrap: 'anywhere', lineHeight: 1.45 }}>{p.concepto}</td>
+                        <td style={{ padding: '12px 8px', color: '#475569' }}>{p.medio_pago}</td>
+                        <td style={{ padding: '12px 8px', fontWeight: 700, color: esBorrador || p.estado === 'PENDIENTE' ? '#b45309' : esCancelado || p.estado === 'RECHAZADO' ? '#991b1b' : '#15803d', fontSize: '16px', whiteSpace: 'nowrap' }}>
                           ${Number(p.importe).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                         </td>
                         <td style={{ padding: '12px 16px' }}>
                           <span style={{
-                            padding: '3px 8px',
+                            padding: '5px 9px',
                             borderRadius: '4px',
                             fontSize: '12.5px',
                             fontWeight: 700,
@@ -1362,11 +1399,11 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
                             border: `1px solid ${presentacionEstado.borde}`
                           }}>
                             <span aria-hidden="true">{presentacionEstado.icono}</span>
-                            {esBorrador ? 'PENDIENTE (BORRADOR)' : p.estado}
+                            {esBorrador ? 'PENDIENTE' : p.estado}
                           </span>
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                          <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', justifyContent: 'center', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                             {esBorrador ? (
                               <>
                                 <button

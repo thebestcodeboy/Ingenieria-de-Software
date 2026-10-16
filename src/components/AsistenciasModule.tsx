@@ -1,8 +1,8 @@
 ﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { etiquetasAsistencia, estadoVigente, filtrarAsistencias, resumirAsistencias, type EstadoAsistencia, type FilaAsistencia } from '@/domain/asistencias';
-import { listarAsistencias, guardarAsistencia } from '@/services/asistencias';
+import { etiquetasAsistencia, estadoVigente, filtrarAsistencias, resumirAsistencias, type ClaseSinAlumnosProfesor, type EstadoAsistencia, type FilaAsistencia } from '@/domain/asistencias';
+import { listarAsistencias, listarClasesSinAlumnosProfesor, guardarAsistencia } from '@/services/asistencias';
 import { useAuth } from '@/context/AuthContext';
 import { usePagination } from './Pagination';
 import { fechaLocal, sumarDias } from './CalendarioBase';
@@ -19,7 +19,9 @@ function AsistenciasProfesor({ turnoInicial = '' }: { turnoInicial?: string }) {
   const esAlumno = role === 'alumno';
   const [ahora, setAhora] = useState(() => Date.now());
   const [filas, setFilas] = useState<FilaAsistencia[]>([]);
+  const [clasesSinAlumnos, setClasesSinAlumnos] = useState<ClaseSinAlumnosProfesor[]>([]);
   const [error, setError] = useState('');
+  const [errorClases, setErrorClases] = useState('');
   const [cargando, setCargando] = useState(true);
   // El profesor entra viendo las clases de ayer y hoy; para corregir registros más viejos usa los filtros de fecha.
   const hoy = fechaLocal(new Date());
@@ -46,15 +48,34 @@ function AsistenciasProfesor({ turnoInicial = '' }: { turnoInicial?: string }) {
 
   async function cargar() {
     setAhora(Date.now()); setCargando(true); setError('');
-    try { setFilas(await listarAsistencias(role)); }
+    try {
+      setFilas(await listarAsistencias(role));
+      if (!esAlumno) {
+        try { setClasesSinAlumnos(await listarClasesSinAlumnosProfesor()); setErrorClases(''); }
+        catch(e) { setErrorClases(e instanceof Error ? e.message : 'No se pudieron cargar las clases sin alumnos.'); }
+      }
+    }
     catch(e) { setFilas([]); setError(e instanceof Error ? e.message : 'No se pudo cargar la bitácora'); }
     finally { setCargando(false); }
   }
   useEffect(() => {
     let activo = true;
-    listarAsistencias(role).then(datos => { if (activo) { setFilas(datos); setError(''); } })
-      .catch(e => { if (activo) { setFilas([]); setError(e instanceof Error ? e.message : 'No se pudo cargar'); } })
-      .finally(() => { if (activo) setCargando(false); });
+    (async () => {
+      try {
+        const datos = await listarAsistencias(role);
+        if (activo) { setFilas(datos); setError(''); }
+        if (role === 'profesor') {
+          try {
+            const clases = await listarClasesSinAlumnosProfesor();
+            if (activo) { setClasesSinAlumnos(clases); setErrorClases(''); }
+          } catch(e) {
+            if (activo) setErrorClases(e instanceof Error ? e.message : 'No se pudieron cargar las clases sin alumnos.');
+          }
+        } else if (activo) setClasesSinAlumnos([]);
+      } catch(e) {
+        if (activo) { setFilas([]); setError(e instanceof Error ? e.message : 'No se pudo cargar'); }
+      } finally { if (activo) setCargando(false); }
+    })();
     return () => { activo = false; };
   }, [role]);
   useEffect(() => {
@@ -67,7 +88,13 @@ function AsistenciasProfesor({ turnoInicial = '' }: { turnoInicial?: string }) {
   const visibles = filtrarAsistencias(filas, filtros);
   const resumen = resumirAsistencias(visibles);
   const { elementosPaginados, paginaActual, totalPaginas, cambiarPagina } = usePagination(visibles, JSON.stringify(filtros), 10);
-  const opciones = (campo: 'alumno_id' | 'materia_id' | 'turno_id', nombre: 'alumno' | 'materia' | 'actividad') => [...new Map(filas.map(f => [f[campo], { id: f[campo], nombre: campo === 'turno_id' ? `${fechaLegible(f.fecha)} ${f.hora_inicio?.slice(0,5) ?? ''} · ${f[nombre]}` : f[nombre] }])).values()];
+  const opcionesMateria = [...new Map(filas.map(f => {
+    const tipo = f.tipo_actividad ?? 'materia';
+    const clave = `${tipo}:${f.materia_id}`;
+    const etiquetaTipo = tipo === 'particular' ? 'Clase particular' : tipo === 'ingreso' ? 'Curso de ingreso' : 'Materia';
+    return [clave, { id: clave, nombre: `${f.materia} · ${etiquetaTipo}` }] as const;
+  })).values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const opciones = (campo: 'alumno_id' | 'turno_id', nombre: 'alumno' | 'actividad') => [...new Map(filas.map(f => [f[campo], { id: f[campo], nombre: campo === 'turno_id' ? `${fechaLegible(f.fecha)} ${f.hora_inicio?.slice(0,5) ?? ''} · ${f[nombre]}${f.tipo_actividad === 'particular' ? ' · Clase particular' : f.tipo_actividad === 'ingreso' ? ' · Curso de ingreso' : ''}` : f[nombre] }])).values()];
   const puedeRegistrar = (f: FilaAsistencia) => f.editable && f.inscripcion_estado === 'confirmado' && !f.cancelada && Boolean(f.hora_inicio) && Date.parse(`${f.fecha}T${f.hora_inicio}-03:00`) <= ahora;
   // Registro de un clic (sin nota). Para agregar nota u observación se usa "Con nota".
   async function marcar(f: FilaAsistencia, nuevo: 'asistio' | 'falto') {
@@ -92,7 +119,7 @@ function AsistenciasProfesor({ turnoInicial = '' }: { turnoInicial?: string }) {
     <div className={styles.filters}>
       <label>Fecha desde<input type="date" value={filtros.desde} max={filtros.hasta || undefined} onChange={e => setFiltros({...filtros,desde:e.target.value})}/></label>
       <label>Fecha hasta<input type="date" value={filtros.hasta} min={filtros.desde} onChange={e => setFiltros({...filtros,hasta:e.target.value})}/></label>
-      <label>Materia<select value={filtros.materia} onChange={e => setFiltros({...filtros,materia:e.target.value})}><option value="">Todas las materias</option>{opciones('materia_id','materia').map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select></label>
+      <label>Materia / actividad<select value={filtros.materia} onChange={e => setFiltros({...filtros,materia:e.target.value})}><option value="">Todas las materias y actividades</option>{opcionesMateria.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select></label>
       {!esAlumno && <label>Alumno<select value={filtros.alumno} onChange={e => setFiltros({...filtros,alumno:e.target.value})}><option value="">Todos los alumnos</option>{opciones('alumno_id','alumno').map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select></label>}
       <label>Clase<select value={filtros.turno} onChange={e => setFiltros({...filtros,turno:e.target.value})}><option value="">Todas las clases</option>{opciones('turno_id','actividad').map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}</select></label>
       <label>Estado<select value={filtros.estado} onChange={e => setFiltros({...filtros,estado:e.target.value})}><option value="">Todos los estados</option>{Object.entries(etiquetasAsistencia).map(([k,v]) => <option key={k} value={k}>{v}</option>)}</select></label>
@@ -101,6 +128,19 @@ function AsistenciasProfesor({ turnoInicial = '' }: { turnoInicial?: string }) {
     {error && <div className={styles.alert} role="alert">{error}</div>}
     {errorRapido && <div className={styles.alert} role="alert">{errorRapido}</div>}
     <div className={styles.stats}>{Object.entries(resumen).map(([k,v]) => <div className={styles.stat} key={k}><Estado estado={k as EstadoAsistencia}/><strong>{cargando ? '—' : v}</strong></div>)}</div>
+    {!esAlumno && (clasesSinAlumnos.length > 0 || errorClases) && <section className={styles.unassignedSection} aria-labelledby="clases-sin-alumnos-titulo">
+      <header className={styles.unassignedHeader}>
+        <div><h2 id="clases-sin-alumnos-titulo">Clases sin alumnos confirmados</h2><p>Turnos futuros asignados a tu cuenta. La asistencia estará disponible cuando se confirme una inscripción.</p></div>
+        {clasesSinAlumnos.length > 0 && <span>{clasesSinAlumnos.length} {clasesSinAlumnos.length === 1 ? 'clase' : 'clases'}</span>}
+      </header>
+      {errorClases ? <div className={styles.alert} role="alert">{errorClases}</div> : <div className={styles.tableBox}><div className={styles.tableScroll}><table><thead><tr><th scope="col">Fecha</th><th scope="col">Horario</th><th scope="col">Materia / actividad</th><th scope="col">Aula</th><th scope="col">Estado</th></tr></thead><tbody>
+        {clasesSinAlumnos.map(clase => <tr key={clase.turno_id}>
+          <td className={styles.dateCell}>{fechaLegible(clase.fecha)}</td><td className={styles.dateCell}>{clase.hora_inicio?.slice(0,5) ?? '—'}</td>
+          <td className={styles.classCell}><strong>{clase.materia}</strong><small>{clase.actividad} · {clase.tipo_actividad === 'particular' ? 'Clase particular' : clase.tipo_actividad === 'ingreso' ? 'Curso de ingreso' : 'Materia'}</small></td>
+          <td>{clase.aula || '—'}</td><td><span className={`${styles.badge} ${styles.sin_registrar}`}>Sin alumnos</span></td>
+        </tr>)}
+      </tbody></table></div></div>}
+    </section>}
     {cargando ? <div className={styles.empty} role="status">Cargando bitácora…</div> : error ? <div className={styles.empty}><strong>No se pudo consultar la bitácora</strong>Usá Actualizar para volver a intentarlo.</div> : !visibles.length ? <div className={styles.empty}><strong>{filas.length ? 'No hay resultados para estos filtros' : 'Todavía no hay clases para mostrar'}</strong>{filas.length ? (esAlumno ? 'Probá cambiar el rango de fechas o limpiar los filtros.' : 'No hay clases en este período. Elegí “Todo el historial” u otras fechas para ver o corregir asistencias anteriores.') : 'Las clases aparecerán cuando tengas inscripciones disponibles.'}</div> :
       <div className={styles.tableBox}><div className={styles.tableScroll}><table><caption className="sr-only">Asistencias por inscripción, ordenadas por fecha y hora de clase</caption><thead><tr><th scope="col">Fecha</th><th scope="col">Horario</th><th scope="col">Materia / actividad</th>{!esAlumno && <th scope="col">Alumno</th>}<th scope="col">Estado</th><th scope="col">Nota / observación</th><th scope="col">Historial</th>{!esAlumno && <th scope="col">Acciones</th>}</tr></thead><tbody>
       {elementosPaginados.map(f => <tr key={f.inscripcion_id}>

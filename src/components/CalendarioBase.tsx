@@ -134,7 +134,12 @@ export default function CalendarioBase<T>({
   // Cancelada y ya pasada: gris (pasó) con marcas rojas (se canceló).
   const extra = (ev: EventoCalendario<T>, f: string, e: EstadoClase) => (atenuarPasadas && e === 'cancelado' && new Date(`${f}T${ev.hora_fin || '23:59'}`) < ahora ? styles.pasadoCancel : '');
   function etiquetaAria(ev: EventoCalendario<T>, e: EstadoClase) {
-    return `${ev.titulo}, ${hora(ev.hora_inicio)} a ${hora(ev.hora_fin)}${ev.pie ? ', ' + ev.pie : ''}, ${etiqueta[e]}`;
+    const estadoTexto = e === 'cancelado' && ev.datos && (ev.datos as { estado?: string }).estado === 'cancelado' ? 'Dado de baja' : etiqueta[e];
+    return `${ev.titulo}, ${hora(ev.hora_inicio)} a ${hora(ev.hora_fin)}${ev.pie ? ', ' + ev.pie : ''}, ${estadoTexto}`;
+  }
+
+  function textoEstadoEvento(ev: EventoCalendario<T>, estado: EstadoClase) {
+    return estado === 'cancelado' && ev.datos && (ev.datos as { estado?: string }).estado === 'cancelado' ? 'Dado de baja' : etiqueta[estado];
   }
 
   const offsetMes = (new Date(ref.getFullYear(), ref.getMonth(), 1).getDay() + 6) % 7;
@@ -221,7 +226,7 @@ export default function CalendarioBase<T>({
                       const e = estadoEvento(ev, f, ahora, atenuarPasadas);
                       return (
                         <button type="button" key={`${f}-${ev.id}`} className={`${styles.monthEvent} ${styles[e]} ${extra(ev, f, e)}`} onClick={() => onSeleccionar(ev, f)} aria-label={etiquetaAria(ev, e)}>
-                          <span>{ev.cancelado ? '✕ ' : ''}{hora(ev.hora_inicio)}</span><strong>{ev.titulo}</strong>{ev.pie && <small>{ev.pie}</small>}<em>{ev.marca ? `${ev.marca} · ` : ''}{etiqueta[e]}</em>
+                          <span>{ev.cancelado ? '✕ ' : ''}{hora(ev.hora_inicio)}</span><strong>{ev.titulo}</strong>{ev.pie && <small>{ev.pie}</small>}<em>{textoEstadoEvento(ev, e)}</em>
                         </button>
                       );
                     })}
@@ -246,7 +251,7 @@ export default function CalendarioBase<T>({
                         <div key={`${f}-${ev.id}`}>
                           {hueco >= 15 && <div className={styles.gap}>Espacio libre · {hueco} min</div>}
                           <button type="button" className={`${styles.event} ${styles[e]} ${extra(ev, f, e)}`} onClick={() => onSeleccionar(ev, f)} aria-label={etiquetaAria(ev, e)}>
-                            <span className={styles.eventTop}><span>{hora(ev.hora_inicio)} – {hora(ev.hora_fin)}</span><span className={styles.badge}>{etiqueta[e]}</span></span>
+                            <span className={styles.eventTop}><span>{hora(ev.hora_inicio)} – {hora(ev.hora_fin)}</span><span className={styles.badge}>{textoEstadoEvento(ev, e)}</span></span>
                             <strong>{ev.titulo}</strong>
                             {ev.subtitulo && <span className={styles.activity}>{ev.subtitulo}</span>}
                             {(ev.pie || ev.marca) && <span className={styles.eventBottom}>{ev.pie && <span>{ev.pie}</span>}{ev.marca && <span>{ev.marca}</span>}</span>}

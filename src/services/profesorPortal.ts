@@ -7,6 +7,7 @@ export type CursoPortalProfesor = {
   materias: string[];
   anotado: boolean;
   cantidad_alumnos: number;
+  tipo?: 'ingreso' | 'particular';
 };
 
 export type TurnoCalendarioProfesor = {
@@ -30,6 +31,7 @@ function normalizarCurso(fila: Record<string, unknown>): CursoPortalProfesor {
       : [],
     anotado: Boolean(fila.anotado),
     cantidad_alumnos: Number(fila.cantidad_alumnos ?? 0),
+    tipo: 'ingreso',
   };
 }
 
@@ -41,6 +43,9 @@ function mensajeError(error: { code?: string; message?: string }) {
   }
   if (detalle.includes('CURSO_NO_COMPATIBLE')) {
     return 'No podés anotarte porque el curso no contiene una materia que tengas habilitada.';
+  }
+  if (detalle.includes('CLASE_PARTICULAR_NO_ASIGNADA')) {
+    return 'La clase particular no está asignada a tu cuenta docente.';
   }
   if (error.code === 'PGRST202') {
     return 'El portal docente todavía no fue instalado en Supabase. Aplicá la migración correspondiente.';
@@ -54,6 +59,29 @@ export async function listarCursosProfesor(): Promise<CursoPortalProfesor[]> {
   if (error) throw new Error(mensajeError(error));
 
   return (data ?? []).map((fila: Record<string, unknown>) => normalizarCurso(fila));
+}
+
+export async function listarClasesParticularesProfesor(): Promise<CursoPortalProfesor[]> {
+  const { data, error } = await supabase.rpc('listar_clases_particulares_profesor');
+
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Falta aplicar la migración mis_cursos_clases_particulares en Supabase.');
+    throw new Error(mensajeError(error));
+  }
+
+  return (data ?? []).map((fila: Record<string, unknown>) => {
+    const materia = fila.materia ? String(fila.materia) : '';
+    const nivel = fila.nivel ? String(fila.nivel) : '';
+    return {
+      curso_id: String(fila.clase_id),
+      nombre: String(fila.nombre ?? 'Clase particular'),
+      descripcion: `Clase particular${materia ? ` de ${materia}` : ''}${nivel ? ` · nivel ${nivel}` : ''}.`,
+      materias: materia ? [materia] : [],
+      anotado: true,
+      cantidad_alumnos: Number(fila.cantidad_alumnos ?? 0),
+      tipo: 'particular' as const,
+    };
+  });
 }
 
 export async function listarCalendarioProfesor(
@@ -115,10 +143,16 @@ export type AlumnoCursoProfesor = {
   id: string; nombre: string; apellido: string; dni: string | number | null; legajo: string | null;
   email: string | null; telefono: string | null; direccion: string | null; clases: number; primera_clase: string | null;
 };
-export async function listarAlumnosCursoProfesor(cursoId: string): Promise<AlumnoCursoProfesor[]> {
-  const { data, error } = await supabase.rpc('listar_alumnos_curso_profesor', { p_curso_id: cursoId });
+export async function listarAlumnosCursoProfesor(cursoId: string, tipo: 'ingreso' | 'particular' = 'ingreso'): Promise<AlumnoCursoProfesor[]> {
+  const { data, error } = tipo === 'particular'
+    ? await supabase.rpc('listar_alumnos_clase_particular_profesor', { p_clase_id: cursoId })
+    : await supabase.rpc('listar_alumnos_curso_profesor', { p_curso_id: cursoId });
   if (error) {
-    if (error.code === 'PGRST202') throw new Error('Falta aplicar la migración listar_alumnos_curso_profesor en Supabase.');
+    if (error.code === 'PGRST202') {
+      throw new Error(tipo === 'particular'
+        ? 'Falta aplicar la migración de clases particulares del portal docente en Supabase.'
+        : 'Falta aplicar la migración listar_alumnos_curso_profesor en Supabase.');
+    }
     throw new Error(mensajeError(error));
   }
   return (data ?? []) as AlumnoCursoProfesor[];

@@ -25,6 +25,11 @@
 .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:22px; }
 .stat { background:white; border:1px solid #e2e8f0; border-radius:9px; padding:17px 18px; display:flex; flex-direction:column; gap:8px; }
 .stat strong { font-size:27px; line-height:1.2; color:#0f172a; }
+.unassignedSection { margin:0 0 22px; }
+.unassignedHeader { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin:0 0 10px; }
+.unassignedHeader h2 { margin:0 0 3px; color:#172b4d; font-size:17px; font-weight:750; }
+.unassignedHeader p { margin:0; color:#64748b; font-size:12px; line-height:1.45; }
+.unassignedHeader > span { flex:none; border-radius:999px; background:#eff6ff; color:#1d4ed8; font-size:12px; font-weight:700; padding:5px 9px; }
 .badge { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-size:12px; font-weight:600; border-radius:5px; padding:5px 8px; }
 .asistio { color:#166534; background:#dcfce7; }
 .falto { color:#b91c1c; background:#fee2e2; }

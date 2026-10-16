@@ -24,7 +24,7 @@ export async function getDashboardGerenteSummary() {
 
   const [inscripcionesRes, turnosRes] = await Promise.all([
     supabase.from('inscripciones').select('*'),
-    supabase.from('vista_calendario').select('*'),
+    supabase.from('turnos_clase').select('id, fecha, estado, cancelado, curso_id, clase_particular_id, cupo_maximo, cursos_ingreso(nombre), clases_particulares(nombre)'),
   ]);
 
   const consultaFallida = [inscripcionesRes, turnosRes].find((consulta) => consulta.error);

@@ -2,11 +2,12 @@ import { supabase } from '../lib/supabaseClient';
 
 export type AlumnoInscripcion = { id: string; nombre: string; apellido: string; dni: string | null; legajo: string | null };
 export type CursoInscripcion = { id: string; nombre: string; fecha_inicio: string; fecha_fin: string };
+export type ClaseParticularInscripcion = { id: string; nombre: string; nivel: string | null };
 export type SesionInscripcion = {
-  id: string; curso_id: string; profesor_id: string; docente: string; materia: string | null;
+  id: string; curso_id: string | null; clase_particular_id?: string | null; profesor_id: string; docente: string; materia: string | null;
   fecha: string; hora_inicio: string; hora_fin: string; cupo_maximo: number | null; confirmados: number;
 };
-export type OpcionesInscripcion = { alumnos: AlumnoInscripcion[]; cursos: CursoInscripcion[]; sesiones: SesionInscripcion[] };
+export type OpcionesInscripcion = { alumnos: AlumnoInscripcion[]; cursos: CursoInscripcion[]; sesiones: SesionInscripcion[]; clases_particulares?: ClaseParticularInscripcion[]; sesiones_particulares?: SesionInscripcion[] };
 export type ResultadoInscripcion = { inscripcion_id: string; turno_id: string; fecha: string; estado: string };
 
 function mensajeError(error: { code?: string; message: string }) {
@@ -32,5 +33,20 @@ export async function inscribirAlumnoCursoAdministrativo(cursoId: string, profes
   });
   if (error) throw new Error(mensajeError(error));
   if (!data?.length) throw new Error('No se registraron sesiones. Revisá la programación del curso.');
+  return data as ResultadoInscripcion[];
+}
+
+export async function inscribirAlumnoClaseParticularAdministrativo(claseId: string, profesorId: string, alumnoId: string): Promise<ResultadoInscripcion[]> {
+  if (!claseId || !profesorId || !alumnoId) throw new Error('Seleccioná alumno, clase particular y docente.');
+  const { data, error } = await supabase.rpc('inscribir_alumno_particular_administrativo', {
+    p_clase_particular_id: claseId, p_profesor_id: profesorId, p_alumno_id: alumnoId,
+  });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Falta aplicar la migración que habilita inscripciones administrativas en clases particulares.');
+    if (error.message.includes('CUPO_NO_DEFINIDO')) throw new Error('Hay clases particulares sin cupo configurado.');
+    if (error.message.includes('CLASE_SIN_TURNOS_FUTUROS')) throw new Error('Esta clase particular no tiene fechas futuras disponibles.');
+    throw new Error(error.message || 'No se pudo inscribir al alumno en la clase particular.');
+  }
+  if (!data?.length) throw new Error('No se registraron sesiones de la clase particular.');
   return data as ResultadoInscripcion[];
 }

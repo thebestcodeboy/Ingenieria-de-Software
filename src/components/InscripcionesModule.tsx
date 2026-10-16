@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { listarOpcionesInscripcion, inscribirAlumnoCursoAdministrativo, type OpcionesInscripcion } from '../services/inscripcionesAdmin';
+import { listarOpcionesInscripcion, inscribirAlumnoCursoAdministrativo, inscribirAlumnoClaseParticularAdministrativo, type OpcionesInscripcion } from '../services/inscripcionesAdmin';
 import { filtrarAlumnos } from '../domain/busquedaAlumno';
 import { useAuth } from '../context/AuthContext';
 import styles from './InscripcionesModule.module.css';
@@ -20,6 +20,8 @@ export default function InscripcionesModule() {
   const [indice, setIndice] = useState(-1);
   const [alumnoId, setAlumnoId] = useState('');
   const [cursoId, setCursoId] = useState('');
+  const [tipoActividad, setTipoActividad] = useState<'curso' | 'particular'>('curso');
+  const [claseParticularId, setClaseParticularId] = useState('');
   const [profesorId, setProfesorId] = useState('');
   const buscador = useRef<HTMLInputElement>(null);
 
@@ -40,11 +42,17 @@ export default function InscripcionesModule() {
   }, []);
 
   const alumnos = filtrarAlumnos(opciones.alumnos, busqueda).slice(0, 30);
-  const sesionesCurso = opciones.sesiones.filter((s) => s.curso_id === cursoId);
+  const opcionesActividad = tipoActividad === 'curso' ? opciones.cursos : (opciones.clases_particulares || []);
+  const sesionesCurso = tipoActividad === 'curso'
+    ? opciones.sesiones.filter((s) => s.curso_id === cursoId)
+    : (opciones.sesiones_particulares || []).filter((s) => s.clase_particular_id === claseParticularId);
   const docentes = [...new Map(sesionesCurso.map((s) => [s.profesor_id, s.docente])).entries()];
   const sesiones = sesionesCurso.filter((s) => s.profesor_id === profesorId);
   const alumno = opciones.alumnos.find((a) => a.id === alumnoId);
   const curso = opciones.cursos.find((c) => c.id === cursoId);
+  const claseParticular = opciones.clases_particulares?.find((c) => c.id === claseParticularId);
+  const actividadId = tipoActividad === 'curso' ? cursoId : claseParticularId;
+  const actividadNombre = tipoActividad === 'curso' ? curso?.nombre : claseParticular?.nombre;
   const sinCupo = sesiones.some((s) => !s.cupo_maximo || s.cupo_maximo <= 0);
   const completas = sesiones.filter((s) => !!s.cupo_maximo && s.confirmados >= s.cupo_maximo).length;
   const puedeConfirmar = !!alumno && !!sesiones.length && !sinCupo && !guardando && puedeGestionarRol;
@@ -68,10 +76,12 @@ export default function InscripcionesModule() {
     setError('');
     setResultado('');
     try {
-      const filas = await inscribirAlumnoCursoAdministrativo(cursoId, profesorId, alumnoId);
+      const filas = tipoActividad === 'curso'
+        ? await inscribirAlumnoCursoAdministrativo(cursoId, profesorId, alumnoId)
+        : await inscribirAlumnoClaseParticularAdministrativo(claseParticularId, profesorId, alumnoId);
       const confirmadas = filas.filter((f) => f.estado === 'confirmado').length;
       const espera = filas.filter((f) => f.estado === 'en_espera').length;
-      setResultado(`Inscripción de ${alumno?.apellido}, ${alumno?.nombre} en ${curso?.nombre}: ${confirmadas} clases confirmadas y ${espera} en lista de espera.`);
+      setResultado(`Inscripción de ${alumno?.apellido}, ${alumno?.nombre} en ${actividadNombre}: ${confirmadas} clases confirmadas y ${espera} en lista de espera.`);
       try {
         setOpciones(await listarOpcionesInscripcion());
       } catch {
@@ -88,7 +98,7 @@ export default function InscripcionesModule() {
     <section className={styles.module} style={{ maxWidth: '100%' }}>
       <header className={styles.header}>
         <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a' }}>Inscripciones</h1>
-        <p style={{ fontSize: '14.5px', color: '#64748b' }}>Registrá al alumno en un curso de ingreso y revisá las clases incluidas antes de confirmar.</p>
+        <p style={{ fontSize: '14.5px', color: '#64748b' }}>Registrá al alumno en un curso de ingreso o una clase particular y revisá las fechas antes de confirmar.</p>
       </header>
 
       {!puedeGestionarRol && (
@@ -172,28 +182,32 @@ export default function InscripcionesModule() {
                 </div>
               )}
 
-              <h2 className={styles.secondStep}><span className={styles.step}>2</span> Curso y docente</h2>
-              <label htmlFor="curso-inscripcion" className={styles.label}>Curso de ingreso <span>*</span></label>
-              <select id="curso-inscripcion" required value={cursoId} onChange={(e) => { setCursoId(e.target.value); setProfesorId(''); setResultado(''); }}>
-                <option value="">Seleccioná un curso</option>
-                {opciones.cursos.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              <h2 className={styles.secondStep}><span className={styles.step}>2</span> Actividad y docente</h2>
+              <label htmlFor="tipo-actividad-inscripcion" className={styles.label}>Tipo de actividad <span>*</span></label>
+              <select id="tipo-actividad-inscripcion" value={tipoActividad} onChange={(e) => { setTipoActividad(e.target.value as 'curso' | 'particular'); setCursoId(''); setClaseParticularId(''); setProfesorId(''); setResultado(''); }}>
+                <option value="curso">Curso de ingreso</option><option value="particular">Clase particular</option>
               </select>
-              {!opciones.cursos.length && <p className={styles.help}>No hay cursos activos con fechas configuradas y período vigente.</p>}
+              <label htmlFor="curso-inscripcion" className={styles.label}>{tipoActividad === 'curso' ? 'Curso de ingreso' : 'Clase particular'} <span>*</span></label>
+              <select id="curso-inscripcion" required value={actividadId} onMouseDown={(e) => { if (window.innerHeight - e.currentTarget.getBoundingClientRect().bottom < 420) e.currentTarget.scrollIntoView({ block: 'start' }); }} onFocus={(e) => { if (window.innerHeight - e.currentTarget.getBoundingClientRect().bottom < 420) e.currentTarget.scrollIntoView({ block: 'start' }); }} onChange={(e) => { tipoActividad === 'curso' ? setCursoId(e.target.value) : setClaseParticularId(e.target.value); setProfesorId(''); setResultado(''); }}>
+                <option value="">Seleccioná {tipoActividad === 'curso' ? 'un curso' : 'una clase particular'}</option>
+                {opcionesActividad.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+              {!opcionesActividad.length && <p className={styles.help}>No hay {tipoActividad === 'curso' ? 'cursos activos con período vigente' : 'clases particulares activas con turnos futuros'} disponibles.</p>}
               {curso && <p className={styles.period}>Período del curso: {fecha(curso.fecha_inicio)} al {fecha(curso.fecha_fin)}</p>}
               
               <label htmlFor="docente-inscripcion" className={styles.label}>Docente <span>*</span></label>
-              <select id="docente-inscripcion" required disabled={!cursoId || guardando} value={profesorId} onChange={(e) => { setProfesorId(e.target.value); setResultado(''); }}>
+              <select id="docente-inscripcion" required disabled={!actividadId || guardando} value={profesorId} onChange={(e) => { setProfesorId(e.target.value); setResultado(''); }}>
                 <option value="">Seleccioná un docente</option>
                 {docentes.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
               </select>
-              {cursoId && !docentes.length && <p className={styles.help}>No hay clases futuras con docentes activos. Programá los turnos del curso antes de inscribir.</p>}
+              {actividadId && !docentes.length && <p className={styles.help}>No hay fechas futuras con docentes activos para esta actividad.</p>}
             </div>
 
             <aside className={styles.card}>
               <h2><span className={styles.step}>3</span> Resumen de inscripción</h2>
               <dl className={styles.summary}>
                 <dt>Alumno</dt><dd>{alumno ? alumno.apellido + ', ' + alumno.nombre : 'Pendiente de selección'}</dd>
-                <dt>Curso</dt><dd>{curso?.nombre || 'Pendiente de selección'}</dd>
+                <dt>{tipoActividad === 'curso' ? 'Curso' : 'Clase particular'}</dt><dd>{actividadNombre || 'Pendiente de selección'}</dd>
                 <dt>Docente</dt><dd>{docentes.find(([id]) => id === profesorId)?.[1] || 'Pendiente de selección'}</dd>
               </dl>
               <div className={styles.stats}>
@@ -214,7 +228,7 @@ export default function InscripcionesModule() {
                 <span>{sesiones.length} sesiones</span>
               </div>
               {!sesiones.length ? (
-                <p className={styles.empty}>Seleccioná curso y docente para ver las fechas, horarios y vacantes.</p>
+                <p className={styles.empty}>Seleccioná una actividad y un docente para ver las fechas, horarios y vacantes.</p>
               ) : (
                 <div className={styles.tableScroll}>
                   <table>

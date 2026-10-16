@@ -1,5 +1,5 @@
 ﻿import { supabase } from '@/lib/supabaseClient';
-import type { FilaAsistencia } from '@/domain/asistencias';
+import type { ClaseSinAlumnosProfesor, FilaAsistencia } from '@/domain/asistencias';
 export async function listarAsistencias(rol?: string | null): Promise<FilaAsistencia[]> {
  if (rol === 'mesa_entrada' || rol === 'gerente') {
   const { error: permiso } = await supabase.rpc('validar_operador_inscripciones');
@@ -14,6 +14,11 @@ export async function listarAsistencias(rol?: string | null): Promise<FilaAsiste
   }
   throw new Error(error.code === 'PGRST202' ? 'Falta aplicar la migración de HU26 en Supabase.' : error.message);
  }
+ return data ?? [];
+}
+export async function listarClasesSinAlumnosProfesor(): Promise<ClaseSinAlumnosProfesor[]> {
+ const { data, error } = await supabase.rpc('listar_clases_sin_alumnos_asistencia');
+ if (error) throw new Error(error.code === 'PGRST202' ? 'Falta aplicar la migración de asistencias para ver los turnos sin alumnos confirmados.' : error.message);
  return data ?? [];
 }
 export async function guardarAsistencia(fila: FilaAsistencia, estado: string, nota: string, observacion: string, motivo: string) {

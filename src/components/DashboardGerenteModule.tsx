@@ -16,6 +16,9 @@ const VACIO: ResumenGerencial = {
   demandaCursos: [],
   cursoMayorDemanda: null,
   cursoMenorDemanda: null,
+  demandaActividades: [],
+  actividadMayorDemanda: null,
+  actividadMenorDemanda: null,
   clasesProgramadasMes: 0,
   promedioSemanalClases: 0,
   hayActividad: false,
@@ -162,15 +165,15 @@ export default function DashboardGerenteModule() {
             </article>
 
             <article style={{ ...styles.panel, gridColumn: '1 / -1' }}>
-              <h2 style={styles.tituloPanel}>Demanda de cursos</h2>
-              <p style={styles.textoSecundario}>Cantidad de alumnos únicos por curso de ingreso durante el mes.</p>
+              <h2 style={styles.tituloPanel}>Demanda de actividades</h2>
+              <p style={styles.textoSecundario}>Alumnos únicos por curso de ingreso o clase particular durante el mes.</p>
               <GraficoDemanda
-                cursos={resumen.demandaCursos}
-                mayor={resumen.cursoMayorDemanda}
-                menor={resumen.cursoMenorDemanda}
+                actividades={resumen.demandaActividades}
+                mayor={resumen.actividadMayorDemanda}
+                menor={resumen.actividadMenorDemanda}
               />
-              <Demanda etiqueta="Mayor demanda" curso={resumen.cursoMayorDemanda} color="#15803d" />
-              <Demanda etiqueta="Menor demanda" curso={resumen.cursoMenorDemanda} color="#d97706" />
+              <Demanda etiqueta="Mayor demanda" actividad={resumen.actividadMayorDemanda} color="#15803d" />
+              <Demanda etiqueta="Menor demanda" actividad={resumen.actividadMenorDemanda} color="#d97706" />
             </article>
           </div>
         </>
@@ -198,43 +201,48 @@ function BarraComparacion({ etiqueta, valor, maximo, color }: { etiqueta: string
   );
 }
 
-function Demanda({ etiqueta, curso, color }: { etiqueta: string; curso: ResumenGerencial['cursoMayorDemanda']; color: string }) {
+function Demanda({ etiqueta, actividad, color }: { etiqueta: string; actividad: ResumenGerencial['actividadMayorDemanda']; color: string }) {
   return (
     <div style={styles.demandaFila}>
       <span style={{ ...styles.punto, backgroundColor: color }} />
-      <div style={{ flex: 1 }}><div style={styles.demandaEtiqueta}>{etiqueta}</div><strong>{curso?.nombre ?? 'Sin información'}</strong></div>
-      <span style={styles.demandaValor}>{curso ? `${curso.inscriptos} inscriptos` : '-'}</span>
+      <div style={{ flex: 1 }}>
+        <div style={styles.demandaEtiqueta}>{etiqueta}</div>
+        <strong>{actividad?.nombre ?? 'Sin información'}</strong>
+        {actividad && <span style={styles.demandaTipo}>{actividad.tipo}</span>}
+      </div>
+      <span style={styles.demandaValor}>{actividad ? `${actividad.inscriptos} inscriptos` : '-'}</span>
     </div>
   );
 }
 
-function GraficoDemanda({ cursos = [], mayor, menor }: {
-  cursos: ResumenGerencial['demandaCursos'];
-  mayor: ResumenGerencial['cursoMayorDemanda'];
-  menor: ResumenGerencial['cursoMenorDemanda'];
+function GraficoDemanda({ actividades = [], mayor, menor }: {
+  actividades: ResumenGerencial['demandaActividades'];
+  mayor: ResumenGerencial['actividadMayorDemanda'];
+  menor: ResumenGerencial['actividadMenorDemanda'];
 }) {
-  if (cursos.length === 0) {
-    return <div style={styles.graficoVacio}>No hay cursos con actividad durante el mes.</div>;
+  if (actividades.length === 0) {
+    return <div style={styles.graficoVacio}>No hay cursos ni clases particulares con actividad durante el mes.</div>;
   }
 
-  const maximo = Math.max(...cursos.map((curso) => curso.inscriptos), 1);
+  const maximo = Math.max(...actividades.map((actividad) => actividad.inscriptos), 1);
 
   return (
     <div style={styles.graficoScroll}>
-      <div style={{ ...styles.graficoBarras, minWidth: `${Math.max(100, cursos.length * 104)}px` }}>
-        {cursos.map((curso) => {
-          const esMayor = curso.nombre === mayor?.nombre;
-          const esMenor = !esMayor && curso.nombre === menor?.nombre;
+      <div style={{ ...styles.graficoBarras, minWidth: `${Math.max(100, actividades.length * 116)}px` }}>
+        {actividades.map((actividad) => {
+          const esMayor = actividad.clave === mayor?.clave;
+          const esMenor = !esMayor && actividad.clave === menor?.clave;
           const color = esMayor ? '#15803d' : esMenor ? '#d97706' : '#2563eb';
-          const altura = curso.inscriptos === 0 ? 0 : Math.max(8, (curso.inscriptos / maximo) * 100);
+          const altura = actividad.inscriptos === 0 ? 0 : Math.max(8, (actividad.inscriptos / maximo) * 100);
 
           return (
-            <div key={curso.nombre} style={styles.columnaGrafico} aria-label={`${curso.nombre}: ${curso.inscriptos} inscriptos`}>
-              <strong style={styles.valorBarra}>{curso.inscriptos}</strong>
+            <div key={actividad.clave} style={styles.columnaGrafico} aria-label={`${actividad.tipo}, ${actividad.nombre}: ${actividad.inscriptos} inscriptos`}>
+              <strong style={styles.valorBarra}>{actividad.inscriptos}</strong>
               <div style={styles.areaBarra}>
-                <div title={`${curso.nombre}: ${curso.inscriptos}`} style={{ ...styles.barraVertical, height: `${altura}%`, backgroundColor: color }} />
+                <div title={`${actividad.tipo}: ${actividad.nombre} (${actividad.inscriptos})`} style={{ ...styles.barraVertical, height: `${altura}%`, backgroundColor: color }} />
               </div>
-              <span title={curso.nombre} style={styles.nombreCurso}>{curso.nombre}</span>
+              <span title={actividad.nombre} style={styles.nombreCurso}>{actividad.nombre}</span>
+              <small style={styles.demandaTipo}>{actividad.tipo}</small>
             </div>
           );
         })}
@@ -272,13 +280,14 @@ const styles: Record<string, CSSProperties> = {
   ocupacionValor: { margin: '26px 0 10px', color: '#0b1e33', fontSize: '40px', fontWeight: 800 },
   demandaFila: { display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', color: '#0f172a', fontSize: '15px' },
   demandaEtiqueta: { marginBottom: '3px', color: '#64748b', fontSize: '12.5px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 },
+  demandaTipo: { display: 'block', marginTop: '3px', color: '#64748b', fontSize: '11px', fontWeight: 600, lineHeight: 1.2 },
   demandaValor: { color: '#475569', fontSize: '14.5px', whiteSpace: 'nowrap', fontWeight: 600 },
   punto: { width: '10px', height: '10px', flexShrink: 0, borderRadius: '50%' },
   graficoScroll: { marginTop: '24px', overflowX: 'auto', paddingBottom: '8px' },
   graficoBarras: { height: '250px', display: 'flex', alignItems: 'stretch', gap: '14px', padding: '8px 8px 0', borderBottom: '2px solid #cbd5e1' },
-  columnaGrafico: { minWidth: '90px', flex: 1, display: 'grid', gridTemplateRows: '22px 170px 48px', justifyItems: 'center', alignItems: 'end' },
+  columnaGrafico: { minWidth: '100px', flex: 1, display: 'grid', gridTemplateRows: '22px 155px 36px 26px', justifyItems: 'center', alignItems: 'end' },
   valorBarra: { color: '#0b1e33', fontSize: '14px', fontWeight: 800 },
-  areaBarra: { width: '54px', height: '160px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
+  areaBarra: { width: '54px', height: '150px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' },
   barraVertical: { width: '100%', minHeight: 0, borderRadius: '6px 6px 0 0', transition: 'height 250ms ease' },
   nombreCurso: { maxWidth: '96px', alignSelf: 'start', marginTop: '7px', overflow: 'hidden', color: '#0f172a', fontSize: '13px', lineHeight: 1.25, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', fontWeight: 600 },
   graficoVacio: { marginTop: '20px', padding: '34px', border: '1px dashed #cbd5e1', borderRadius: '8px', color: '#64748b', fontSize: '15px', textAlign: 'center' },
