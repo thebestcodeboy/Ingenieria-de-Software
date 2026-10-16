@@ -1,4 +1,4 @@
-﻿.root { color:#172b4d; font-size:14px; }
+﻿.root { width:100%; max-width:1280px; margin:0 auto; color:#172b4d; font-size:14px; }
 .root h1 { font-size:28px; font-weight:750; letter-spacing:-.7px; margin:0 0 5px; }
 .root > p { color:#64748b; margin:0 0 24px; }
 .filters { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:20px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:20px; }
@@ -9,6 +9,16 @@
 .root button { border:1px solid #cbd5e1; border-radius:6px; padding:8px 13px; background:white; font-size:13px; font-weight:600; color:#334155; cursor:pointer; }
 .root button:hover { background:#eff6ff; border-color:#93c5fd; }
 .root button:disabled { opacity:.55; cursor:wait; }
+.periods { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:-8px 0 16px; }
+.periods > span { font-weight:700; color:#334155; margin-right:2px; }
+.root .periods button { border-radius:99px; padding:7px 14px; }
+.root .periods button[aria-pressed=true] { background:#102b4a; border-color:#102b4a; color:#fff; }
+.periods small { flex-basis:100%; color:#64748b; font-size:12px; }
+.quick { display:flex; gap:6px; flex-wrap:wrap; }
+.root .quickOk { background:#dcfce7; border-color:#86efac; color:#166534; }
+.root .quickOk:hover { background:#bbf7d0; border-color:#4ade80; }
+.root .quickNo { background:#fee2e2; border-color:#fca5a5; color:#991b1b; }
+.root .quickNo:hover { background:#fecaca; border-color:#f87171; }
 .filterActions { display:flex; align-items:end; gap:8px; }
 .root .primary { background:#2563eb; border-color:#2563eb; color:white; }
 .root .primary:hover { background:#1d4ed8; }
@@ -47,3 +57,11 @@
 .editorActions { display:flex; justify-content:flex-end; gap:10px; margin-top:24px; }
 @media(max-width:1000px) { .filters { grid-template-columns:repeat(2,minmax(0,1fr)); } .stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:600px) { .filters { grid-template-columns:1fr; padding:15px; } .stats { gap:10px; } .stat { padding:12px; } .root h1 { font-size:24px; } }
+
+.subjects { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+.subject { background:white; border:1px solid #e2e8f0; border-left:4px solid #2f6db5; border-radius:10px; padding:18px 20px; display:flex; flex-direction:column; gap:10px; }
+.subject h2 { font-size:18px; font-weight:750; margin:0; text-transform:capitalize; }
+.subject small { color:#64748b; }
+.counts { display:flex; flex-wrap:wrap; gap:6px; }
+.subject .primary { align-self:flex-start; margin-top:4px; }
+.root .editor table { font-size:13px; }

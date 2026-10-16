@@ -1,14 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { listarCursosProfesor, type CursoPortalProfesor } from '@/services/profesorPortal';
+import { listarAlumnosCursoProfesor, listarCursosProfesor, type AlumnoCursoProfesor, type CursoPortalProfesor } from '@/services/profesorPortal';
 import styles from './ProfesorCursosModule.module.css';
+
+function iniciales(nombre: string) {
+  const palabras = nombre.trim().split(/\s+/).filter(Boolean);
+  return (palabras.length > 1 ? palabras[0][0] + palabras[1][0] : (palabras[0] ?? '?').slice(0, 2)).toUpperCase();
+}
 
 export default function ProfesorCursosModule() {
   const [cursos, setCursos] = useState<CursoPortalProfesor[]>([]);
   const [seleccionado, setSeleccionado] = useState<CursoPortalProfesor | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [alumnos, setAlumnos] = useState<AlumnoCursoProfesor[]>([]);
+  const [cargandoAlumnos, setCargandoAlumnos] = useState(false);
+  const [errorAlumnos, setErrorAlumnos] = useState('');
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -42,6 +50,17 @@ export default function ProfesorCursosModule() {
 
   useEffect(() => {
     if (!seleccionado) return;
+    let vigente = true;
+    setAlumnos([]); setErrorAlumnos(''); setCargandoAlumnos(true);
+    listarAlumnosCursoProfesor(seleccionado.curso_id)
+      .then((v) => { if (vigente) setAlumnos(v); })
+      .catch((e: unknown) => { if (vigente) setErrorAlumnos(e instanceof Error ? e.message : 'No se pudo cargar la nómina.'); })
+      .finally(() => { if (vigente) setCargandoAlumnos(false); });
+    return () => { vigente = false; };
+  }, [seleccionado]);
+
+  useEffect(() => {
+    if (!seleccionado) return;
     const cerrarConEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setSeleccionado(null);
     };
@@ -68,25 +87,23 @@ export default function ProfesorCursosModule() {
       ) : (
         <>
           <p className={styles.count}>{cursos.length} {cursos.length === 1 ? 'curso asignado' : 'cursos asignados'}</p>
-          <div className={styles.grid}>
+          <div className={styles.list}>
             {cursos.map((curso) => (
               <article key={curso.curso_id} className={styles.card}>
-                <div className={styles.cardBody}>
+                <div className={styles.avatar} aria-hidden="true">{iniciales(curso.nombre)}</div>
+                <div className={styles.cardMain}>
                   <h2 className={styles.courseName}>{curso.nombre}</h2>
                   <p className={styles.description}>{curso.descripcion || 'Sin descripción registrada.'}</p>
-                </div>
-                <div className={styles.subjects}>
-                  <h3 className={styles.subjectsTitle}>Materias</h3>
                   {curso.materias.length > 0 ? (
-                    <div className={styles.tags}>
+                    <div className={styles.tags} aria-label="Materias del curso">
                       {curso.materias.map((materia) => <span key={materia} className={styles.tag}>{materia}</span>)}
                     </div>
                   ) : (
                     <p className={styles.noSubjects}>Sin materias registradas.</p>
                   )}
                 </div>
-                <div className={styles.cardFooter}>
-                  <p className={styles.students}><strong>{curso.cantidad_alumnos}</strong> {curso.cantidad_alumnos === 1 ? 'alumno inscripto' : 'alumnos inscriptos'}</p>
+                <div className={styles.cardSide}>
+                  <p className={styles.students}><strong>{curso.cantidad_alumnos}</strong><span>{curso.cantidad_alumnos === 1 ? 'alumno inscripto' : 'alumnos inscriptos'}</span></p>
                   <button type="button" onClick={() => setSeleccionado(curso)} className={styles.detailButton} aria-label={`Ver detalle de ${curso.nombre}`}>Ver detalle</button>
                 </div>
               </article>
@@ -116,9 +133,25 @@ export default function ProfesorCursosModule() {
                 <p className={styles.noSubjects}>Sin materias registradas.</p>
               )}
             </div>
-            <div className={styles.modalStudents}>
-              <span>Alumnos inscriptos</span>
-              <strong>{seleccionado.cantidad_alumnos}</strong>
+            <div className={styles.modalSection}>
+              <h3>Alumnos inscriptos ({cargandoAlumnos ? seleccionado.cantidad_alumnos : alumnos.length})</h3>
+              {cargandoAlumnos ? <p className={styles.noSubjects}>Cargando alumnos…</p> : errorAlumnos ? <p className={styles.error} role="alert">{errorAlumnos}</p> : alumnos.length === 0 ? <p className={styles.noSubjects}>Todavía no hay alumnos inscriptos.</p> : (
+                <ul className={styles.students_list}>
+                  {alumnos.map((a) => (
+                    <li key={a.id} className={styles.alumno}>
+                      <strong>{a.apellido}, {a.nombre}</strong>
+                      <dl>
+                        <div><dt>DNI</dt><dd>{a.dni ?? '—'}</dd></div>
+                        <div><dt>Legajo</dt><dd>{a.legajo || '—'}</dd></div>
+                        <div><dt>Email</dt><dd>{a.email || '—'}</dd></div>
+                        <div><dt>Teléfono</dt><dd>{a.telefono || '—'}</dd></div>
+                        <div><dt>Dirección</dt><dd>{a.direccion || '—'}</dd></div>
+                        <div><dt>Clases</dt><dd>{a.clases}</dd></div>
+                      </dl>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <div className={styles.modalFooter}>
               <button type="button" onClick={() => setSeleccionado(null)} className={styles.closeButton}>Cerrar</button>

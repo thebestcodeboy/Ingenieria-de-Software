@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { cancelarInscripcion, inscribirAlumno, inscribirAlumnoCurso, inscribirAlumnoSerie } from '../services/turnos';
 import { validarAlumnoActivoParaInscripcion } from '../utils/alumnoInscripcion';
+import CalendarioAlumno from './CalendarioAlumno';
 
 export default function PortalAlumnoModule({ activeTab }) {
   const { user } = useAuth();
@@ -1059,129 +1060,11 @@ export default function PortalAlumnoModule({ activeTab }) {
               </ol>}
         </section>
       ) : (
-        /* 4. CALENDARIO PERSONAL DEL ALUMNO */
-        <div>
-          <div style={{ marginBottom: '24px' }}>
-            <h1 style={{ fontSize: '25px', fontWeight: 700, color: '#0f172a', margin: '0', letterSpacing: '-0.02em' }}>
-              Mi Agenda de Clases
-            </h1>
-          </div>
-
-          <div style={{ backgroundColor: '#ffffff', border: '1px solid #94a3b8', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid #94a3b8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button
-                  onClick={() => cambiarMes('ant')}
-                  title="Mes anterior"
-                  style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  ‹
-                </button>
-                <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 700, color: '#0b1e33', minWidth: '180px' }}>
-                  {nombresMeses[mesActual]} de {anioActual}
-                </h3>
-                <button
-                  onClick={() => cambiarMes('sig')}
-                  title="Mes siguiente"
-                  style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#0f172a', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  ›
-                </button>
-              </div>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: '#2563eb' }}>
-                {misInscripcionesVisibles.length} {misInscripcionesVisibles.length === 1 ? 'Clase Programada' : 'Clases Programadas'}
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: '#1e293b', color: '#ffffff', textAlign: 'center', fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em' }}>
-              {['DOM.', 'LUN.', 'MAR.', 'MIÉ.', 'JUE.', 'VIE.', 'SÁB.'].map((col) => (
-                <div key={col} style={{ padding: '8px 4px', borderRight: '1px solid #334155' }}>
-                  {col}
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderTop: '1px solid #cbd5e1' }}>
-              {celdasCalendario.map((celda, idx) => {
-                const esVacio = celda.tipo === 'vacio';
-                const misTurnosDelDia = !esVacio
-                  ? misInscripcionesVisibles.filter((ins) => ins.turnos_clase?.fecha === celda.fechaStr)
-                  : [];
-
-                return (
-                  <div
-                    key={celda.clave}
-                    style={{
-                      backgroundColor: esVacio ? '#f1f5f9' : '#ffffff',
-                      borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid #cbd5e1',
-                      borderBottom: '1px solid #cbd5e1',
-                      minHeight: '120px',
-                      padding: '6px',
-                      boxSizing: 'border-box',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#334155', textAlign: 'left', marginBottom: '4px' }}>
-                      {!esVacio && celda.numero}
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, justifyContent: 'center' }}>
-                      {misTurnosDelDia.map((ins) => {
-                        const t = ins.turnos_clase;
-                        const nombreCurso = t?.cursos_ingreso?.nombre || t?.clases_particulares?.nombre || t?.materias?.nombre || 'Clase';
-                        const nombreMateria = t?.cursos_ingreso?.nombre ? t?.materias?.nombre : null;
-                        const profNombre = t?.profesores?.apellido ? `${t.profesores.apellido}` : (t?.profesores?.nombre || 'Docente');
-                        const esFutura = t?.fecha && t?.hora_inicio && new Date(`${t.fecha}T${t.hora_inicio}`) > new Date();
-
-                        return (
-                          <div
-                            key={ins.id}
-                            style={{
-                              backgroundColor: '#2563eb',
-                              color: '#ffffff',
-                              borderRadius: '4px',
-                              padding: '5px 6px',
-                              fontSize: '13px',
-                              lineHeight: 1.25,
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                            }}
-                          >
-                            <div style={{ fontWeight: 700, textTransform: 'uppercase' }}>
-                              {nombreCurso}
-                            </div>
-                            {nombreMateria && <div style={{ fontSize: '11px', marginTop: '1px', color: '#dbeafe' }}>Materia: {nombreMateria}</div>}
-                            <div style={{ fontSize: '12px', marginTop: '2px', color: '#dbeafe' }}>
-                              Horario: {t?.hora_inicio?.slice(0, 5)} - {t?.hora_fin?.slice(0, 5)}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#e0e7ff', marginTop: '1px' }}>
-                              Prof. {profNombre}
-                            </div>
-                            {esFutura && (
-                              <button
-                                type="button"
-                                onClick={() => setInscripcionCancelar(ins)}
-                                style={{ marginTop: '5px', padding: '3px 6px', border: '1px solid rgba(255,255,255,0.75)', borderRadius: '4px', backgroundColor: '#fff', color: '#b91c1c', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                              >
-                                Cancelar esta fecha
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div style={{ padding: '8px 12px', backgroundColor: '#f8fafc', borderTop: '1px solid #cbd5e1', fontSize: '13px', color: '#64748b' }}>
-              <span style={{ fontWeight: 700, textTransform: 'uppercase', marginRight: '6px' }}>NOTAS:</span>
-              En este calendario se reflejan de forma exclusiva las clases confirmadas en las que usted está registrado como alumno.
-            </div>
-          </div>
-        </div>
+        /* 4. CALENDARIO PERSONAL DEL ALUMNO (mismo diseño que los demás roles) */
+        <CalendarioAlumno
+          inscripciones={misInscripcionesVisibles}
+          onCancelarFecha={(ins) => setInscripcionCancelar(ins)}
+        />
       )}
 
       {inscripcionCancelar && (

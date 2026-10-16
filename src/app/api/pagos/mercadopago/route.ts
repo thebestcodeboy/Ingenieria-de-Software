@@ -50,7 +50,8 @@ export async function POST(request: Request) {
       }, { status: authorizationRejected ? 502 : 400 });
     }
 
-    const checkoutUrl = accessToken.startsWith('TEST-') ? mpData.sandbox_init_point : mpData.init_point;
+    // Se fuerza siempre el init_point real de producción para evitar bloqueos por modo de prueba
+    const checkoutUrl = mpData.init_point;
     if (!checkoutUrl) {
       return NextResponse.json({ error: 'Mercado Pago no devolvió el enlace de Checkout.' }, { status: 502 });
     }

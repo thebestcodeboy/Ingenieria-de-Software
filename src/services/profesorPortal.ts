@@ -110,3 +110,16 @@ export async function listarCalendarioProfesorAvanzado(desde: string, hasta: str
   if (error) throw new Error(mensajeError(error));
   return (data ?? []) as TurnoAvanzadoProfesor[];
 }
+
+export type AlumnoCursoProfesor = {
+  id: string; nombre: string; apellido: string; dni: string | number | null; legajo: string | null;
+  email: string | null; telefono: string | null; direccion: string | null; clases: number; primera_clase: string | null;
+};
+export async function listarAlumnosCursoProfesor(cursoId: string): Promise<AlumnoCursoProfesor[]> {
+  const { data, error } = await supabase.rpc('listar_alumnos_curso_profesor', { p_curso_id: cursoId });
+  if (error) {
+    if (error.code === 'PGRST202') throw new Error('Falta aplicar la migración listar_alumnos_curso_profesor en Supabase.');
+    throw new Error(mensajeError(error));
+  }
+  return (data ?? []) as AlumnoCursoProfesor[];
+}

@@ -123,7 +123,6 @@ const Icons = {
 
 // Mesa de Entrada: gestión operativa (SIN Reportes)
 const MESA_ENTRADA_MENU_ITEMS = [
-  { id: 'asistencias', label: 'Asistencias', Icon: Icons.Inscripciones },
   { id: 'inicio', label: 'Inicio', Icon: Icons.Inicio },
   { id: 'alumnos', label: 'Alumnos', Icon: Icons.Alumnos },
   { id: 'profesores', label: 'Profesores', Icon: Icons.Profesores },
@@ -152,9 +151,9 @@ const ALUMNO_MENU_ITEMS = [
 ];
 
 const PROFESOR_MENU_ITEMS = [
-  { id: 'asistencias', label: 'Asistencias', Icon: Icons.Inscripciones },
-  { id: 'calendario', label: 'Mis clases', Icon: Icons.Calendario },
   { id: 'cursos-docente', label: 'Mis cursos', Icon: Icons.Cursos },
+  { id: 'calendario', label: 'Mis clases', Icon: Icons.Calendario },
+  { id: 'asistencias', label: 'Asistencias', Icon: Icons.Inscripciones },
 ];
 
 const ETIQUETAS_ROL = {
@@ -167,6 +166,8 @@ const ETIQUETAS_ROL = {
 export default function AteneoLayout() {
   const { user, role, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('calendario');
+  // Clase elegida en el calendario del profesor para tomar asistencia (abre Asistencias ya filtrada).
+  const [turnoAsistencia, setTurnoAsistencia] = useState('');
   const [sidebarColapsada, setSidebarColapsada] = useState(false);
   const nombreUsuario = user?.user_metadata?.nombre?.trim() || user?.email || 'Usuario';
 
@@ -189,7 +190,8 @@ export default function AteneoLayout() {
       : role === 'profesor'
         ? PROFESOR_MENU_ITEMS
         : MESA_ENTRADA_MENU_ITEMS;
-  const activeTabForRole = menuItems.some(({ id }) => id === activeTab) ? activeTab : 'calendario';
+  const tabPorDefecto = role === 'profesor' ? 'cursos-docente' : 'calendario';
+  const activeTabForRole = menuItems.some(({ id }) => id === activeTab) ? activeTab : tabPorDefecto;
 
   const iniciales = nombreUsuario.slice(0, 2).toUpperCase();
 
@@ -237,7 +239,7 @@ export default function AteneoLayout() {
               return (
                 <button
                   key={id}
-                  onClick={() => setActiveTab(id)}
+                  onClick={() => { setTurnoAsistencia(''); setActiveTab(id); }}
                   aria-label={sidebarColapsada ? label : undefined}
                   title={sidebarColapsada ? label : undefined}
                   style={{
@@ -329,8 +331,8 @@ export default function AteneoLayout() {
 
       {/* CONTENIDO PRINCIPAL */}
       <main style={{ minWidth: 0, flex: 1, padding: '32px 40px', overflowY: 'auto', backgroundColor: '#f4f6f8' }}>
-        {activeTabForRole === 'asistencias' ? <AsistenciasModule /> : role === 'profesor' ? (
-          activeTabForRole === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder />
+        {activeTabForRole === 'asistencias' && (role === 'profesor' || role === 'alumno') ? <AsistenciasModule key={turnoAsistencia} turnoInicial={turnoAsistencia} /> : role === 'profesor' ? (
+          activeTabForRole === 'cursos-docente' ? <ProfesorCursosModule /> : <ProfesorCalendarioPlaceholder onIrAAsistencias={(turnoId) => { setTurnoAsistencia(turnoId); setActiveTab('asistencias'); }} />
         ) : role === 'alumno' ? (
           <PortalAlumnoModule activeTab={activeTabForRole} />
         ) : activeTabForRole === 'reportes' ? (

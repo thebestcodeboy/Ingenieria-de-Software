@@ -2,7 +2,7 @@ type Fila = {
   id?: string | number; fecha?: string | null; dia_semana?: string | null;
   hora_inicio?: string; hora_fin?: string; aula_numero?: string | number;
   tipo_actividad?: string; profesor_id?: string; cupo_maximo?: number | null;
-  estado?: string | null; cancelado?: boolean;
+  estado?: string | null; cancelado?: boolean; reprogramado?: boolean | null;
   materias?: { nombre?: string } | null; profesores?: { nombre?: string; apellido?: string } | null;
   cursos_ingreso?: { nombre?: string } | null; clases_particulares?: { nombre?: string } | null;
   inscripciones?: { estado?: string }[];
@@ -22,6 +22,7 @@ export function normalizarEventoCalendario(turno: Fila) {
     cupo_maximo: cupo, inscriptos_actuales: inscriptos,
     lugares_disponibles: cupo === null ? null : Math.max(0, cupo - inscriptos),
     estado: turno.cancelado ? 'cancelado' : (turno.estado ?? 'activo'),
+    reprogramado: Boolean(turno.reprogramado),
   };
 }
 
