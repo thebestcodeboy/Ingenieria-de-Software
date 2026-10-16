@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type User } from '@supabase/supabase-js';
 
 function crearClienteAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -14,6 +14,34 @@ function crearClienteAdmin() {
   });
 }
 
+const ROLES_ADMINISTRATIVOS = ['mesa_entrada', 'mesa de entrada', 'gerente', 'gerencia', 'admin', 'administrador'];
+
+function normalizarRol(valor: unknown): string {
+  return String(valor ?? '').toLowerCase().trim();
+}
+
+// Misma lógica que getRoleFromUser() del frontend: app_metadata, user_metadata,
+// email que empieza con "gerente" y, como último recurso, la tabla `perfiles`.
+async function tienePermisoAdministrativo(
+  supabaseAdmin: ReturnType<typeof crearClienteAdmin>,
+  user: User,
+): Promise<boolean> {
+  const rolMetadata = normalizarRol(
+    user.app_metadata?.rol ?? user.app_metadata?.role ?? user.user_metadata?.rol ?? user.user_metadata?.role,
+  );
+  if (ROLES_ADMINISTRATIVOS.includes(rolMetadata)) return true;
+
+  const email = normalizarRol(user.email);
+  if (email.startsWith('gerente') || email.startsWith('gerencia')) return true;
+
+  const { data: perfil } = await supabaseAdmin
+    .from('perfiles')
+    .select('rol')
+    .eq('id', user.id)
+    .maybeSingle();
+  return ROLES_ADMINISTRATIVOS.includes(normalizarRol(perfil?.rol));
+}
+
 export async function POST(req: Request) {
   try {
     const supabaseAdmin = crearClienteAdmin();
@@ -22,8 +50,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Sesión administrativa requerida.' }, { status: 401 });
     }
 
-    const { data: requesterData, error: requesterError } = await supabaseAdmin.auth.getUser(token);
-    if (requesterError || requesterData.user?.user_metadata?.rol !== 'mesa_entrada') {
+    let solicitante = null as User | null;
+    let motivoRechazo = '';
+    const adminRes = await supabaseAdmin.auth.getUser(token);
+    if (adminRes.data.user) {
+      solicitante = adminRes.data.user;
+    } else {
+      motivoRechazo = adminRes.error?.message ?? 'sin usuario';
+      // Alternativa: validar el token con la clave pública (anon)
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (anonKey) {
+        const supabaseAnon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, anonKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const anonRes = await supabaseAnon.auth.getUser(token);
+        if (anonRes.data.user) solicitante = anonRes.data.user;
+        else motivoRechazo += ` | anon: ${anonRes.error?.message ?? 'sin usuario'}`;
+      }
+    }
+
+    if (!solicitante) {
+      console.error('crear-acceso profesor: token rechazado ->', motivoRechazo);
+      return NextResponse.json(
+        { error: `Sesión administrativa inválida o vencida. (${motivoRechazo})` },
+        { status: 401 },
+      );
+    }
+
+    if (!(await tienePermisoAdministrativo(supabaseAdmin, solicitante))) {
       return NextResponse.json({ error: 'No tenés permisos para crear accesos docentes.' }, { status: 403 });
     }
 
@@ -36,46 +90,76 @@ export async function POST(req: Request) {
       );
     }
 
-    const emailInstitucional = `${username}@profesor.ateneo.com`;
     const passwordInicial = String(dni);
+    const dniTxt = String(dni).replace(/\D/g, '');
 
-    // 1. Crear el usuario en Supabase Auth con rol 'profesor'
-    const metadata = {
-      rol: 'profesor',
-      debe_cambiar_pass: true,
-      nombre: `${nombre} ${apellido}`,
-      dni: String(dni),
-      username,
-      profesor_id: profesorId ? String(profesorId) : null,
-    };
+    // Candidatos de usuario: si "prof.ggimenez" ya es de otro docente, se prueba con sufijos del DNI.
+    const candidatos = [username, `${username}${dniTxt.slice(-3)}`, `${username}${dniTxt.slice(-4)}`, `${username}${dniTxt}`];
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: emailInstitucional,
-      password: passwordInicial,
-      email_confirm: true,
-      user_metadata: metadata,
-    });
+    let usernameFinal = '';
+    let emailInstitucional = '';
+    let authUserId: string | null = null;
+    let metadata: Record<string, unknown> = {};
 
-    let authUserId = authData.user?.id ?? null;
+    for (const candidato of candidatos) {
+      // ¿Otro docente ya usa este username?
+      let qUser = supabaseAdmin.from('profesores').select('id').eq('username_institucional', candidato);
+      if (profesorId) qUser = qUser.neq('id', profesorId);
+      const { data: ocupado } = await qUser.limit(1);
+      if (ocupado && ocupado.length > 0) continue;
 
-    if (authError) {
-      const msg = authError.message.toLowerCase();
-      if (!msg.includes('already') && !msg.includes('exists')) {
-        throw authError;
+      const email = `${candidato}@profesor.ateneo.com`;
+      const meta = {
+        rol: 'profesor',
+        debe_cambiar_pass: true,
+        nombre: `${nombre} ${apellido}`,
+        dni: String(dni),
+        username: candidato,
+        profesor_id: profesorId ? String(profesorId) : null,
+      };
+
+      // 1. Crear el usuario en Supabase Auth con rol 'profesor'
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: passwordInicial,
+        email_confirm: true,
+        user_metadata: meta,
+      });
+
+      let idCandidato: string | null = authData?.user?.id ?? null;
+
+      if (authError) {
+        const msg = authError.message.toLowerCase();
+        if (!msg.includes('already') && !msg.includes('exists')) {
+          throw authError;
+        }
+        const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000,
+        });
+        if (usersError) throw usersError;
+        idCandidato = usersData.users.find(
+          (user) => user.email?.toLowerCase() === email.toLowerCase(),
+        )?.id ?? null;
       }
 
-      const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000,
-      });
-      if (usersError) throw usersError;
-      authUserId = usersData.users.find(
-        (user) => user.email?.toLowerCase() === emailInstitucional.toLowerCase(),
-      )?.id ?? null;
+      if (!idCandidato) continue;
+
+      // ¿Esa cuenta Auth ya pertenece a otro docente?
+      let qAuth = supabaseAdmin.from('profesores').select('id').eq('auth_user_id', idCandidato);
+      if (profesorId) qAuth = qAuth.neq('id', profesorId);
+      const { data: duenio } = await qAuth.limit(1);
+      if (duenio && duenio.length > 0) continue;
+
+      usernameFinal = candidato;
+      emailInstitucional = email;
+      authUserId = idCandidato;
+      metadata = meta;
+      break;
     }
 
     if (!authUserId) {
-      throw new Error('No se pudo identificar el usuario Auth del profesor.');
+      throw new Error('No se pudo generar un usuario único para este docente.');
     }
 
     const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
@@ -88,7 +172,7 @@ export async function POST(req: Request) {
       .from('profesores')
       .update({
         acceso_portal: true,
-        username_institucional: username,
+        username_institucional: usernameFinal,
         auth_user_id: authUserId,
       });
 
@@ -103,7 +187,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      usuario: username,
+      usuario: usernameFinal,
       claveProvisoria: passwordInicial,
       email: emailInstitucional,
     });

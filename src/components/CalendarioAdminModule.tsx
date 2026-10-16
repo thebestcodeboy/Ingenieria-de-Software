@@ -102,8 +102,26 @@ export default function CalendarioAdminModule() {
   // Opciones de los filtros: solo materias, profesores y aulas que tienen turnos en el período cargado.
   const unicos = (valores: string[]) => [...new Set(valores.filter(Boolean))];
   const opcMaterias = useMemo(() => unicos(turnos.map((t) => t.materia_nombre || t.actividad_nombre || '')).sort((a, b) => a.localeCompare(b)), [turnos]);
-  const opcProfesores = useMemo(() => unicos(turnos.map((t) => t.profesor_nombre_completo || '')).sort((a, b) => a.localeCompare(b)), [turnos]);
-  const opcAulas = useMemo(() => unicos(turnos.map((t) => String(t.aula_numero ?? ''))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [turnos]);
+  const turnosDeMateria = useMemo(
+    () => filtroMateria
+      ? turnos.filter((t) => (t.materia_nombre || t.actividad_nombre || '') === filtroMateria)
+      : turnos,
+    [turnos, filtroMateria],
+  );
+  const opcProfesores = useMemo(
+    () => unicos(turnosDeMateria.map((t) => t.profesor_nombre_completo || '')).sort((a, b) => a.localeCompare(b)),
+    [turnosDeMateria],
+  );
+  const opcAulas = useMemo(
+    () => unicos(turnosDeMateria.map((t) => String(t.aula_numero ?? ''))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    [turnosDeMateria],
+  );
+
+  const cambiarMateria = (materia: string) => {
+    setFiltroMateria(materia);
+    setFiltroProfesor('');
+    setFiltroAula('');
+  };
 
   async function abrirDetalle(evento: EventoCalendario<TurnoEvento>, fecha: string) {
     setSeleccion({ turno: evento.datos, fecha });
@@ -140,7 +158,7 @@ export default function CalendarioAdminModule() {
           <option value="activos">Solo activos</option>
           <option value="cancelados">Solo cancelados</option>
         </select>
-        <select value={filtroMateria} onChange={(e) => setFiltroMateria(e.target.value)} aria-label="Filtrar por materia">
+        <select value={filtroMateria} onChange={(e) => cambiarMateria(e.target.value)} aria-label="Filtrar por materia">
           <option value="">Todas las materias</option>
           {opcMaterias.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>

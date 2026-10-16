@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 import { calcularIndicadoresFinancieros } from '../domain/indicadoresFinancieros';
 import type { FilaFinanciera, FiltrosFinancieros, ResumenFinanciero } from '../domain/indicadoresFinancieros';
 import { cargarDatosFinancieros } from '../services/indicadoresFinancieros';
+import { graficoTorta } from './graficoTorta';
 
 const pesos = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
@@ -52,7 +53,7 @@ function abrirInformePdf(resumen: ResumenFinanciero, filtros: FiltrosFinancieros
     </section>
     <section class="panel"><h2>Pagos mensuales: ${anio} vs. ${anio - 1}</h2>${graficoMensual}${filasTabla(['Mes', String(anio), String(anio - 1)], resumen.serieMensual.map((x) => [x.etiqueta, pesos.format(x.actual), pesos.format(x.anterior)]))}<div class="conclusion">${escaparHtml(resumen.conclusiones.comparacionAnual)}</div></section>
     <div class="dos">
-      <section class="panel"><h2>Flujo de caja</h2>${graficoBarrasInforme(resumen.flujoPorMedio, '#2563eb')}${filasTabla(['Medio', 'Importe', '%'], resumen.flujoPorMedio.map((x) => [x.nombre, pesos.format(x.importe), x.porcentaje]))}<div class="conclusion">${escaparHtml(resumen.conclusiones.mediosPago)}</div></section>
+      <section class="panel"><h2>Flujo de caja</h2>${graficoTorta(resumen.flujoPorMedio)}${filasTabla(['Medio', 'Importe', '%'], resumen.flujoPorMedio.map((x) => [x.nombre, pesos.format(x.importe), x.porcentaje]))}<div class="conclusion">${escaparHtml(resumen.conclusiones.mediosPago)}</div></section>
       <section class="panel"><h2>Antigüedad de mora</h2>${graficoBarrasInforme(resumen.morosidad.tramos, '#dc2626')}${filasTabla(['Tramo', 'Alumnos', 'Saldo'], resumen.morosidad.tramos.map((x) => [x.nombre, x.alumnos, pesos.format(x.importe)]))}<div class="conclusion">${escaparHtml(resumen.conclusiones.morosidad)}</div></section>
     </div>
     <div class="dos">
@@ -155,7 +156,7 @@ export default function IndicadoresFinancierosModule() {
 
       {detalle === 'caja' && <DetalleModal titulo="Flujo de caja" onClose={() => setDetalle(null)}>
         <Panel titulo="Flujo de caja" subtitulo="Distribución por medio de pago">
-          <Barras datos={resumen.flujoPorMedio} color="#2563eb" />
+          <div dangerouslySetInnerHTML={{ __html: graficoTorta(resumen.flujoPorMedio) }} />
           <Tabla encabezados={['Medio', 'Importe', 'Participación']} filas={resumen.flujoPorMedio.map((x) => [x.nombre, pesos.format(x.importe), `${x.porcentaje}%`])} />
           <Conclusion texto={resumen.conclusiones.mediosPago} />
         </Panel>

@@ -169,10 +169,14 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
   }
 
   if (materiasIds && materiasIds.length > 0) {
-    await supabase
+    const { error: deleteError } = await supabase
       .from('profesor_materia')
       .delete()
       .eq('profesor_id', id);
+
+    if (deleteError) {
+      throw new Error(`No se pudieron actualizar las materias vinculadas al profesor: ${deleteError.message}`);
+    }
 
     const nuevasFilas = materiasIds.map((materiaId) => ({
       profesor_id: id,
@@ -184,7 +188,7 @@ export async function updateProfesor(id, { nombre, apellido, dni, email, telefon
       .insert(nuevasFilas);
 
     if (relError) {
-      console.warn('Advertencia al actualizar profesor_materia:', relError.message);
+      throw new Error(`No se pudieron guardar las materias vinculadas al profesor: ${relError.message}`);
     }
   }
 
