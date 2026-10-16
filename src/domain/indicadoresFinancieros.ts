@@ -23,6 +23,19 @@ const utc = (valor: string) => new Date(`${valor}T00:00:00Z`);
 const importe = (valor: unknown) => { const n = Number(valor); return Number.isFinite(n) && n > 0 ? n : 0; };
 const entre = (valor: string, desde: string, hasta: string) => valor >= desde && valor <= hasta;
 
+export function normalizarMedioPago(valor: unknown): string {
+  const texto = txt(valor);
+  if (!texto) return 'Sin informar';
+  const limpio = texto.toLowerCase();
+  if (limpio === 'efectivo') return 'Efectivo';
+  if (limpio === 'transferencia') return 'Transferencia';
+  if (limpio === 'mercado pago' || limpio === 'mercadopago') return 'Mercado Pago';
+  if (limpio === 'tarjeta de debito' || limpio === 'tarjeta de débito') return 'Tarjeta de Débito';
+  if (limpio === 'tarjeta de credito' || limpio === 'tarjeta de crédito') return 'Tarjeta de Crédito';
+  if (limpio === 'tarjeta') return 'Tarjeta';
+  return texto.charAt(0).toUpperCase() + texto.slice(1).toLowerCase();
+}
+
 function moverDias(valor: string, dias: number) {
   const f = utc(valor); f.setUTCDate(f.getUTCDate() + dias); return f.toISOString().slice(0, 10);
 }
@@ -65,8 +78,9 @@ function concluirComparacion(nombre: string, actual: number, anterior: number) {
 
 export function calcularIndicadoresFinancieros(pagos: FilaFinanciera[], obligaciones: FilaFinanciera[], filtros: FiltrosFinancieros): ResumenFinanciero {
   if (!filtros.desde || !filtros.hasta || filtros.desde > filtros.hasta) throw new Error('El período seleccionado no es válido.');
+  const filtroMedioNorm = filtros.medioPago === 'todos' ? 'todos' : normalizarMedioPago(filtros.medioPago);
   const pagosBase = pagos.filter((p) => txt(p.estado).toUpperCase() === 'CONFIRMADO'
-    && (filtros.medioPago === 'todos' || txt(p.medio_pago) === filtros.medioPago)
+    && (filtroMedioNorm === 'todos' || normalizarMedioPago(p.medio_pago) === filtroMedioNorm)
     && coincide(actividad(p), filtros.actividad));
   const dias = Math.floor((utc(filtros.hasta).getTime() - utc(filtros.desde).getTime()) / DIA) + 1;
   const finAnterior = moverDias(filtros.desde, -1); const inicioAnterior = moverDias(finAnterior, -(dias - 1));
@@ -83,7 +97,7 @@ export function calcularIndicadoresFinancieros(pagos: FilaFinanciera[], obligaci
       anterior: pagosBase.filter((p) => fecha(p.fecha).startsWith(anterior)).reduce((s, p) => s + importe(p.importe), 0) };
   });
   const pagosPeriodo = pagosBase.filter((p) => entre(fecha(p.fecha), filtros.desde, filtros.hasta));
-  const flujoPorMedio = distribuir(pagosPeriodo.map((p) => ({ nombre: txt(p.medio_pago) || 'Sin informar', importe: importe(p.importe) })));
+  const flujoPorMedio = distribuir(pagosPeriodo.map((p) => ({ nombre: normalizarMedioPago(p.medio_pago), importe: importe(p.importe) })));
   const ingresosPorActividad = distribuir(pagosPeriodo.map((p) => ({ nombre: actividad(p), importe: importe(p.importe) })));
 
   const deudas = obligaciones.filter((d) => importe(d.saldo_pendiente ?? d.importe) > 0 && fecha(d.fecha_vencimiento) < filtros.hasta && coincide(actividad(d), filtros.actividad));

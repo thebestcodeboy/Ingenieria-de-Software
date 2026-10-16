@@ -52,6 +52,22 @@ test('cuenta deudores unicos y clasifica antiguedad', () => {
   assert.deepEqual(r.rankingDeudores.map((x) => x.alumno), ['Ana Pérez', 'Juan López']);
 });
 
+test('unifica medios de pago con diferente capitalizacion (Efectivo y EFECTIVO, Transferencia y TRANSFERENCIA)', () => {
+  const pagosVariados = [
+    { fecha: '2026-10-01', importe: 10000, estado: 'CONFIRMADO', medio_pago: 'Efectivo', detalle_academico: { actividad: 'Medicina' } },
+    { fecha: '2026-10-02', importe: 5000, estado: 'CONFIRMADO', medio_pago: 'EFECTIVO', detalle_academico: { actividad: 'Medicina' } },
+    { fecha: '2026-10-03', importe: 20000, estado: 'CONFIRMADO', medio_pago: 'Transferencia', detalle_academico: { actividad: 'Medicina' } },
+    { fecha: '2026-10-04', importe: 8000, estado: 'CONFIRMADO', medio_pago: 'TRANSFERENCIA', detalle_academico: { actividad: 'Medicina' } },
+  ];
+  const r = calcularIndicadoresFinancieros(pagosVariados, [], { desde: '2026-10-01', hasta: '2026-10-31', actividad: 'todos', medioPago: 'todos' });
+  const flujoNombres = r.flujoPorMedio.map((x) => x.nombre);
+  assert.deepEqual(flujoNombres.sort(), ['Efectivo', 'Transferencia']);
+  const efectivo = r.flujoPorMedio.find((x) => x.nombre === 'Efectivo');
+  const transferencia = r.flujoPorMedio.find((x) => x.nombre === 'Transferencia');
+  assert.equal(efectivo?.importe, 15000);
+  assert.equal(transferencia?.importe, 28000);
+});
+
 test('rechaza un rango invertido', () => {
   assert.throws(() => calcularIndicadoresFinancieros([], [], { desde: '2026-10-31', hasta: '2026-10-01', actividad: 'todos', medioPago: 'todos' }), /no es válido/);
 });

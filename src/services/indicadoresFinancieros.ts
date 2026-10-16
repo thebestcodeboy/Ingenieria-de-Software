@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { getRoleFromUser } from './auth';
-import { calcularIndicadoresFinancieros } from '../domain/indicadoresFinancieros';
+import { calcularIndicadoresFinancieros, normalizarMedioPago } from '../domain/indicadoresFinancieros';
 import type { FilaFinanciera, FiltrosFinancieros } from '../domain/indicadoresFinancieros';
 
 type RespuestaIndicadores = {
@@ -38,7 +38,7 @@ export async function cargarDatosFinancieros() {
   const obligaciones = respuesta.obligaciones ?? [];
   const actividades = [...new Set([...pagos, ...obligaciones].map(nombreActividad).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'es'));
-  const mediosPago = [...new Set(pagos.map((pago) => String(pago.medio_pago ?? '').trim()).filter(Boolean))]
+  const mediosPago = [...new Set(pagos.map((pago) => normalizarMedioPago(pago.medio_pago)).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'es'));
 
   return { pagos, obligaciones, actividades, mediosPago };
