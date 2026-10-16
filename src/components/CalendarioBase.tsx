@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { eventoEnFecha } from '@/domain/calendario';
 import styles from './CalendarioBase.module.css';
 
-export type Vista = 'dia' | 'semana' | 'mes';
+export type Vista = 'hoy' | 'semana' | 'mes' | 'anio';
 export type EstadoClase = 'porDar' | 'pasado' | 'cancelado' | 'completo';
 
 export type EventoCalendario<T = unknown> = {
@@ -104,8 +104,8 @@ export default function CalendarioBase<T>({
   const ahora = new Date();
   const ref = diaDesdeSql(fecha);
 
-  const desde = vista === 'mes' ? fechaLocal(new Date(ref.getFullYear(), ref.getMonth(), 1)) : vista === 'semana' ? inicioSemana(fecha) : fecha;
-  const hasta = vista === 'mes' ? fechaLocal(new Date(ref.getFullYear(), ref.getMonth() + 1, 0)) : vista === 'semana' ? sumarDias(desde, 6) : fecha;
+  const desde = vista === 'hoy' ? hoy : vista === 'anio' ? `${ref.getFullYear()}-01-01` : vista === 'mes' ? fechaLocal(new Date(ref.getFullYear(), ref.getMonth(), 1)) : inicioSemana(fecha);
+  const hasta = vista === 'hoy' ? hoy : vista === 'anio' ? `${ref.getFullYear()}-12-31` : vista === 'mes' ? fechaLocal(new Date(ref.getFullYear(), ref.getMonth() + 1, 0)) : sumarDias(desde, 6);
 
   const avisarRango = useRef(onRangoCambio);
   useEffect(() => { avisarRango.current = onRangoCambio; });
@@ -121,15 +121,18 @@ export default function CalendarioBase<T>({
   const total = fechasRango.reduce((n, f) => n + (porDia.get(f)?.length ?? 0), 0);
 
   function navegar(delta: number) {
-    setFecha(vista === 'mes' ? fechaLocal(new Date(ref.getFullYear(), ref.getMonth() + delta, 1)) : sumarDias(fecha, delta * (vista === 'semana' ? 7 : 1)));
+    setFecha(vista === 'anio' ? fechaLocal(new Date(ref.getFullYear() + delta, ref.getMonth(), 1)) : vista === 'mes' ? fechaLocal(new Date(ref.getFullYear(), ref.getMonth() + delta, 1)) : sumarDias(fecha, delta * 7));
   }
-  function irADia(f: string) { setFecha(f); setVista('dia'); }
-  const nombreVista = vista === 'mes' ? 'Mes' : vista === 'semana' ? 'Semana' : 'Día';
-  const unidad = { ant: vista === 'mes' ? 'Mes anterior' : vista === 'semana' ? 'Semana anterior' : 'Día anterior', sig: vista === 'mes' ? 'Mes siguiente' : vista === 'semana' ? 'Semana siguiente' : 'Día siguiente' };
+  function irADia(f: string) { setFecha(f); setVista('semana'); }
+  function irAMes(mes: number) { setFecha(fechaLocal(new Date(ref.getFullYear(), mes, 1))); setVista('mes'); }
+  const nombreVista = vista === 'hoy' ? 'Hoy' : vista === 'mes' ? 'Mes' : vista === 'anio' ? 'Año' : 'Semana';
+  const unidad = { ant: vista === 'anio' ? 'Año anterior' : vista === 'mes' ? 'Mes anterior' : 'Semana anterior', sig: vista === 'anio' ? 'Año siguiente' : vista === 'mes' ? 'Mes siguiente' : 'Semana siguiente' };
 
   const leyenda: EstadoClase[] = ['porDar', ...(atenuarPasadas ? ['pasado' as const] : []), 'cancelado', ...(eventos.some((e) => e.completo) ? ['completo' as const] : [])];
   const leyendaClase: Record<EstadoClase, string> = { porDar: styles.legendPorDar, pasado: styles.legendPasado, cancelado: styles.legendCancelado, completo: styles.legendCompleto };
 
+  // Cancelada y ya pasada: gris (pasó) con marcas rojas (se canceló).
+  const extra = (ev: EventoCalendario<T>, f: string, e: EstadoClase) => (atenuarPasadas && e === 'cancelado' && new Date(`${f}T${ev.hora_fin || '23:59'}`) < ahora ? styles.pasadoCancel : '');
   function etiquetaAria(ev: EventoCalendario<T>, e: EstadoClase) {
     return `${ev.titulo}, ${hora(ev.hora_inicio)} a ${hora(ev.hora_fin)}${ev.pie ? ', ' + ev.pie : ''}, ${etiqueta[e]}`;
   }
@@ -148,13 +151,12 @@ export default function CalendarioBase<T>({
         </div>
         <div className={styles.controls}>
           <div className={styles.switcher} role="group" aria-label="Vista del calendario">
-            {(['dia', 'semana', 'mes'] as Vista[]).map((v) => (
-              <button key={v} type="button" aria-pressed={vista === v} onClick={() => setVista(v)}>
-                {v === 'dia' ? 'Día' : v === 'semana' ? 'Semana' : 'Mes'}
+            {(['hoy', 'semana', 'mes', 'anio'] as Vista[]).map((v) => (
+              <button key={v} type="button" aria-pressed={vista === v} onClick={() => { if (v === 'hoy') setFecha(hoy); setVista(v); }}>
+                {v === 'hoy' ? 'Hoy' : v === 'semana' ? 'Semana' : v === 'mes' ? 'Mes' : 'Año'}
               </button>
             ))}
           </div>
-          <button type="button" className={styles.today} onClick={() => setFecha(hoy)}>Hoy</button>
         </div>
       </header>
 
@@ -162,9 +164,9 @@ export default function CalendarioBase<T>({
 
       <div className={styles.toolbar}>
         <div className={styles.navigation}>
-          <button type="button" onClick={() => navegar(-1)} aria-label={unidad.ant}>‹</button>
-          <h2>{vista === 'mes' ? `${meses[ref.getMonth()]} de ${ref.getFullYear()}` : vista === 'dia' ? fechaLegible(fecha) : `${fechaLegible(desde)} — ${fechaLegible(hasta)}`}</h2>
-          <button type="button" onClick={() => navegar(1)} aria-label={unidad.sig}>›</button>
+          {vista !== 'hoy' && <button type="button" onClick={() => navegar(-1)} aria-label={unidad.ant}>‹</button>}
+          <h2>{vista === 'hoy' ? fechaLegible(hoy) : vista === 'anio' ? String(ref.getFullYear()) : vista === 'mes' ? `${meses[ref.getMonth()]} de ${ref.getFullYear()}` : `${fechaLegible(desde)} — ${fechaLegible(hasta)}`}</h2>
+          {vista !== 'hoy' && <button type="button" onClick={() => navegar(1)} aria-label={unidad.sig}>›</button>}
         </div>
         <span className={styles.count}>{total} {total === 1 ? 'clase' : 'clases'}</span>
       </div>
@@ -178,7 +180,32 @@ export default function CalendarioBase<T>({
 
       {cargando ? <div className={styles.loading} role="status">Cargando clases…</div> : (
         <div className={styles.weekScroll} aria-label={`Vista ${nombreVista}`}>
-          {vista === 'mes' ? (
+          {vista === 'anio' ? (
+            <div className={styles.year}>
+              {meses.map((nombreMes, m) => {
+                const off = (new Date(ref.getFullYear(), m, 1).getDay() + 6) % 7;
+                const n = new Date(ref.getFullYear(), m + 1, 0).getDate();
+                const clasesMes = Array.from({ length: n }, (_, i) => (porDia.get(fechaLocal(new Date(ref.getFullYear(), m, i + 1))) ?? []).length).reduce((a, b) => a + b, 0);
+                return (
+                  <div key={nombreMes} className={styles.miniMonth}>
+                    <button type="button" className={styles.miniTitle} onClick={() => irAMes(m)} aria-label={`Ver ${nombreMes} de ${ref.getFullYear()}`}><span>{nombreMes}</span><small>{clasesMes} {clasesMes === 1 ? 'clase' : 'clases'}</small></button>
+                    <div className={styles.miniGrid}>
+                      {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => <span key={i} className={styles.miniWeekday}>{d}</span>)}
+                      {Array.from({ length: off }, (_, i) => <span key={`v${i}`} />)}
+                      {Array.from({ length: n }, (_, i) => {
+                        const f = fechaLocal(new Date(ref.getFullYear(), m, i + 1));
+                        const cl = porDia.get(f) ?? [];
+                        const pasado = atenuarPasadas && f < hoy;
+                        const todasCanc = cl.length > 0 && cl.every((e) => e.cancelado);
+                        const tono = pasado ? (!cl.length ? styles.miniPastDay : todasCanc ? styles.miniPastCancel : styles.miniPast) : !cl.length ? '' : todasCanc ? styles.miniCancel : styles.miniHas;
+                        return <button type="button" key={f} className={`${styles.miniDay} ${tono} ${f === hoy ? styles.miniToday : ''}`} onClick={() => irADia(f)} aria-label={`${fechaLegible(f)}${cl.length ? `, ${cl.length} ${cl.length === 1 ? 'clase' : 'clases'}` : ''}`}>{i + 1}</button>;
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : vista === 'mes' ? (
             <div className={styles.month}>
               {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => <div key={d} className={styles.monthWeekday}>{d}</div>)}
               {Array.from({ length: celdasMes }, (_, i) => {
@@ -193,7 +220,7 @@ export default function CalendarioBase<T>({
                     {clases.slice(0, 3).map((ev) => {
                       const e = estadoEvento(ev, f, ahora, atenuarPasadas);
                       return (
-                        <button type="button" key={`${f}-${ev.id}`} className={`${styles.monthEvent} ${styles[e]}`} onClick={() => onSeleccionar(ev, f)} aria-label={etiquetaAria(ev, e)}>
+                        <button type="button" key={`${f}-${ev.id}`} className={`${styles.monthEvent} ${styles[e]} ${extra(ev, f, e)}`} onClick={() => onSeleccionar(ev, f)} aria-label={etiquetaAria(ev, e)}>
                           <span>{ev.cancelado ? '✕ ' : ''}{hora(ev.hora_inicio)}</span><strong>{ev.titulo}</strong>{ev.pie && <small>{ev.pie}</small>}<em>{ev.marca ? `${ev.marca} · ` : ''}{etiqueta[e]}</em>
                         </button>
                       );
@@ -204,7 +231,7 @@ export default function CalendarioBase<T>({
               })}
             </div>
           ) : (
-            <div className={vista === 'semana' ? styles.week : styles.day}>
+            <div className={vista === 'hoy' ? styles.day : styles.week}>
               {fechasRango.map((f) => {
                 const clases = porDia.get(f) ?? [];
                 const esPasado = atenuarPasadas && f < hoy;
@@ -218,7 +245,7 @@ export default function CalendarioBase<T>({
                       return (
                         <div key={`${f}-${ev.id}`}>
                           {hueco >= 15 && <div className={styles.gap}>Espacio libre · {hueco} min</div>}
-                          <button type="button" className={`${styles.event} ${styles[e]}`} onClick={() => onSeleccionar(ev, f)} aria-label={etiquetaAria(ev, e)}>
+                          <button type="button" className={`${styles.event} ${styles[e]} ${extra(ev, f, e)}`} onClick={() => onSeleccionar(ev, f)} aria-label={etiquetaAria(ev, e)}>
                             <span className={styles.eventTop}><span>{hora(ev.hora_inicio)} – {hora(ev.hora_fin)}</span><span className={styles.badge}>{etiqueta[e]}</span></span>
                             <strong>{ev.titulo}</strong>
                             {ev.subtitulo && <span className={styles.activity}>{ev.subtitulo}</span>}

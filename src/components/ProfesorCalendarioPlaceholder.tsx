@@ -25,7 +25,16 @@ export default function ProfesorCalendarioPlaceholder({ onIrAAsistencias }: { on
   useEffect(() => {
     if (!rango) return;
     let vigente = true;
-    listarCalendarioProfesorAvanzado(rango.desde, rango.hasta)
+    // La consulta del servidor admite hasta 31 días: la vista Año se pide mes por mes.
+    const tramos: Promise<TurnoAvanzadoProfesor[]>[] = [];
+    for (let d = rango.desde; d <= rango.hasta; ) {
+      const [y, m] = d.split('-').map(Number);
+      const finMes = fechaLocal(new Date(y, m, 0));
+      const fin = finMes < rango.hasta ? finMes : rango.hasta;
+      tramos.push(listarCalendarioProfesorAvanzado(d, fin));
+      d = fechaLocal(new Date(y, m, 1));
+    }
+    Promise.all(tramos).then((v) => v.flat())
       .then((v) => { if (vigente) setTurnos(v); })
       .catch((e) => { if (vigente) setError(e instanceof Error ? e.message : 'No se pudo cargar el calendario.'); })
       .finally(() => { if (vigente) setCargando(false); });

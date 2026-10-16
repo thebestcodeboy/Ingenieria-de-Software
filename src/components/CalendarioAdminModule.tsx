@@ -76,9 +76,9 @@ export default function CalendarioAdminModule() {
       if (filtroEstado === 'activos' && cancelado) return false;
       if (filtroEstado === 'cancelados' && !cancelado) return false;
       const materia = (t.materia_nombre || t.actividad_nombre || '').toLowerCase();
-      return materia.includes(filtroMateria.toLowerCase())
-        && (t.profesor_nombre_completo || '').toLowerCase().includes(filtroProfesor.toLowerCase())
-        && String(t.aula_numero || '').toLowerCase().includes(filtroAula.toLowerCase());
+      return (!filtroMateria || materia === filtroMateria.toLowerCase())
+        && (!filtroProfesor || (t.profesor_nombre_completo || '') === filtroProfesor)
+        && (!filtroAula || String(t.aula_numero || '') === filtroAula);
     })
     .map((t) => {
       const insc = Number(t.inscriptos_actuales || 0);
@@ -98,6 +98,12 @@ export default function CalendarioAdminModule() {
         datos: t,
       };
     }), [turnos, filtroMateria, filtroProfesor, filtroAula, filtroEstado]);
+
+  // Opciones de los filtros: solo materias, profesores y aulas que tienen turnos en el período cargado.
+  const unicos = (valores: string[]) => [...new Set(valores.filter(Boolean))];
+  const opcMaterias = useMemo(() => unicos(turnos.map((t) => t.materia_nombre || t.actividad_nombre || '')).sort((a, b) => a.localeCompare(b)), [turnos]);
+  const opcProfesores = useMemo(() => unicos(turnos.map((t) => t.profesor_nombre_completo || '')).sort((a, b) => a.localeCompare(b)), [turnos]);
+  const opcAulas = useMemo(() => unicos(turnos.map((t) => String(t.aula_numero ?? ''))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [turnos]);
 
   async function abrirDetalle(evento: EventoCalendario<TurnoEvento>, fecha: string) {
     setSeleccion({ turno: evento.datos, fecha });
@@ -134,9 +140,18 @@ export default function CalendarioAdminModule() {
           <option value="activos">Solo activos</option>
           <option value="cancelados">Solo cancelados</option>
         </select>
-        <input type="text" placeholder="Filtrar materia..." value={filtroMateria} onChange={(e) => setFiltroMateria(e.target.value)} />
-        <input type="text" placeholder="Profesor..." value={filtroProfesor} onChange={(e) => setFiltroProfesor(e.target.value)} />
-        <input type="text" placeholder="Aula..." value={filtroAula} onChange={(e) => setFiltroAula(e.target.value)} style={{ width: 90 }} />
+        <select value={filtroMateria} onChange={(e) => setFiltroMateria(e.target.value)} aria-label="Filtrar por materia">
+          <option value="">Todas las materias</option>
+          {opcMaterias.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+        <select value={filtroProfesor} onChange={(e) => setFiltroProfesor(e.target.value)} aria-label="Filtrar por profesor">
+          <option value="">Todos los profesores</option>
+          {opcProfesores.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={filtroAula} onChange={(e) => setFiltroAula(e.target.value)} aria-label="Filtrar por aula">
+          <option value="">Todas las aulas</option>
+          {opcAulas.map((a) => <option key={a} value={a}>Aula {a}</option>)}
+        </select>
       </>}
     >
       {seleccion && (
