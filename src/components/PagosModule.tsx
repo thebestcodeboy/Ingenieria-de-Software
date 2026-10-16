@@ -219,7 +219,10 @@ const [medioPago, setMedioPago] = useState<'Efectivo' | 'Transferencia' | 'Tarje
       const matchMedio = filtroMedio === 'todos' || p.medio_pago === filtroMedio;
       const matchEstado = filtroEstado === 'todos' || p.estado === filtroEstado;
       return matchTexto && matchMedio && matchEstado;
-    });
+    }).sort((a, b) => (b.comprobante || '').localeCompare(a.comprobante || '', 'es', {
+      numeric: true,
+      sensitivity: 'base',
+    }));
   }, [pagos, busqueda, filtroMedio, filtroEstado]);
 
   const totalPaginas = Math.ceil(pagosFiltrados.length / elementosPorPagina) || 1;
