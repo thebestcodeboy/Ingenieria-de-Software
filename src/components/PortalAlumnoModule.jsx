@@ -165,13 +165,13 @@ export default function PortalAlumnoModule({ activeTab }) {
     cargarDatos();
   }, [user]);
 
-  const misInscripcionesVisibles = useMemo(
+  const misInscripcionesActivas = useMemo(
     () => misInscripciones.filter((ins) => ins.estado !== 'cancelado' && ins.turnos_clase?.estado !== 'cancelado'),
     [misInscripciones],
   );
   const misCursosAgrupados = useMemo(() => {
     const grupos = new Map();
-    for (const inscripcion of misInscripcionesVisibles) {
+    for (const inscripcion of misInscripcionesActivas) {
       const turno = inscripcion.turnos_clase || {};
       const docenteId = turno.profesor_id || turno.profesores?.id || '';
       const actividadId = turno.curso_id
@@ -192,7 +192,7 @@ export default function PortalAlumnoModule({ activeTab }) {
       const fechaB = b.inscripciones[0].turnos_clase?.fecha || '';
       return fechaA.localeCompare(fechaB);
     });
-  }, [misInscripcionesVisibles]);
+  }, [misInscripcionesActivas]);
 
   const itemsFiltrados = useMemo(() => {
     if (filtroNivel === 'Universitario') {
@@ -942,7 +942,7 @@ export default function PortalAlumnoModule({ activeTab }) {
             </div>
           ) : (
             <div>
-              {misInscripcionesVisibles.length === 0 ? (
+              {misInscripcionesActivas.length === 0 ? (
                 <div style={{ display: 'grid', justifyItems: 'center', gap: 12, padding: 30, border: '1px solid #dbe4e8', background: '#fff', textAlign: 'center', color: '#64748b' }}>
                   <p style={{ margin: 0 }}>Aún no tenés inscripciones.</p>
                 </div>
@@ -1062,7 +1062,7 @@ export default function PortalAlumnoModule({ activeTab }) {
       ) : (
         /* 4. CALENDARIO PERSONAL DEL ALUMNO (mismo diseño que los demás roles) */
         <CalendarioAlumno
-          inscripciones={misInscripcionesVisibles}
+          inscripciones={misInscripciones}
           onCancelarFecha={(ins) => setInscripcionCancelar(ins)}
         />
       )}

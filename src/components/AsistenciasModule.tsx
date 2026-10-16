@@ -21,13 +21,14 @@ function AsistenciasProfesor({ turnoInicial = '' }: { turnoInicial?: string }) {
   const [filas, setFilas] = useState<FilaAsistencia[]>([]);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(true);
-  // El profesor entra viendo las clases de ayer y hoy; para corregir registros más viejos usa los filtros de fecha.
+  // Incluye desde ayer en adelante para que las clases recién programadas también aparezcan.
   const hoy = fechaLocal(new Date());
   const ayer = sumarDias(hoy, -1);
   const base = { alumno: '', materia: '', desde: '', hasta: '', estado: '', turno: '' };
-  const filtrosIniciales = esAlumno ? base : turnoInicial ? { ...base, turno: turnoInicial } : { ...base, desde: ayer, hasta: hoy };
+  const filtrosIniciales = esAlumno ? base : turnoInicial ? { ...base, turno: turnoInicial } : { ...base, desde: ayer };
   const periodos = [
     { id: 'hoy', texto: 'Hoy', desde: hoy, hasta: hoy },
+    { id: 'desdeayer', texto: 'Desde ayer', desde: ayer, hasta: '' },
     { id: 'ayerhoy', texto: 'Ayer y hoy', desde: ayer, hasta: hoy },
     { id: 'semana', texto: 'Últimos 7 días', desde: sumarDias(hoy, -6), hasta: hoy },
     { id: 'todo', texto: 'Todo el historial', desde: '', hasta: '' },
