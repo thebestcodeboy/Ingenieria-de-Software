@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import LoginView from '../components/LoginView';
+import InicioVideo from '../components/InicioVideo';
 import AlumnosModule from '../components/AlumnosModule';
 import ProfesoresModule from '../components/ProfesoresModule';
 import MateriasModule from '../components/MateriasModule';
@@ -163,6 +164,7 @@ export default function AteneoLayout() {
   const { user, role, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('calendario');
   const [sidebarColapsada, setSidebarColapsada] = useState(false);
+  const [mostrarLogin, setMostrarLogin] = useState(false);
   const nombreUsuario = user?.user_metadata?.nombre?.trim() || user?.email || 'Usuario';
 
   if (loading) {
@@ -174,7 +176,9 @@ export default function AteneoLayout() {
   }
 
   if (!user) {
-    return <LoginView />;
+    return mostrarLogin
+      ? <LoginView onBack={() => setMostrarLogin(false)} />
+      : <InicioVideo onIngresar={() => setMostrarLogin(true)} />;
   }
 
   const menuItems = role === 'gerente'
@@ -311,7 +315,10 @@ export default function AteneoLayout() {
           </div>}
 
           <button
-            onClick={() => logout()}
+            onClick={() => {
+              setMostrarLogin(false);
+              logout();
+            }}
             aria-label={sidebarColapsada ? 'Cerrar sesión' : undefined}
             title={sidebarColapsada ? 'Cerrar sesión' : undefined}
             style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarColapsada ? 'center' : 'flex-start', gap: '10px', width: '100%', padding: sidebarColapsada ? '10px 0' : '9px 10px', borderRadius: '6px', border: 'none', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#f87171', cursor: 'pointer', fontSize: '16px', fontWeight: 500 }}

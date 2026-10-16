@@ -1,0 +1,179 @@
+.page {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: #0b1e33;
+  color: #fff;
+}
+
+.logoFilter {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.header {
+  position: relative;
+  z-index: 2;
+  padding: 20px clamp(24px, 4vw, 68px);
+  display: flex;
+  align-items: flex-start;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 auto;
+}
+
+.logo img {
+  display: block;
+  width: clamp(88px, 10vw, 118px);
+  height: auto;
+  filter: url('#ateneo-logo-cutout');
+}
+
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.wordmark span {
+  font-size: 12px;
+  letter-spacing: 0.27em;
+  text-transform: uppercase;
+}
+
+.wordmark strong {
+  font-size: clamp(31px, 3.5vw, 45px);
+  font-weight: 400;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.videoFrame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #0b1e33;
+}
+
+.video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 48%;
+  filter: brightness(0.5);
+}
+
+.intro {
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+  padding: 64px clamp(24px, 4vw, 68px) clamp(26px, 3vw, 52px);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: clamp(26px, 3vw, 38px);
+}
+
+.copy h1 {
+  max-width: 920px;
+  margin: 0;
+  font-size: clamp(36px, 4vw, 64px);
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.75);
+}
+
+.copy p {
+  margin: 18px 0 0;
+  font-size: clamp(17px, 1.35vw, 21px);
+  line-height: 1.5;
+  color: #f1f5f9;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+}
+
+.enterButton {
+  min-height: 68px;
+  width: 100%;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid #ffffff;
+  border-radius: 8px;
+  background: #e8f1f7;
+  color: #0b1e33;
+  font-size: 20px;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.enterButton:hover {
+  background: #ffffff;
+  transform: translateY(-2px);
+}
+
+.enterButton:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding-block: 16px;
+  }
+
+  .logo {
+    gap: 6px;
+  }
+
+  .logo img {
+    width: 82px;
+  }
+
+  .wordmark span {
+    font-size: 10px;
+  }
+
+  .wordmark strong {
+    font-size: 30px;
+  }
+
+  .intro {
+    padding-bottom: 24px;
+    gap: 28px;
+  }
+
+  .copy p {
+    margin-top: 14px;
+  }
+
+  .enterButton {
+    min-height: 62px;
+    padding-inline: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enterButton {
+    transition: none;
+  }
+}

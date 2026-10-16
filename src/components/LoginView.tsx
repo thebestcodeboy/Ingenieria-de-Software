@@ -14,7 +14,7 @@ interface FieldErrors {
   confirmPassword?: string;
 }
 
-export default function LoginView() {
+export default function LoginView({ onBack }: { onBack?: () => void }) {
   const { login, logout } = useAuth();
 
   // Por defecto el portal público arranca en 'alumno'
@@ -196,6 +196,15 @@ export default function LoginView() {
       boxSizing: 'border-box',
       fontFamily: 'inherit'
     }}>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          style={{ position: 'fixed', top: '18px', left: '20px', zIndex: 20, color: '#ffffff', background: 'transparent', border: 0, padding: '8px 10px', cursor: 'pointer', fontSize: '15px', fontWeight: 600 }}
+        >
+          ← Volver al inicio
+        </button>
+      )}
       {/* TARJETA PRINCIPAL */}
       <div style={{
         width: '100%',
